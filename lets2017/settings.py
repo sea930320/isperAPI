@@ -5,13 +5,13 @@ import os
 from platform import platform
 
 if 'Ubuntu' in platform():
-    DEBUG = False
+    DEBUG = True
 else:
     DEBUG = True
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = '#rt$+y+(lkuz-aollrb8arheykm(6=gr%n%a1sqzf2_pf3)0f#'
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '39.107.122.234']
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = (
     'django.contrib.auth',
