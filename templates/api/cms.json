@@ -1,0 +1,156 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "basePath": "/",
+    "resourcePath": "/cms",
+    "produces":[
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    ],
+
+    "apis":[
+        {
+            "path":"/api/cms/to/user/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"根据实验任务收件人列表",
+                    "notes":"",
+                    "nickname":"api_cms_to_user_list",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/cms/send/msg",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"群发消息",
+                    "notes":"",
+                    "nickname":"api_cms_send_msg",
+                    "parameters":[
+                        {
+                            "name":"from_user_id",
+                            "description":"发件人ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"to_user_ids",
+                            "description":"收件人IDs, 用英文逗号连接，比如1,2,5",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"content",
+                            "description":"内容",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"host_id",
+                            "description":"主题贴ID，回贴时必要",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/cms/msg/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"消息列表",
+                    "notes":"",
+                    "nickname":"api_cms_msg_list",
+                    "parameters":[
+                        {
+                            "name":"user_id",
+                            "description":"用户id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"分页",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"记录数",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/cms/new/msg/num",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"新消息数量",
+                    "notes":"",
+                    "nickname":"api_cms_new_msg_num_",
+                    "parameters":[
+                        {
+                            "name":"user_id",
+                            "description":"用户id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

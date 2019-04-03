@@ -1,0 +1,587 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "basePath": "/",
+    "resourcePath": "/account",
+    "produces":[
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    ],
+
+    "apis":[
+        {
+            "path":"/api/account/query",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"用户名查询",
+                    "notes":"",
+                    "nickname":"account__api_account_query",
+                    "parameters":[
+                        {
+                            "name":"username",
+                            "description":"用户名",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/account/users/",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"用户列表",
+                    "notes":"",
+                    "nickname":"account__api_account_users_",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"course_id",
+                            "description":"课程id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"type",
+                            "description":"用户类型",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"分页",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"记录数",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/account/users/v3/",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"用户列表-三期",
+                    "notes":"",
+                    "nickname":"account__api_account_users_v3_",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"identity",
+                            "description":"用户类型",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"分页",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"记录数",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/account/logout",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"用户退出",
+                    "notes":"",
+                    "nickname":"account__api_account_logout"
+                }
+            ]
+        },
+        {
+            "path":"/api/account/login",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"用户登录",
+                    "notes":"",
+                    "nickname":"account__api_account_login",
+                    "parameters":[
+                        {
+                            "name":"username",
+                            "description":"用户名",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"password",
+                            "description":"密码",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"login_type",
+                            "description":"用户类型",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/account/companys",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"单位列表查询",
+                    "notes":"",
+                    "nickname":"account__api_companys_"
+                }
+            ]
+        },{
+            "path":"/api/account/classes",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"班级列表查询",
+                    "notes":"",
+                    "nickname":"account__api_classes_"
+                }
+            ]
+        },{
+            "path":"/api/account/user/update",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"用户更新",
+                    "notes":"",
+                    "nickname":"account__api_user_update_",
+                    "parameters":[
+                        {
+                            "name":"id",
+                            "description":"ID",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"username",
+                            "description":"账号",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"password",
+                            "description":"密码",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"nickname",
+                            "description":"昵称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"gender",
+                            "description":"性别",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"name",
+                            "description":"姓名",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"email",
+                            "description":"邮箱",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"phone",
+                            "description":"联系方式",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"qq",
+                            "description":"qq",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"identity",
+                            "description":"身份",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"type",
+                            "description":"类型",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"class_id",
+                            "description":"班级",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"company_id",
+                            "description":"所在单位",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"director",
+                            "description":"是否具有指导权限",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"manage",
+                            "description":"是否具有管理权限",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/account/user/save",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"用户保存",
+                    "notes":"",
+                    "nickname":"account__api_user_save_",
+                    "parameters":[
+                        {
+                            "name":"username",
+                            "description":"账号",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"password",
+                            "description":"密码",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"nickname",
+                            "description":"昵称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"gender",
+                            "description":"性别",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"name",
+                            "description":"姓名",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"email",
+                            "description":"邮箱",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"phone",
+                            "description":"联系方式",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"qq",
+                            "description":"qq",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"identity",
+                            "description":"身份",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"type",
+                            "description":"类型",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"class_id",
+                            "description":"班级",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"company_id",
+                            "description":"所在单位",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"director",
+                            "description":"是否具有指导权限",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"manage",
+                            "description":"是否具有管理权限",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/account/get/user",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"根据id查询用户信息",
+                    "notes":"",
+                    "nickname":"account__api_get_user_",
+                    "parameters":[
+                        {
+                            "name":"id",
+                            "description":"用户ID",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/account/import",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"导入用户列表",
+                    "notes":"",
+                    "nickname":"account__api_import",
+                    "parameters":[
+                        {
+                            "name":"identity",
+                            "description":"用户类型",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"file",
+                            "description":"文件",
+                            "type": "File",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/account/export",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"导出用户列表<a href='/api/account/export?identity=1' style='color:red;'>点击这里导出试试</a>",
+                    "notes":"",
+                    "nickname":"account__api_export",
+                    "parameters":[
+                        {
+                            "name":"identity",
+                            "description":"用户类型",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"api/account/user/auth/update",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"用户权限编辑",
+                    "notes":"",
+                    "nickname":"account__api_user_auth_update",
+                    "parameters":[
+                        {
+                            "name":"id",
+                            "description":"用户ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"is_admin",
+                            "description":"超级管理员",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"director",
+                            "description":"是否具有指导权限",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"manage",
+                            "description":"是否具有管理权限",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/account/user/delete",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期学生列表删除",
+                    "notes":"",
+                    "nickname":"account__api_account_user_delete_",
+                    "parameters":[
+                        {
+                            "name":"ids",
+                            "description":"要删除的id用逗号连接",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/account/share",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"共享",
+                    "notes":"",
+                    "nickname":"account__api_share_",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"id列表json:[1,2,3]",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

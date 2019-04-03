@@ -1,0 +1,454 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "basePath": "/",
+    "resourcePath": "/course",
+    "produces":[
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    ],
+
+    "apis":[
+        {
+            "path":"/api/course/class/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"课堂",
+                    "notes":"",
+                    "nickname":"course__api_course_class_list_",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"team_id",
+                            "description":"小组id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"课程列表",
+                    "notes":"",
+                    "nickname":"course__api_course_list_",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/class/list/teacher",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"查询老师的课程列表",
+                    "notes":"",
+                    "nickname":"course__api_course_class_list_teacher_",
+                    "parameters":[
+                        {
+                            "name":"user_id",
+                            "description":"老师用户ID",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"search",
+                            "description":"关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/student/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期课堂学生管理列表",
+                    "notes":"",
+                    "nickname":"course__api_course_studentg_list_",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"分页",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"记录数",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/student/list/export",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期课堂学生管理列表导出<a href='/api/course/student/list/export' style='color:red;'>点击这里导出试试</a>",
+                    "notes":"",
+                    "nickname":"course__api_course_student_list_export_",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/delete",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期课程删除",
+                    "notes":"",
+                    "nickname":"course__api_course_delete_",
+                    "parameters":[
+                        {
+                            "name":"course_id",
+                            "description":"课程id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/list/v3",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期课程管理列表",
+                    "notes":"",
+                    "nickname":"course__api_course_list_v3_",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"分页",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"记录数",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/class/student/v3",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"在课程信息中查看学生信息",
+                    "notes":"",
+                    "nickname":"course__api_course_list_111_v3_",
+                    "parameters":[
+                        {
+                            "name":"course_class_id",
+                            "description":"课程id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"分页",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"记录数",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/class/update",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"课堂信息编辑",
+                    "notes":"",
+                    "nickname":"course__api_course_list_111_v3_",
+                    "parameters":[
+                        {
+                            "name":"course_class_id",
+                            "description":"课程id",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_name",
+                            "description":"课程名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_term",
+                            "description":"开课学期",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_sort",
+                            "description":"课序号",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_no",
+                            "description":"课程号",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/course/student/list/import",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"三期课堂学生管理列表导入",
+                    "notes":"",
+                    "nickname":"course_api_import_cs_list",
+                    "parameters":[
+                        {
+                            "name":"file",
+                            "description":"文件",
+                            "type": "File",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/class/student/delete",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期课堂学生管理列表删除",
+                    "notes":"",
+                    "nickname":"course__api_course_class_student_delete_",
+                    "parameters":[
+                        {
+                            "name":"ids",
+                            "description":"要删除的id用逗号连接",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/course/student/save",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"三期新增课堂学生记录",
+                    "notes":"",
+                    "nickname":"course__api_course_student_save_",
+                    "parameters":[
+                        {
+                            "name":"c_no",
+                            "description":"课程号",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_name",
+                            "description":"课程名",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_sort",
+                            "description":"课序号",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_term",
+                            "description":"开课学期",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"t_name",
+                            "description":"任课老师",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"t_username",
+                            "description":"工号",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_time",
+                            "description":"课时",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"c_experiment_time",
+                            "description":"实验学时",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"s_username",
+                            "description":"学号",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"s_name",
+                            "description":"姓名",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"class_name",
+                            "description":"班级",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/course/share",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"共享",
+                    "notes":"",
+                    "nickname":"course__api_share_",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"id列表json:[1,2,3]",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

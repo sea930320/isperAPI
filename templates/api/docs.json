@@ -1,0 +1,38 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "apis":[
+        {
+            "path": "/account",
+            "description":"用户(9)"
+        },
+        {
+            "path": "/cms",
+            "description":"消息(1)"
+        },
+        {
+            "path": "/workflow",
+            "description":"流程(31)"
+        },
+        {
+            "path": "/system",
+            "description":"系统(1)"
+        },
+        {
+            "path": "/project",
+            "description":"项目(14)"
+        },
+        {
+            "path": "/course",
+            "description":"课程(3)"
+        },
+        {
+            "path": "/experiment",
+            "description":"实验(24)"
+        },
+        {
+            "path": "/team",
+            "description":"小组(10)"
+        }
+    ]
+}

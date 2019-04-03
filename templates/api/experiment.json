@@ -1,0 +1,1735 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "basePath": "/",
+    "resourcePath": "/experiment",
+    "produces":[
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    ],
+    "apis":[
+        {
+            "path":"/api/experiment/template/create",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"用户编辑模板",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_template_create",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"doc_id",
+                            "description":"模板素材id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"content",
+                            "description":"内容",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/template/new",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"用户角色新建模板",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_template_new",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"name",
+                            "description":"模板名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"content",
+                            "description":"内容",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/template/sign",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"用户编辑模板签名",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_template_sign",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"doc_id",
+                            "description":"模板素材id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"status",
+                            "description":"状态：1、签名，2、取消签名",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/templates",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验所属项目素材查询",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_templates",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"usage",
+                            "description":"用途（1，操作指南；2，关联文件；3，模版；4，材料；5，公文；6，成果参考；7，项目提示）",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/template/detail",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"应用模板详情接口",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_templates_detail",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"doc_id",
+                            "description":"文档id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/doc/detail",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验文件详情",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_doc_detail",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"doc_id",
+                            "description":"文档id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/file/display/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验已提交或展示文件列表",
+                    "notes":"展示环节(传node_id和path_id)：显示出【流程、项目】中素材文件以及【编辑】环节中上传文件</br>已提交文件(不传node_id和path_id)：显示出实验环节中所有上传文件</br>展示文件(传node_id和path_id)：显示出【流程、项目】中素材文件以及【编辑】环节中上传文件</br>【APP】环节查看文件(传node_id和path_id)：显示出该环节【上传文件】",
+                    "nickname":"experiment__api_experiment_file_display_list",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"path_id",
+                            "description":"路径id和node_id规则相同",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/experience/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验心得列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_experience_list",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/experience/detail",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验心得详情",
+                    "notes":"status:1、未提交发送，2、已提交发送",
+                    "nickname":"experiment__api_experiment_experience_detail",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/trans/path",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验流程图路径",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_trans",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/detail",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节详情",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_node_detail",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/role/docs",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节角色素材",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_node_role_docs",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色id(默认是用户当前环节的第一个角色)",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/function",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节功能按钮",
+                    "notes":"",
+                    "nickname":"api_experiment_node_function",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色id(默认是用户当前环节的第一个角色)",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/role/status",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节角色状态",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_role_status",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/messages",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节聊天消息列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_node_messages",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"is_paging",
+                            "description":"是否进行分页（0，不分页；1， 分页，默认为1）",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/messages",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验所有消息（web端使用）",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_messages",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/role/out/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"待请出角色列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_role_out_list",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"当前角色id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/role/in/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"待请入角色列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_role_in_list",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"当前角色id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/request/sign/roles",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节可签字角色查询",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_request_sign_roles",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"当前角色id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/note/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"个人实验笔记列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_note_list",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/path",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验流程路径",
+                    "notes":"",
+                    "nickname":"api_experiment_node_path",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/path/messages",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节路径消息",
+                    "notes":"",
+                    "nickname":"api_experiment_path_messages",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"path_id",
+                            "description":"路径id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"is_paging",
+                            "description":"是否进行分页（0，不分页；1， 分页，默认为1）",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/note/create",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"创建或更新实验笔记",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_note_create",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"content",
+                            "description":"内容",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/detail",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验详情",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_detail",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/start",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"开始实验任务",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_start",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/delete",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"删除未开始实验",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_delete",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"实验id数组",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/update",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"修改实验信息",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_update",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"course_class_id",
+                            "description":"课程",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"start_time",
+                            "description":"开始时间",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"end_time",
+                            "description":"结束时间",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"show_nickname",
+                            "description":"是否昵称显示组员",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"data",
+                            "description":"角色数据([{'id': 1, 'name': '', 'type': '', 'user_id': 1}])，若实验已开始该字段为[]",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"相关实验列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_list",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"status",
+                            "description":"实验状态查询参数：1、等待、进行中，2、已结束。缺省默认状态为1",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/report/generate",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"生成实验报告",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_report_generate",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"user_id",
+                            "description":"用户",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/docs/create",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"实验中上传文件",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_docs_create",
+                    "parameters":[
+                        {
+                            "name":"file",
+                            "description":"文件",
+                            "type": "File",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"experiment_id",
+                            "description":"实验",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"cmd",
+                            "description":"功能动作cmd(提交：action_doc_submit；申请提交：action_doc_apply_submit；展示：action_doc_show；申请展示：action_doc_apply_show)",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/docs/delete",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"实验中删除文件",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_docs_create",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"doc_id",
+                            "description":"文件id",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/create",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"创建实验",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_create",
+                    "parameters":[
+                        {
+                            "name":"project_id",
+                            "description":"项目ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"team_id",
+                            "description":"小组",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/experience/save",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"保存实验心得",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_save_experience",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"content",
+                            "description":"心得内容",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/message/upload",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"上传实验语音文件",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_upload",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"length",
+                            "description":"语音长度",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"file",
+                            "description":"语音文件",
+                            "type": "file",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/message/push",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"实验发送消息",
+                    "notes": "若该消息为功能动作消息，则根据cmd填写data。</br>cmd=action_role_banned 表达管理；control_status：1, 未启动,2, 启动，启动后发言、展示、提交需申请，不申请时接口提示需申请无法发送消息，申请后主持审批同意，发言三次需再次申请，展示、提交无需再次申请。</br>cmd=action_role_meet 申请约见</br>cmd=action_role_apply_speak 申请发言</br>cmd=action_role_apply_speak_opt 申请发言结果data={'msg_id':1,'role_id': 1, 'result': 1}</br>cmd=action_doc_apply_show 申请展示</br>cmd=action_doc_apply_show_opt 申请展示结果 data = {'msg_id':1,'doc_id': 1, 'result': 1}（1，同意；2，拒绝）</br>cmd=action_doc_show doc_id 文件id 展示文件</br>cmd=action_role_letin data=[1,2,3,...] 角色id列表 请入角色</br>cmd=action_role_letout data=[1,2,3,...] 角色id列表 送出角色</br>cmd=action_role_sitdown 坐下</br>cmd=action_role_stand 起立</br>cmd=action_role_hide 退席</br>cmd=action_role_show 入席</br>cmd=action_doc_apply_submit 文件id列表 申请提交</br>cmd=action_doc_apply_submit_opt 申请提交结果 data = {'msg_id':1,'doc_id': 1, 'result': 1}（1，同意；2，拒绝）</br>cmd=action_doc_submit 提交</br>cmd=action_exp_back 实验返回上一环节</br>cmd=action_exp_restart 重新开始实验</br>cmd=action_exp_node_end data={'tran_id'} 结束当前实验环节，当实验进行到最后实验报告环节时（环节详情type=4），不用再调用trans/query查询下环节tran_id，直接传tran_id=0，当该环节有用户未提交实验心得则不能结束。</br>cmd=action_submit_experience 提交实验心得</br>cmd=action_role_vote 投票 data={'status': 1}(1、同意，2、不同意，9、弃权，0、未投票)</br>cmd=action_role_vote_end 结束投票</br>cmd=action_exp_finish 提前结束实验：只有组长有权限提前结束</br>cmd=action_role_request_sign 请求签名 data={'doc_id': 1, 'doc_name': 'xxx', 'role_id': 1, 'role_name': 'xx'}</br>cmd=action_role_sign 签名 data={'msg_id':1,'doc_id': 1, 'doc_name': 'xxx', 'result':1}</br>cmd=action_role_schedule_report 安排报告 data={'role_id': 1, 'role_name': 'xxx'}</br>cmd=action_role_toward_report 走向发言席 </br>cmd=action_role_end_report 走下发言席</br>cmd=action_roles_exit 退出实验退席</br>",
+                    "nickname":"experiment__api_experiment_push",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"type",
+                            "description":"消息类型:txt,audio,cmd",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"msg",
+                            "description":"内容",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"cmd",
+                            "description":"动作命令",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"param",
+                            "description":"动作命令参数",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"file_id",
+                            "description":"语音文件id",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"data",
+                            "description":"功能动作附加数据",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/result",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验结果(供web使用接口)",
+                    "notes":"docs:提交文件；messages：消息，当node type为4显示为实验心得；project_docs：项目素材；operation_guides：操作指南",
+                    "nickname":"experiment__api_experiment_result",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/docs",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节操作指南、项目素材，不分角色（app使用）",
+                    "notes":"project_docs：项目素材；operation_guides：操作指南",
+                    "nickname":"experiment__api_experiment_node_docs",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"path_id",
+                            "description":"路径ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/note/detail",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验环节笔记详情",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_note_detail",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/jump/start",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"开始实验跳转任务",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_jump_start",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"project_id",
+                            "description":"跳转项目id",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"data",
+                            "description":"角色数据([{'id': 1, 'name': '', 'type': '', 'user_id': 1}])",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/role/report/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"待安排报告角色列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_role_report_list",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/vote/status",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验投票环节状态",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_vote_status",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"role_id",
+                            "description":"角色id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/teacher/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期根据课堂id查询老师任务列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_teacher_list_",
+                    "parameters":[
+                        {
+                            "name":"course_class_id",
+                            "description":"课堂id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/evaluate/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"查询点评信息列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_evaluate_list_"
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/evaluate",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"总体评价",
+                    "notes":"",
+                    "nickname":"api_experiment_evaluate",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"user_id",
+                            "description":"用户id, 多个用英文逗号连接",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"content",
+                            "description":"内容",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"sys_score",
+                            "description":"系统评分",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": false,
+                            "allowMultiple": false
+                        },{
+                            "name":"teacher_score",
+                            "description":"教师评分",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"create_by_id",
+                            "description":"提交人",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"evaluate_node",
+                            "description":"环节评价json字符串，如[{\"node_id\":2477,\"content\":\"good\"},{\"node_id\":2487,\"content\":\"good\"}]",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/evaluate",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"环节评价",
+                    "notes":"",
+                    "nickname":"api_experiment_evaluate",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"user_id",
+                            "description":"用户id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"content",
+                            "description":"内容",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"sys_score",
+                            "description":"系统评分",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"teacher_score",
+                            "description":"教师评分",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"create_by_id",
+                            "description":"提交人",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/evaluate/user/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期教师评价根据实验任务查询所有人员评价得分列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_evaluate_user_list_",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/node/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"三期教师评价根据实验任务查询所有环节列表",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_node_list_",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/experiment/evaluate/detail",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"查看点评详情",
+                    "notes":"",
+                    "nickname":"experiment__api_experiment_evaluate_detail_",
+                    "parameters":[
+                        {
+                            "name":"experiment_id",
+                            "description":"实验任务id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },{
+                            "name":"user_id",
+                            "description":"用户id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

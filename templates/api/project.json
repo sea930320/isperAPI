@@ -1,0 +1,740 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "basePath": "/",
+    "resourcePath": "/project",
+    "produces": [
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    ],
+    "apis": [
+        {
+            "path": "/api/project/has_experiment",
+            "operations": [
+                {
+                    "method": "GET",
+                    "summary": "查询项目相关实验数据",
+                    "notes": "",
+                    "nickname": "project__api_project_has_experiment",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/copy",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "复制项目",
+                    "notes": "",
+                    "nickname": "project__api_project_copy",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "name",
+                            "description": "名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/docs/detail",
+            "operations": [
+                {
+                    "method": "GET",
+                    "summary": "项目素材分配详情",
+                    "notes": "",
+                    "nickname": "project__api_project_docs_detail",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/roles/detail",
+            "operations": [
+                {
+                    "method": "GET",
+                    "summary": "项目角色设置详情",
+                    "notes": "",
+                    "nickname": "project__api_project_roles_detail",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/docs/allocate",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "项目素材分配",
+                    "notes": "",
+                    "nickname": "project__api_project_docs_allocate_",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "data",
+                            "description": "分配json数据：1、project_docs项目列表，{'id':1,'usage':1,'type':'起诉书'}(id素材编号，usage用途，type输入类型,is_initial是否设置为初始素材true/false)。2、project_docs_nodes素材和环节关系列表{'doc_id':1,'node_id': 1}。3、project_docs_roles素材、环节和角色关系列表{'doc_id':1,'node_id': 1，‘role_id':1}",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/docs/delete",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "项目删除素材",
+                    "notes": "",
+                    "nickname": "project__api_project_docs_delete_",
+                    "parameters": [
+                        {
+                            "name": "doc_id",
+                            "description": "素材id",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/docs/create",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "项目上传素材",
+                    "notes": "",
+                    "nickname": "project__api_project_docs_create_",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "file",
+                            "description": "",
+                            "type": "File",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/roles/configurate",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "项目角色设置",
+                    "notes": "",
+                    "nickname": "project__api_project_roles_configurate_",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "data",
+                            "description": "角色设置数据：1、project_roles项目角色列表，{'id':1,'image_id':1}。2、project_node_roles项目环节和角色关系列表{'node_id': 1，‘role_id':1，’can_terminate‘:true,'can_brought':true,'num':1,'score':1}",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/update",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "修改项目",
+                    "notes": "",
+                    "nickname": "project__api_project_update",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "name",
+                            "description": "名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "all_role",
+                            "description": "允许一人扮演所有角色：1、永许，2、不永许",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "course",
+                            "description": "课程",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "reference",
+                            "description": "成果参考释放方式:1、同步，2、后步，3、最后",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "public_status",
+                            "description": "申请为公共项目状态：1、申请，2、不申请",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "level",
+                            "description": "实验层次：1、*，2、**，3、***，4、****，5、*****\t",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "entire_graph",
+                            "description": "流程图完整显示：1、完整显示，2、逐步显示\t",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "can_redo",
+                            "description": "是否允许重做：1、永许，2、不永许",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "is_open",
+                            "description": "开放模式：1、自由，2、限时，3、指定用户",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "ability_target",
+                            "description": "能力目标:1、简易，2、基础，3、进阶，4、综合，5、创新",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "start_time",
+                            "description": "开放开始时间",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "end_time",
+                            "description": "开放结束时间",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "intro",
+                            "description": "项目简介",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "purpose",
+                            "description": "实验目的",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "requirement",
+                            "description": "实验要求",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/delete",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "删除项目",
+                    "notes": "",
+                    "nickname": "project__api_project_delete",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/role/image/update",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "项目角色形象设置",
+                    "notes": "",
+                    "nickname": "project__api_api_project_role_image_update",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "role_id",
+                            "description": "项目角色ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "image_id",
+                            "description": "形象ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/detail",
+            "operations": [
+                {
+                    "method": "GET",
+                    "summary": "项目详情",
+                    "notes": "",
+                    "nickname": "project__api_project_detail",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/create",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "创建项目",
+                    "notes": "",
+                    "nickname": "project__api_project_create",
+                    "parameters": [
+                        {
+                            "name": "flow_id",
+                            "description": "流程ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "name",
+                            "description": "名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "all_role",
+                            "description": "允许一人扮演所有角色：1、永许，2、不永许",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "course",
+                            "description": "课程",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "reference",
+                            "description": "成果参考释放方式:1、同步，2、后步，3、最后",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "public_status",
+                            "description": "申请为公共项目状态：1、申请，2、不申请",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "level",
+                            "description": "实验层次：1、*，2、**，3、***，4、****，5、*****",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "entire_graph",
+                            "description": "流程图完整显示：1、完整显示，2、逐步显示",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "can_redo",
+                            "description": "是否允许重做：1、永许，2、不永许",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "is_open",
+                            "description": "开放模式：1、自由，2、限时，3、指定用户",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "ability_target",
+                            "description": "能力目标:1、简易，2、基础，3、进阶，4、综合，5、创新",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "start_time",
+                            "description": "开放开始时间",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "end_time",
+                            "description": "开放结束时间",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "intro",
+                            "description": "项目简介",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "purpose",
+                            "description": "实验目的",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "requirement",
+                            "description": "实验要求",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/list",
+            "operations": [
+                {
+                    "method": "GET",
+                    "summary": "项目列表",
+                    "notes": "",
+                    "nickname": "project__api_project_list",
+                    "parameters": [
+                        {
+                            "name": "search",
+                            "description": "搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "page",
+                            "description": "",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "size",
+                            "description": "",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "course",
+                            "description": "课程",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "type",
+                            "description": "类型",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/project/related",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"查询项目相关的实验",
+                    "notes":"",
+                    "nickname":"workflow__api_project_related",
+                    "parameters":[
+                        {
+                            "name":"project_id",
+                            "description":"项目id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/jump/detail",
+            "operations": [
+                {
+                    "method": "GET",
+                    "summary": "项目跳转设置",
+                    "notes": "",
+                    "nickname": "project__api_project_jump_detail",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目id",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/api/project/jump/setup",
+            "operations": [
+                {
+                    "method": "POST",
+                    "summary": "项目跳转设置",
+                    "notes": "",
+                    "nickname": "project__api_project_jump_setup",
+                    "parameters": [
+                        {
+                            "name": "project_id",
+                            "description": "项目ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "data",
+                            "description": "环节和跳转项目关系列表分配json数据：{project_jumps:[{'node_id':1,'jump_project_id': 1}]}",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/project/protected",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"项目设置保护/解除保护",
+                    "notes":"",
+                    "nickname":"workflow__api_project_protected",
+                    "parameters":[
+                        {
+                            "name":"project_id",
+                            "description":"流程id",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/project/share",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"共享",
+                    "notes":"",
+                    "nickname":"project__api_share_",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"id列表json:[1,2,3]",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

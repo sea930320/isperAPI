@@ -1,0 +1,65 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "basePath": "/",
+    "resourcePath": "/system",
+    "produces":[
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    ],
+
+    "apis":[
+        {
+            "path":"/api/file/upload",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"上传文件",
+                    "notes":"",
+                    "nickname":"system__api_file_upload",
+                    "parameters":[
+                        {
+                            "name":"file",
+                            "description":"文件",
+                            "type": "File",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/system/app/version",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"版本检查更新",
+                    "notes":"",
+                    "nickname":"system__system_app_version_",
+                    "parameters":[
+                        {
+                            "name":"device",
+                            "description":"设备",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"ver",
+                            "description":"版本号",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

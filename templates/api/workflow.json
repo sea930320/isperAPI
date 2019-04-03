@@ -1,0 +1,1088 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "basePath": "/",
+    "resourcePath": "/workflow",
+    "produces":[
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    ],
+
+    "apis":[
+        {
+            "path":"/api/workflow/process/positions",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"场景站位列表",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_process_positions_",
+                    "parameters":[
+                        {
+                            "name":"process_id",
+                            "description":"场景id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/role/action",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"动作设置信息",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_role_action",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/role/process/actions",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"动作设置信息",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_role_process_actions",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/flow/actions",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"功能动作列表",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_flow_actions_"
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/flow/draw",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"画图",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_flow_draw",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"xml",
+                            "description":"流程图xml",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/role/allcation",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"角色分配信息(不包含环节和所有角色)",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_role_allcation_",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/role/assign/info",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"角色分配信息(包含环节和所有角色)",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_role_assign_info",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/trans/query",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"流程环节分支条件查询",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_trans_query",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"project_id",
+                            "description":"项目ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"direction",
+                            "description":"流程走向（forward：向前；back：回退）",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/doc/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"流程素材列表",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_doc_list_",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/role/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"流程角色列表",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_role_list_",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/node/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"流程环节列表",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_node_list_",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/role/image/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"角色形象列表",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_role_image_list_"
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/flow/copy",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"复制流程",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_flow_copy",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"name",
+                            "description":"名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/roles/position/setup",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"角色站位设置",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_roles_position_setup",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                        ,
+                        {
+                            "name":"role_id",
+                            "description":"角色",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                        ,
+                        {
+                            "name":"position_id",
+                            "description":"占位",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/roles/position",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"角色站位设置结束",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_roles_position",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/roles/action",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"角色动作设置",
+                    "notes":"动作设置:[{'role_id':1,'action_id':1,'selected':true}]",
+                    "nickname":"workflow__api_workflow_roles_action",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"动作设置信息",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"flow_id",
+                            "description":"流程id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/roles/process/action",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"角色场景动画设置",
+                    "notes":"设置:[{'role_id':1,'action_id':1,'selected':true}]",
+                    "nickname":"workflow__api_workflow_roles_process_action",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"动画设置信息",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"flow_id",
+                            "description":"流程",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/roles/allocate",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"流程角色分配",
+                    "notes":"selected:是否选中",
+                    "nickname":"workflow__api_workflow_roles_allocate",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"分配信息:[{'role_id':1,'can_terminate':true,'can_brought':true,'selected':true}]",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"flow_id",
+                            "description":"流程",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"node_id",
+                            "description":"环节id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/roles/update",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"角色修改",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_roles_update",
+                    "parameters":[
+                        {
+                            "name":"id",
+                            "description":"角色id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"name",
+                            "description":"角色信息",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"type",
+                            "description":"角色类型",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"min",
+                            "description":"最小人数",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"max",
+                            "description":"最大人数",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"category",
+                            "description":"类别",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"image_id",
+                            "description":"形象文件",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/roles/delete",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"角色删除",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_roles_delete",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"ids",
+                            "description":"角色id列表(默认:[1,2])",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/docs/update",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"流程素材批量修改",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_docs_update",
+                    "parameters":[
+                        {
+                            "name":"docs",
+                            "description":"素材数据JSON数据（[{'id':1,'usage':1'type':'',”'node_ids': []}]）",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/docs/delete",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"流程删除素材",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_docs_delete",
+                    "parameters":[
+                        {
+                            "name":"doc_id",
+                            "description":"素材ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/roles/create",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"添加角色",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_roles_create",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"name",
+                            "description":"角色名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"type",
+                            "description":"角色类型",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"min",
+                            "description":"最小人数",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"max",
+                            "description":"最大人数",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"category",
+                            "description":"类别（1，律师；2，法官；3，公务员；4，检察官；5，公证员；6，立法者；99，其他）",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"image_id",
+                            "description":"形象",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/docs/create",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"流程上传素材",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_docs_create",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"环节ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"file",
+                            "description":"文件",
+                            "type": "File",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/opt/import",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"流程导入操作指南，模板下载：workflow/opt/export?flow_id=",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_opt_import",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"环节ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"file",
+                            "description":"文件",
+                            "type": "File",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/nodes/update",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"环节设置",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_nodes_update",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"nodes",
+                            "description":"环节(环节json数据[{'id':12,'name':'总结实验报告1','process_id':1,'look_on': false,'condition': ''}])",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/processes",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"程序模块列表",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_processes_",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/detail",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"流程详情",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_detail",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/publish",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"发布流程",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_publish",
+                    "parameters":[
+                        {
+                            "name":"ids",
+                            "description":"流程ID列表（例如：[1,2]）",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/delete",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"删除流程",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_delete",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程ID",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/update",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"修改流程",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_update",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"animation1",
+                            "description":"渲染动画1",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"animation2",
+                            "description":"渲染动画2",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"type_label",
+                            "description":"实验类型标签",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"task_label",
+                            "description":"实验任务标签",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"name",
+                            "description":"名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/related",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"查询流程相关的项目和流程",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_related",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/create",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"新建流程",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_create",
+                    "parameters":[
+                        {
+                            "name":"name",
+                            "description":"名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"animation1",
+                            "description":"渲染动画1",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"animation2",
+                            "description":"渲染动画2",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"type_label",
+                            "description":"实验类型标签",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"task_label",
+                            "description":"试验任务标签",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"流程列表",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_list_",
+                    "parameters":[
+                        {
+                            "name":"status",
+                            "description":"流程状态（1未发布，2已发布，默认全部）",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"size",
+                            "description":"",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/workflow/protected",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"流程设置保护/解除保护",
+                    "notes":"",
+                    "nickname":"workflow__api_workflow_protected",
+                    "parameters":[
+                        {
+                            "name":"flow_id",
+                            "description":"流程id",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },{
+            "path":"/api/workflow/share",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"共享",
+                    "notes":"",
+                    "nickname":"workflow__api_share_",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"id列表json:[1,2,3]",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

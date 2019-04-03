@@ -1,0 +1,379 @@
+{
+    "apiVersion": "1.0.5",
+    "swaggerVersion": "1.2",
+    "basePath": "/",
+    "resourcePath": "/team",
+    "produces":[
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html"
+    ],
+
+    "apis":[
+        {
+            "path":"/api/team/list",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"实验小组相关列表",
+                    "notes":"",
+                    "nickname":"team__api_team_list",
+                    "parameters":[
+                        {
+                            "name":"type",
+                            "description":"类型:1、指导分配小组，2、自主建立小组",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "page",
+                            "description": "",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "size",
+                            "description": "",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/member/join",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"加入小组",
+                    "notes":"",
+                    "nickname":"team__api_team_member_join",
+                    "parameters":[
+                        {
+                            "name":"team_id",
+                            "description":"小组id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/open",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"设置小组是否开放",
+                    "notes":"",
+                    "nickname":"team__api_team_open",
+                    "parameters":[
+                        {
+                            "name":"team_id",
+                            "description":"小组id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"open",
+                            "description":"是否开放:1、开放,2、不开放",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/member/delete",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"删除小组成员",
+                    "notes":"",
+                    "nickname":"team__api_team_member_delete",
+                    "parameters":[
+                        {
+                            "name":"team_id",
+                            "description":"小组id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"user_id",
+                            "description":"用户id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/delete",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"删除小组",
+                    "notes":"",
+                    "nickname":"team__api_team_delete",
+                    "parameters":[
+                        {
+                            "name":"team_id",
+                            "description":"小组id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/other",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"其它小组",
+                    "notes":"",
+                    "nickname":"team__api_team_other",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"页数",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "size",
+                            "description": "",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/leader/set",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"设置组长",
+                    "notes":"",
+                    "nickname":"team__api_team_leader_set",
+                    "parameters":[
+                        {
+                            "name":"team_id",
+                            "description":"小组",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"user_id",
+                            "description":"用户",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/member/add",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"添加小组成员",
+                    "notes":"",
+                    "nickname":"team__api_team_member_add",
+                    "parameters":[
+                        {
+                            "name":"team_id",
+                            "description":"小组",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"data",
+                            "description":"用户id列表json:[1,2,3]",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/member",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"小组成员",
+                    "notes":"",
+                    "nickname":"team__api_team_member",
+                    "parameters":[
+                        {
+                            "name":"team_id",
+                            "description":"小组ID",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/create",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"新建小组",
+                    "notes":"",
+                    "nickname":"team__api_team_create",
+                    "parameters":[
+                        {
+                            "name":"name",
+                            "description":"名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"open_join",
+                            "description":"开放邀请",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/my",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"我的小组",
+                    "notes":"",
+                    "nickname":"team__api_team_my",
+                    "parameters":[
+                        {
+                            "name":"search",
+                            "description":"搜索关键字",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"page",
+                            "description":"页数",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name": "size",
+                            "description": "",
+                            "type": "integer",
+                            "paramType": "query",
+                            "required": false,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path":"/api/team/create/v3",
+            "operations":[
+                {
+                    "method":"POST",
+                    "summary":"新建小组",
+                    "notes":"",
+                    "nickname":"team__api_team_create",
+                    "parameters":[
+                        {
+                            "name":"name",
+                            "description":"小组名称",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"open_join",
+                            "description":"开放邀请",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"data",
+                            "description":"用户id列表json:[1,2,3]",
+                            "type": "string",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        },
+                        {
+                            "name":"user_id",
+                            "description":"组长用户id",
+                            "type": "integer",
+                            "paramType": "form",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
