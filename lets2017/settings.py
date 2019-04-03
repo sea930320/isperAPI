@@ -88,8 +88,8 @@ if DEBUG:
 else:
     HOST = '127.0.0.1'
     DB_NAME = 'lets'
-    DB_USER = 'root'
-    DB_PWD = ''
+    DB_USER = 'remote'
+    DB_PWD = 'remoteadmin'
 
 DATABASES = {
     'default': {
