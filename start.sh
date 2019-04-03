@@ -1,1 +1,1 @@
-gunicorn --config gunicorn.conf ISPER_API.wsgi:application --daemon
+gunicorn --config gunicorn.conf isper-api.wsgi:application --daemon
