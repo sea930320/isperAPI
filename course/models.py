@@ -12,7 +12,7 @@ class CourseClass(models.Model):
     no = models.CharField(max_length=16, verbose_name=u'课程号')
     name = models.CharField(max_length=48, verbose_name=u'名称')
     time = models.IntegerField(verbose_name=u'课时')
-    experiment_time = models.IntegerField(verbose_name=u'实验学时')
+    experiment_time = models.IntegerField(verbose_name=u'实验学时', null=True)
     sort = models.IntegerField(verbose_name=u'课序号')
     teacher1 = models.ForeignKey(Tuser, blank=True, null=True, related_name='teacher1', verbose_name=u'教师号1')
     teacher2 = models.ForeignKey(Tuser, blank=True, null=True, related_name='teacher2', verbose_name=u'教师号2')

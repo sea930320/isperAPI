@@ -78,6 +78,21 @@ class TCompany(models.Model):
         return self.name
 
 
+# 角色
+class TRole(models.Model):
+    name = models.CharField(max_length=32, verbose_name=u'名称')
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+
+    class Meta:
+        db_table = "t_role"
+        verbose_name_plural = u"角色"
+        verbose_name = u"角色"
+
+    def __unicode__(self):
+        return self.name
+
+
 # 用户
 class Tuser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=18, db_index=True, unique=True, verbose_name=u'账号')
@@ -103,6 +118,11 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     is_register = models.BooleanField(default=False, verbose_name=u'环信状态')
     last_experiment_id = models.IntegerField(blank=True, null=True, verbose_name=u'最后做的一个实验id')
     is_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
+    roles = models.ManyToManyField(
+        TRole,
+        through='TUserRole',
+        through_fields=('user', 'role')
+    )
 
     objects = UserManager()
 
@@ -126,5 +146,15 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     def is_staff(self):
         return self.is_admin
 
+# 用户角色
+class TUserRole(models.Model):
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE)
+    role = models.ForeignKey(TRole, on_delete=models.CASCADE)
 
+    class Meta:
+        db_table = "t_user_role"
+        verbose_name_plural = u"用户角色"
+        verbose_name = u"用户角色"
 
+    def __unicode__(self):
+        return self.user.name + " : " + self.role.name

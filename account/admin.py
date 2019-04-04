@@ -237,4 +237,20 @@ class TCompanyAdmin(admin.ModelAdmin):
 
 admin.site.register(TCompany, TCompanyAdmin)
 
+# 单位
+class TRoleAdmin(admin.ModelAdmin):
+    list_display = ['name', 'create_time', 'update_time']
+    fields = ['name']
+
+
+admin.site.register(TRole, TRoleAdmin)
+
+
+# 用户角色
+class TUserRoleAdmin(admin.ModelAdmin):
+    list_display = ['user', 'role']
+    fields = ['user', 'role']
+
+
+admin.site.register(TUserRole, TUserRoleAdmin)
 

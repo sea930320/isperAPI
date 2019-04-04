@@ -5,7 +5,7 @@ import os
 from platform import platform
 
 if 'Ubuntu' in platform():
-    DEBUG = True
+    DEBUG = False
 else:
     DEBUG = True
 
@@ -21,6 +21,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'suit',
     'django.contrib.admin',
+    'corsheaders',
     # 'DjangoUeditor',
     # 'django_select2',
     'account',
@@ -37,6 +38,7 @@ MIDDLEWARE = (
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -60,6 +62,8 @@ SUIT_CONFIG = {
     )
 }
 
+CORS_ORIGIN_ALLOW_ALL = True
+
 ROOT_URLCONF = 'lets2017.urls'
 
 TEMPLATES = [
@@ -80,16 +84,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'lets2017.wsgi.application'
 
-if DEBUG:
-    HOST = '39.107.122.234'
-    DB_NAME = 'lets'
-    DB_USER = 'remote'
-    DB_PWD = 'remoteadmin'
-else:
-    HOST = '127.0.0.1'
-    DB_NAME = 'lets'
-    DB_USER = 'remote'
-    DB_PWD = 'remoteadmin'
+HOST = '39.107.122.234'
+DB_NAME = 'lets'
+DB_USER = 'remote'
+DB_PWD = 'remoteadmin'
 
 DATABASES = {
     'default': {
@@ -103,10 +101,7 @@ DATABASES = {
     }
 }
 
-if DEBUG:
-    CACHE_HOST = '127.0.0.1:11211'
-else:
-    CACHE_HOST = '127.0.0.1:11211'
+CACHE_HOST = '127.0.0.1:11211'
 
 CACHES = {
     'default': {
@@ -134,7 +129,8 @@ STATICFILES_DIRS = (
 )
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+if not DEBUG:
+    STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',

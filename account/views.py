@@ -14,6 +14,7 @@ from django.utils.http import urlquote
 
 from account.service import user_info
 from django.contrib import auth
+from django.http import JsonResponse
 from django.http import HttpResponse
 from account.models import Tuser, TCompany, TClass
 from experiment.models import Experiment
@@ -22,6 +23,8 @@ from utils import code, const, query, easemob, tools
 from utils.request_auth import auth_check
 from django.contrib.sessions.models import Session
 from django.utils import timezone
+from django.core import serializers
+from django.core.exceptions import ObjectDoesNotExist
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +38,8 @@ def api_account_query(request):
         if user:
             # 用户所属的类型列表
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'is_director': user.director, 'is_manage': user.manage, 'is_admin': user.is_admin}
-
+            roles = user.roles.all().values_list('id', 'name')
+            resp['d'] = {'is_director': user.director, 'is_manage': user.manage, 'is_admin': user.is_admin, 'roles': list(roles)}
         else:
             resp = code.get_msg(code.USER_NOT_EXIST)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -143,14 +146,14 @@ def api_account_login(request):
             if user:
                 # todo 登出相同账号其它登录用户
                 logout_all(user)
-                if login_type == 1 or (login_type == 2 and user.director) or (login_type == 3 and user.manage) or (
-                        login_type == 4 and user.is_admin):
+                try:
+                    role = user.roles.get(pk=login_type)
                     auth.login(request, user)
                     # 三期 保存用户的登录类型， 后面有用, 无力吐槽
-                    request.session['login_type'] = login_type
+                    request.session['login_type'] = role.id
                     resp = code.get_msg(code.SUCCESS)
                     resp['d'] = user_info(user.id)
-                    resp['d']['identity'] = login_type
+                    resp['d']['identity'] = role.id
                     resp['d']['manage'] = user.manage
                     resp['d']['admin'] = user.is_admin
                     resp['d']['company_id'] = user.tcompany.id if user.tcompany else ''
@@ -163,7 +166,7 @@ def api_account_login(request):
                         last_exp = Experiment()
                     resp['d']['last_experiment_status'] = last_exp.status
                     resp['d']['last_experiment_name'] = last_exp.name
-                else:
+                except ObjectDoesNotExist:
                     resp = code.get_msg(code.PERMISSION_DENIED)
             else:
                 resp = code.get_msg(code.USERNAME_OR_PASSWORD_ERROR)
