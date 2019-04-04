@@ -4,12 +4,12 @@
 import os
 from platform import platform
 
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 if 'Ubuntu' in platform():
     DEBUG = False
 else:
     DEBUG = True
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = '#rt$+y+(lkuz-aollrb8arheykm(6=gr%n%a1sqzf2_pf3)0f#'
 ALLOWED_HOSTS = ['*']
 
