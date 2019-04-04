@@ -5,10 +5,12 @@ import os
 from platform import platform
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
+DEBUG = True
 if 'Ubuntu' in platform():
-    DEBUG = False
+    isLiveServer = True
 else:
-    DEBUG = True
+    isLiveServer = False
 
 SECRET_KEY = '#rt$+y+(lkuz-aollrb8arheykm(6=gr%n%a1sqzf2_pf3)0f#'
 ALLOWED_HOSTS = ['*']
@@ -129,7 +131,7 @@ STATICFILES_DIRS = (
 )
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-if not DEBUG:
+if isLiveServer:
     STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATICFILES_FINDERS = (
