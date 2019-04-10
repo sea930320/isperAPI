@@ -345,7 +345,7 @@ def api_account_user_update(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_account_logout Exception:{0}'.format(str(e)))
+        logger.exception('api_account_user_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
