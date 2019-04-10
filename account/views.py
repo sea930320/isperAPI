@@ -1,18 +1,22 @@
 #!/usr/bin/python
 # -*- coding=utf-8 -*-
-
+import os
 import json
 import logging
 
 import xlrd
 import xlwt
+import uuid
 
 from course.models import CourseClassStudent, CourseClass
 from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils.http import urlquote
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 
 from account.service import user_info
+from account.service import get_client_ip
 from django.contrib import auth
 from django.http import JsonResponse
 from django.http import HttpResponse
@@ -39,7 +43,8 @@ def api_account_query(request):
             # 用户所属的类型列表
             resp = code.get_msg(code.SUCCESS)
             roles = user.roles.all().values_list('id', 'name')
-            resp['d'] = {'is_director': user.director, 'is_manage': user.manage, 'is_admin': user.is_admin, 'roles': list(roles)}
+            resp['d'] = {'is_director': user.director, 'is_manage': user.manage, 'is_admin': user.is_admin,
+                         'roles': list(roles)}
         else:
             resp = code.get_msg(code.USER_NOT_EXIST)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -153,7 +158,7 @@ def api_account_login(request):
                     request.session['login_type'] = role.id
                     resp = code.get_msg(code.SUCCESS)
                     resp['d'] = user_info(user.id)
-                    resp['d']['identity'] = role.id
+                    resp['d']['role'] = role.id
                     resp['d']['manage'] = user.manage
                     resp['d']['admin'] = user.is_admin
                     resp['d']['company_id'] = user.tcompany.id if user.tcompany else ''
@@ -222,7 +227,8 @@ def api_account_users_v3(request):
         sql += ' order by t.update_time desc'
         logger.info(sql)
         data = query.pagination_page(sql, ['id', 'username', 'name', 'class_name', 'company_name', 'gender', 'qq',
-                                           'nickname', 'phone', 'email', 'director', 'manage', 'assigned_by', 'is_share'],
+                                           'nickname', 'phone', 'email', 'director', 'manage', 'assigned_by',
+                                           'is_share'],
                                      count_sql, int(page), int(size))
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = data
@@ -282,6 +288,7 @@ def api_account_user_update(request):
         user_id = request.POST.get('id', None)  # 账号
         username = request.POST.get('username', None)  # 账号
         password = request.POST.get('password', None)  # 密码
+        ip = get_client_ip(request)
         nickname = request.POST.get('nickname', None)  # 昵称
         gender = request.POST.get('gender', None)  # 性别
         name = request.POST.get('name', None)  # 姓名
@@ -313,6 +320,8 @@ def api_account_user_update(request):
             user.phone = phone
         if qq:
             user.qq = qq
+        if ip:
+            user.ip = ip
         if identity:
             user.identity = identity
         if type:
@@ -335,6 +344,29 @@ def api_account_user_update(request):
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    except Exception as e:
+        logger.exception('api_account_logout Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_account_avatar_img_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        user_id = request.GET.get('id', None)  # 账号
+        avatar = request.FILES['img']
+        filename = str(uuid.uuid4()) + '.png'
+        user = Tuser.objects.get(pk=user_id)
+        default_storage.delete(user.avatar.name)
+        user.avatar.save(filename, avatar, True)
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'avatar_path': user.avatar.url
+        }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_account_logout Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -523,7 +555,7 @@ def api_account_import(request):
                 # sheet_ret.write(i, 6, c6)
                 # sheet_ret.write(i, 7, request.user.name)
 
-                if None in (c0, ):
+                if None in (c0,):
                     flag = False
                     msg.append("错误：账号列1不允许为空")
                 else:
@@ -544,7 +576,7 @@ def api_account_import(request):
                             user.del_flag = 0
                             user.identity = identity
                         user.username = c0
-                    if None in (c1, ):
+                    if None in (c1,):
                         flag = False
                         msg.append('错误：姓名列2不允许为空')
                     elif isinstance(c1, float):
@@ -660,7 +692,7 @@ def api_account_import(request):
                 # sheet_ret.write(i, 9, c9)
                 # sheet_ret.write(i, 10, request.user.name)
 
-                if None in (c0, ):
+                if None in (c0,):
                     flag = False
                     msg.append("错误：账号列1不允许为空")
                 else:
@@ -682,7 +714,7 @@ def api_account_import(request):
                             user.identity = identity
                         user.username = c0
                     # 姓名
-                    if None in (c1, ):
+                    if None in (c1,):
                         flag = False
                         msg.append('错误：姓名列2不允许为空')
                     elif isinstance(c1, float):
@@ -802,7 +834,7 @@ def api_account_import(request):
                 # sheet_ret.write(i, 8, c8)
                 # sheet_ret.write(i, 9, request.user.name)
 
-                if None in (c0, ):
+                if None in (c0,):
                     flag = False
                     msg.append("错误：账号列1不允许为空")
                 else:
@@ -824,7 +856,7 @@ def api_account_import(request):
                             user.identity = identity
                         user.username = c0
                     # 姓名
-                    if None in (c1, ):
+                    if None in (c1,):
                         flag = False
                         msg.append('错误：姓名列2不允许为空')
                     elif isinstance(c1, float):
@@ -1118,4 +1150,3 @@ def api_account_share(request):
         logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-

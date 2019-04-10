@@ -28,6 +28,7 @@ urlpatterns += (
     url(r'^api/account/companys/$', account_views.api_account_companys),
     url(r'^api/account/classes/$', account_views.api_account_classes),
     url(r'^api/account/user/update$', account_views.api_account_user_update),
+    url(r'^api/account/avatar-img/update', account_views.api_account_avatar_img_update),
     url(r'^api/account/user/save$', account_views.api_account_user_save),
     url(r'^api/account/get/user/$', account_views.api_account_get_user),
     url(r'^api/account/import$', account_views.api_account_import),

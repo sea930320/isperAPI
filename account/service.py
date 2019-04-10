@@ -12,7 +12,7 @@ def user_info(user_id):
     if user:
         result = {'username': user.username, 'gender': user.gender, 'nickname': user.nickname, 'name': user.name,
                   'email': user.email, 'phone': user.phone, 'qq': user.qq, 'identity': user.identity,
-                  'type': user.type, 'ip': user.ip, 'id': user.id}
+                  'type': user.type, 'ip': user.ip, 'id': user.id, 'avatar': user.avatar.url}
         return result
     else:
         return {}
@@ -31,3 +31,11 @@ def user_simple_info(user_id):
         return result
     else:
         return {}
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
