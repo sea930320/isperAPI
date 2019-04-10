@@ -5,7 +5,6 @@ import logging
 from time import sleep
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
-from django.utils import timezone
 
 from utils import const
 from utils import easemob
@@ -113,8 +112,8 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     director = models.BooleanField(default=False, verbose_name=u'是否具有指导权限')
     manage = models.BooleanField(default=False, verbose_name=u'是否具有管理权限')
     assigned_by = models.IntegerField(blank=True, null=True, verbose_name=u'权限是被谁赋予的')
-    create_time = models.DateTimeField(editable=False, verbose_name=u'创建时间')
-    update_time = models.DateTimeField(verbose_name=u'修改时间')
+    create_time = models.DateTimeField(auto_now_add=True, null=True, verbose_name=u'创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     is_register = models.BooleanField(default=False, verbose_name=u'环信状态')
     last_experiment_id = models.IntegerField(blank=True, null=True, verbose_name=u'最后做的一个实验id')
@@ -147,12 +146,6 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     @property
     def is_staff(self):
         return self.is_admin
-
-    def save(self, *args, **kwargs):
-        if not self.id:
-            self.create_time = timezone.now()
-        self.update_time = timezone.now()
-        return super(Tuser, self).save(*args, **kwargs)
 
 # 用户角色
 class TUserRole(models.Model):
