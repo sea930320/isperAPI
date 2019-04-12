@@ -23,13 +23,15 @@ from django.http import HttpResponse
 from account.models import Tuser, TCompany, TClass
 from experiment.models import Experiment
 from team.models import TeamMember
-from utils import code, const, query, easemob, tools
+from utils import code, const, query, easemob, tools, config
 from utils.request_auth import auth_check
 from django.contrib.sessions.models import Session
 from django.utils import timezone
 from django.core import serializers
 from django.core.exceptions import ObjectDoesNotExist
-
+from aliyunsdkcore.client import AcsClient
+from aliyunsdkcore.request import CommonRequest
+from random import randint
 logger = logging.getLogger(__name__)
 
 
@@ -277,6 +279,68 @@ def api_account_classes(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_account_send_verify_code(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        to = request.POST.get('to', None)
+        if to is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        client = AcsClient(config.ALIYUN_CONFIG['accessKeyId'], config.ALIYUN_CONFIG['accessKeySecret'], 'ap-southeast-1')
+        message = randint(0, 10**6)
+        message = '{:06}'.format(message)
+        request = CommonRequest()
+        request.set_accept_format('json')
+        request.set_domain('dysmsapi.ap-southeast-1.aliyuncs.com')
+        request.set_method('POST')
+        request.set_version('2018-05-01')
+        request.set_action_name('SendMessageToGlobe')
+        request.add_query_param('To', to)
+        request.add_query_param('From', config.ALIYUN_CONFIG['from'])
+        request.add_query_param('Message', message)
+        response = client.do_action(request)
+        print response
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_account_password_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_account_password_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        user_id = request.POST.get('id', None)  # 账号
+        old_password = request.POST.get('old', None)  # 账号
+        new_password = request.POST.get('new', None)  # 密码
+        new_password_confirm = request.POST.get('new_confirm', None)  # 密码
+        login_type = int(request.POST.get("login_type", 1))  # 登录身份
+
+        user = Tuser.objects.get(pk=user_id)
+        role = user.roles.get(pk=login_type)
+        if new_password != new_password_confirm or not user.check_password(old_password):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        user.set_password(new_password)
+        user.save()
+
+        logout_all(user)
+        auth.login(request, user)
+        # 三期 保存用户的登录类型， 后面有用, 无力吐槽
+        request.session['login_type'] = role.id
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_account_password_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 # 用户更新
 def api_account_user_update(request):
