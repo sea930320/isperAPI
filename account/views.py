@@ -7,7 +7,6 @@ import logging
 import xlrd
 import xlwt
 import uuid
-
 from course.models import CourseClassStudent, CourseClass
 from django.db.models import Q
 from django.shortcuts import redirect
@@ -32,6 +31,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from aliyunsdkcore.client import AcsClient
 from aliyunsdkcore.request import CommonRequest
 from random import randint
+from datetime import datetime, timedelta
+
 logger = logging.getLogger(__name__)
 
 
@@ -279,40 +280,56 @@ def api_account_classes(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_account_send_verify_code(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
+        if ('veification_code' in request.session):
+            del request.session['veification_code']
+        if ('veification_session_start_time' in request.session):
+            del request.session['veification_session_start_time']
+        if ('verification_phone' in request.session):
+            del request.session['verification_phone']
+
         to = request.POST.get('to', None)
         if to is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        client = AcsClient(config.ALIYUN_CONFIG['accessKeyId'], config.ALIYUN_CONFIG['accessKeySecret'], 'ap-southeast-1')
-        message = randint(0, 10**6)
+        client = AcsClient(config.ALIYUN_CONFIG['accessKeyId'], config.ALIYUN_CONFIG['accessKeySecret'], 'default')
+        message = randint(0, 10 ** 6)
         message = '{:06}'.format(message)
-        request = CommonRequest()
-        request.set_accept_format('json')
-        request.set_domain('dysmsapi.ap-southeast-1.aliyuncs.com')
-        request.set_method('POST')
-        request.set_version('2018-05-01')
-        request.set_action_name('SendMessageWithTemplate')
-        request.add_query_param('To', to)
-        request.add_query_param('From', config.ALIYUN_CONFIG['from'])
-        request.add_query_param('TemplateCode', config.ALIYUN_CONFIG['templateCode'])
-        request.add_query_param('TemplateParam', '{"code":"' + message + '"}')
-        request.add_query_param('SmsUpExtendCode', '12345')
-        # request.add_query_param('Message', message)
-        response = client.do_action(request)
-        print response
+        crequest = CommonRequest()
+        crequest.set_accept_format('json')
+        crequest.set_domain('dysmsapi.aliyuncs.com')
+        crequest.set_method('POST')
+        crequest.set_protocol_type('https')
+        crequest.set_version('2017-05-25')
+        crequest.set_action_name('SendSms')
+        crequest.add_query_param('PhoneNumbers', to)
+        crequest.add_query_param('SignName', '图灵海际')
+        crequest.add_query_param('TemplateParam', '{\"code\":\"' + message + '\"}')
+        crequest.add_query_param('TemplateCode', config.ALIYUN_CONFIG['templateCode'])
+        # response = client.do_action(crequest)
+        # response = json.loads(response)
+        # if (response["Message"] == u"OK"):
+        request.session['verification_code'] = message
+        verification_session_start_time = str(datetime.now())
+        request.session['verification_session_start_time'] = verification_session_start_time
+        request.session['verification_phone'] = to
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        # else:
+        #     resp = code.get_msg(code.SYSTEM_ERROR)
+        #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_account_password_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_account_password_update(request):
     resp = auth_check(request, "POST")
@@ -323,12 +340,21 @@ def api_account_password_update(request):
         old_password = request.POST.get('old', None)  # 账号
         new_password = request.POST.get('new', None)  # 密码
         new_password_confirm = request.POST.get('new_confirm', None)  # 密码
+        verification_code = request.POST.get('verification_code', None)
         login_type = int(request.POST.get("login_type", 1))  # 登录身份
 
         user = Tuser.objects.get(pk=user_id)
         role = user.roles.get(pk=login_type)
         if new_password != new_password_confirm or not user.check_password(old_password):
             resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        try:
+            print request.session['verification_code']
+            if (verification_code is None) or (datetime.now() - datetime.strptime(request.session['verification_session_start_time'], "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (verification_code != request.session['verification_code']):
+                resp = code.get_msg(code.PHONE_NOT_VERIFIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        except KeyError as e:
+            resp = code.get_msg(code.PHONE_NOT_VERIFIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         user.set_password(new_password)
@@ -344,6 +370,7 @@ def api_account_password_update(request):
         logger.exception('api_account_password_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 # 用户更新
 def api_account_user_update(request):
@@ -368,6 +395,7 @@ def api_account_user_update(request):
         company_id = request.POST.get('company_id', None)  # 所在单位
         director = request.POST.get('director', None)  # 是否具有指导权限
         manage = request.POST.get('manage', None)  # 是否具有管理权限
+        verification_code = request.POST.get('verification_code', None)
 
         user = Tuser.objects.get(pk=user_id)
         user.assigned_by = request.user.id
@@ -406,6 +434,22 @@ def api_account_user_update(request):
         else:
             user.manage = False
 
+        try:
+            print request.session['verification_code']
+            if (verification_code is None) or (datetime.now() - datetime.strptime(request.session['verification_session_start_time'], "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (verification_code != request.session['verification_code']) or (phone != request.session['verification_phone']):
+                resp = code.get_msg(code.PHONE_NOT_VERIFIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        except KeyError as e:
+            resp = code.get_msg(code.PHONE_NOT_VERIFIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+        if ('veification_code' in request.session):
+            del request.session['veification_code']
+        if ('veification_session_start_time' in request.session):
+            del request.session['veification_session_start_time']
+        if ('verification_phone' in request.session):
+            del request.session['verification_phone']
         user.save()
 
         resp = code.get_msg(code.SUCCESS)
