@@ -313,18 +313,18 @@ def api_account_send_verify_code(request):
         crequest.add_query_param('SignName', '图灵海际')
         crequest.add_query_param('TemplateParam', '{\"code\":\"' + message + '\"}')
         crequest.add_query_param('TemplateCode', config.ALIYUN_CONFIG['templateCode'])
-        # response = client.do_action(crequest)
-        # response = json.loads(response)
-        # if (response["Message"] == u"OK"):
-        request.session['verification_code'] = message
-        verification_session_start_time = str(datetime.now())
-        request.session['verification_session_start_time'] = verification_session_start_time
-        request.session['verification_phone'] = to
-        resp = code.get_msg(code.SUCCESS)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        # else:
-        #     resp = code.get_msg(code.SYSTEM_ERROR)
-        #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        response = client.do_action(crequest)
+        response = json.loads(response)
+        if (response["Message"] == u"OK"):
+            request.session['verification_code'] = message
+            verification_session_start_time = str(datetime.now())
+            request.session['verification_session_start_time'] = verification_session_start_time
+            request.session['verification_phone'] = to
+            resp = code.get_msg(code.SUCCESS)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        else:
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_account_password_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
