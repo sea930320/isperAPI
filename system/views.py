@@ -45,7 +45,7 @@ def file_info(file_id):
     if obj:
         result = {
             'id': obj.id, 'filename': obj.filename, 'url': obj.file.url, 'md5sum': obj.md5sum,
-            'create_time': obj.create_time.strftime('%Y-%m-%d')
+            'create_time': obj.create_time is not None and obj.create_time.strftime('%Y-%m-%d') or ""
         }
         return result
     else:

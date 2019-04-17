@@ -1635,7 +1635,7 @@ def api_workflow_list(request):
             results.append({
                 'id': flow.id, 'name': flow.name, 'xml': flow.xml, 'animation1': file_info(flow.animation1),
                 'animation2': file_info(flow.animation2), 'status': flow.status, 'type_label': flow.type_label,
-                'task_label': flow.task_label, 'create_time': flow.create_time.strftime('%Y-%m-%d'),
+                'task_label': flow.task_label, 'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d') or "",
                 'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share
             })
         # 分页信息
