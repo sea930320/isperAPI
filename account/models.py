@@ -5,7 +5,6 @@ import logging
 from time import sleep
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
-
 from utils import const
 from utils import easemob
 
@@ -68,6 +67,7 @@ class TCompany(models.Model):
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE)
 
     class Meta:
         db_table = "t_company"

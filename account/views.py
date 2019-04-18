@@ -8,13 +8,14 @@ import xlrd
 import xlwt
 import uuid
 from course.models import CourseClassStudent, CourseClass
+from group.models import AllGroups
 from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils.http import urlquote
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files import File
-
+from django.forms.models import model_to_dict
 from account.service import user_info
 from account.service import get_client_ip
 from django.contrib import auth
@@ -507,6 +508,20 @@ def api_account_avatar_img_upload(request):
         logger.exception('api_account_avatar_img_upload Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
 
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_get_default_group(request):
+    try:
+        defaultGroup = AllGroups.objects.get(default=1)
+        companies = defaultGroup.tcompany_set.all()
+        defaultGroup = model_to_dict(defaultGroup, fields=['id', 'name'])
+        defaultGroup['companies'] = [{'id': i.id, 'name': i.name} for i in companies]
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = defaultGroup
+    except Exception as e:
+        logger.exception('api_account_user_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
