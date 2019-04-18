@@ -14,6 +14,7 @@ from project import views as project_views
 from system import views as system_views
 from team import views as team_views
 from workflow import views as workflow_views
+from group import views as group_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -201,6 +202,10 @@ urlpatterns += (
     url(r'^api/workflow/opt/export$', workflow_views.workflow_opt_export),
     url(r'^api/workflow/protected$', workflow_views.api_workflow_protected),
     url(r'^api/workflow/share$', workflow_views.api_workflow_share),
+)
+
+urlpatterns += (
+    url(r'^api/group/list$', group_views.get_groups_list),
 )
 
 urlpatterns += (

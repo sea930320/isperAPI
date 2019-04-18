@@ -28,6 +28,7 @@ INSTALLED_APPS = (
     # 'django_select2',
     'account',
     'workflow',
+    'group',
     'system',
     'project',
     'course',
