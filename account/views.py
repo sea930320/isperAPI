@@ -13,6 +13,7 @@ from django.shortcuts import redirect
 from django.utils.http import urlquote
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.files import File
 
 from account.service import user_info
 from account.service import get_client_ip
@@ -32,6 +33,7 @@ from aliyunsdkcore.client import AcsClient
 from aliyunsdkcore.request import CommonRequest
 from random import randint
 from datetime import datetime, timedelta
+from system.models import UploadFile
 
 logger = logging.getLogger(__name__)
 
@@ -282,10 +284,6 @@ def api_account_classes(request):
 
 
 def api_account_send_verify_code(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
     try:
         if ('veification_code' in request.session):
             del request.session['veification_code']
@@ -350,7 +348,10 @@ def api_account_password_update(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         try:
             print request.session['verification_code']
-            if (verification_code is None) or (datetime.now() - datetime.strptime(request.session['verification_session_start_time'], "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (verification_code != request.session['verification_code']):
+            if (verification_code is None) or (
+                            datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
+                                                               "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
+                        verification_code != request.session['verification_code']):
                 resp = code.get_msg(code.PHONE_NOT_VERIFIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         except KeyError as e:
@@ -436,13 +437,16 @@ def api_account_user_update(request):
 
         try:
             print request.session['verification_code']
-            if (verification_code is None) or (datetime.now() - datetime.strptime(request.session['verification_session_start_time'], "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (verification_code != request.session['verification_code']) or (phone != request.session['verification_phone']):
+            if (verification_code is None) or (
+                            datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
+                                                               "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
+                        verification_code != request.session['verification_code']) or (
+                        phone != request.session['verification_phone']):
                 resp = code.get_msg(code.PHONE_NOT_VERIFIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         except KeyError as e:
             resp = code.get_msg(code.PHONE_NOT_VERIFIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
 
         if ('veification_code' in request.session):
             del request.session['veification_code']
@@ -482,6 +486,94 @@ def api_account_avatar_img_update(request):
         logger.exception('api_account_logout Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 上传文件
+def api_account_avatar_img_upload(request):
+    try:
+        upload_file = request.FILES.get("img", None)  # 文件
+
+        if upload_file:
+            obj = UploadFile.objects.create(filename=upload_file.name, file=upload_file)
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {
+                'id': obj.id, 'filename': obj.filename, 'url': obj.file.url, 'md5sum': obj.md5sum,
+                'create_time': obj.create_time.strftime('%Y-%m-%d')
+            }
+        else:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+    except Exception as e:
+        logger.exception('api_account_avatar_img_upload Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# create new user
+def api_account_user_create(request):
+    try:
+        username = request.POST.get('username', None)  # 账号
+        name = request.POST.get('name', None)  # 姓名
+        password = request.POST.get('password', None)  # 密码
+        passwordConfirmation = request.POST.get('passwordConfirmation', None)  # 昵称
+        phone = request.POST.get('phone', None)  # 联系方式
+        email = request.POST.get('email', None)  # 邮箱
+        company_id = request.POST.get('company_id', None)  # 所在单位
+        avatar_id = request.POST.get('avatar_id', None)  # 所在单位
+        verification_code = request.POST.get('verificationCode', None)
+
+        if password != passwordConfirmation:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        users = Tuser.objects.filter(username=username, del_flag=0)
+        if users:
+            resp = code.get_msg(code.USER_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        try:
+            print request.session['verification_code']
+            if (verification_code is None) or (
+                            datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
+                                                               "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
+                        verification_code != request.session['verification_code']) or (
+                        phone != request.session['verification_phone']):
+                resp = code.get_msg(code.PHONE_NOT_VERIFIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        except KeyError as e:
+            resp = code.get_msg(code.PHONE_NOT_VERIFIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if ('veification_code' in request.session):
+            del request.session['veification_code']
+        if ('veification_session_start_time' in request.session):
+            del request.session['veification_session_start_time']
+        if ('verification_phone' in request.session):
+            del request.session['verification_phone']
+
+        user = Tuser(username=username,
+                     email=email,
+                     name=name,
+                     phone=phone,
+                     tcompany_id=company_id)
+        user.save()
+        user.set_password(password)
+        user.save()
+
+        if avatar_id:
+            uploadFile = UploadFile.objects.get(pk=avatar_id)
+            avatar = uploadFile.file
+            filename = str(uuid.uuid4()) + '.png'
+            user.avatar = File(avatar, filename)
+            user.save()
+            avatar.close()
+            uploadFile.delete()
+
+        resp = code.get_msg(code.SUCCESS)
+
+    except Exception as e:
+        logger.exception('api_account_user_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
 # 用户保存
