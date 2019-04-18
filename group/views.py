@@ -5,7 +5,7 @@ from django.http import HttpResponse
 import json
 from utils import code, const, public_fun, tools
 from django.db.models import Q
-from group.models import Groups
+from group.models import AllGroups
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,10 @@ def get_groups_list(request):
         size = int(request.GET.get("size", const.ROW_SIZE))
 
         if search:
-            qs = Groups.objects.filter(Q(name__icontains=search))
+            qs = AllGroups.objects.filter(Q(name__icontains=search))
         else:
-            qs = Groups.objects.all()
+            qs = AllGroups.objects.all()
+
 
         # if request.session['login_type'] == 1:
             # users = GroupManagers.objects.all()
