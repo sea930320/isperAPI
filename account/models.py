@@ -98,7 +98,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=18, db_index=True, unique=True, verbose_name=u'账号')
     nickname = models.CharField(max_length=24, blank=True, null=True, verbose_name=u'昵称')
     gender = models.PositiveIntegerField(choices=const.GENDER, default=1, verbose_name=u'性别')
-    name = models.CharField(max_length=8, verbose_name=u'姓名')
+    name = models.CharField(max_length=256, verbose_name=u'姓名')
     email = models.CharField(max_length=56, blank=True, null=True, verbose_name=u'邮箱')
     phone = models.CharField(max_length=16, blank=True, null=True, verbose_name=u'联系方式')
     qq = models.CharField(max_length=28, blank=True, null=True, verbose_name=u'QQ')

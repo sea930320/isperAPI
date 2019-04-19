@@ -4,6 +4,7 @@ import logging
 from django.http import HttpResponse
 import json
 from utils import code, const, public_fun, tools
+from django.core.paginator import Paginator, EmptyPage
 from django.db.models import Q
 from group.models import AllGroups
 
@@ -17,6 +18,7 @@ def get_groups_list(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
+
         search = request.GET.get("search", None)
         page = int(request.GET.get("page", 1))
         size = int(request.GET.get("size", const.ROW_SIZE))
@@ -26,44 +28,40 @@ def get_groups_list(request):
         else:
             qs = AllGroups.objects.all()
 
-
         # if request.session['login_type'] == 1:
-            # users = GroupManagers.objects.all()
-            # ids = [item.id for item in users]
-            # for group in qs:
-            #     print group.groupManager_ids
-            # print (ids)
+        if len(qs) == 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': [], 'paging': {}}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        else:
+            paginator = Paginator(qs, size)
 
-            # paginator = Paginator(qs, size)
-            #
-            # try:
-            #     flows = paginator.page(page)
-            # except EmptyPage:
-            #     flows = paginator.page(1)
-            #
-            # results = []
-            # for flow in flows:
-            #     user_info = user_simple_info(flow.created_by)
-            #     if user_info is None:
-            #         user_info = {}
-            #     results.append({
-            #         'id': flow.id, 'name': flow.name, 'xml': flow.xml, 'animation1': file_info(flow.animation1),
-            #         'animation2': file_info(flow.animation2), 'status': flow.status, 'type_label': flow.type_label,
-            #         'task_label': flow.task_label, 'create_time': flow.create_time.strftime('%Y-%m-%d'),
-            #         'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share
-            #     })
+            try:
+                flows = paginator.page(page)
+            except EmptyPage:
+                flows = paginator.page(1)
 
-            # paging = {
-            #     'count': paginator.count,
-            #     'has_previous': flows.has_previous(),
-            #     'has_next': flows.has_next(),
-            #     'num_pages': paginator.num_pages,
-            #     'cur_page': flows.number,
-            # }
+            results = []
+            for flow in flows:
+                groupManager = [{'id': item.id, 'name': item.username, 'description': item.name} for item in flow.groupManagers.all()]
+                if groupManager is None:
+                    groupManager = [{}]
+                results.append({
+                    'id': flow.id, 'name': flow.name, 'comment': flow.comment, 'publish': flow.publish,
+                    'default': flow.default, 'groupManagers': groupManager
+                })
             #
-            # resp = code.get_msg(code.SUCCESS)
-            # resp['d'] = {'results': results, 'paging': paging}
-            # return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            paging = {
+                'count': paginator.count,
+                'has_previous': flows.has_previous(),
+                'has_next': flows.has_next(),
+                'num_pages': paginator.num_pages,
+                'cur_page': flows.number,
+            }
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': results, 'paging': paging}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
