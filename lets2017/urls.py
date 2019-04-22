@@ -207,6 +207,7 @@ urlpatterns += (
 urlpatterns += (
     url(r'^api/group/list$', group_views.get_groups_list),
     url(r'^api/group/create$', group_views.create_new_group),
+    url(r'^api/group/delete$', group_views.delete_selected_group),
 )
 
 urlpatterns += (
