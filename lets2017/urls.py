@@ -208,6 +208,10 @@ urlpatterns += (
     url(r'^api/group/list$', group_views.get_groups_list),
     url(r'^api/group/create$', group_views.create_new_group),
     url(r'^api/group/delete$', group_views.delete_selected_group),
+    url(r'^api/group/update$', group_views.update_group),
+    url(r'^api/group/addManager$', group_views.group_add_manager),
+    url(r'^api/group/updateManager$', group_views.group_update_manager),
+    url(r'^api/group/resetManager$', group_views.group_reset_manager),
 )
 
 urlpatterns += (

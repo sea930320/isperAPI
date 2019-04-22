@@ -103,6 +103,7 @@ def create_new_group(request):
             is_register=0
         )
         newUser.roles.add(TRole.objects.get(id=2))
+
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -125,6 +126,111 @@ def delete_selected_group(request):
         targets = AllGroups.objects.filter(id__in=selected)
         Tuser.objects.filter(id__in=targets.values_list('groupManagers')).delete()
         targets.delete()
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def update_group(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", '')
+        name = request.POST.get("name", '')
+        comment = request.POST.get("comment", '')
+        default = int(request.POST.get("default", 0))
+        publish = int(request.POST.get("publish", 1))
+
+        AllGroups.objects.filter(id=id).update(name=name, comment=comment, default=default, publish=publish)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def group_add_manager(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        groupID = request.POST.get("groupID", '')
+        name = request.POST.get("data[name]", '')
+        description = request.POST.get("data[description]", '')
+        password = request.POST.get("data[password]", None)
+
+        newUser = AllGroups.objects.get(id=groupID).groupManagers.create(
+            username=name,
+            password=make_password(password),
+            is_superuser=0,
+            gender=1,
+            name=description,
+            identity=1,
+            type=1,
+            is_active=1,
+            is_admin=0,
+            director=0,
+            manage=0,
+            update_time='',
+            del_flag=0,
+            is_register=0
+        )
+        newUser.roles.add(TRole.objects.get(id=2))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def group_update_manager(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", None)
+        description = request.POST.get("description", '')
+
+        Tuser.objects.filter(id=id).update(name=description)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def group_reset_manager(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", None)
+        password = request.POST.get("password", None)
+
+        Tuser.objects.filter(id=id).update(password=make_password(password))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
