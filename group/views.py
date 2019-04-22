@@ -6,7 +6,11 @@ import json
 from utils import code, const, public_fun, tools
 from django.core.paginator import Paginator, EmptyPage
 from django.db.models import Q
+from django.contrib.auth.hashers import (
+    check_password, is_password_usable, make_password,
+)
 from group.models import AllGroups
+from account.models import Tuser, TRole
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +66,69 @@ def get_groups_list(request):
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': results, 'paging': paging}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def create_new_group(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        NewGroup = AllGroups(
+            name=request.POST.get("name", ''),
+            comment=request.POST.get("comment", ''),
+            default=int(request.POST.get("default", 0)),
+            publish=int(request.POST.get("publish", 1))
+        )
+        NewGroup.save()
+        newUser = NewGroup.groupManagers.create(
+            username=request.POST.get("managerName", ''),
+            password=make_password(request.POST.get("managerPass", None)),
+            is_superuser=0,
+            gender=1,
+            name='',
+            identity=1,
+            type=1,
+            is_active=1,
+            is_admin=0,
+            director=0,
+            manage=0,
+            update_time='',
+            del_flag=0,
+            is_register=0
+        )
+        newUser.roles.add(TRole.objects.get(id=2))
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def delete_selected_group(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        selected = eval(request.POST.get("ids", ''))
+        print(selected)
+
+        targets = AllGroups.objects.filter(id__in=selected)
+        Tuser.objects.filter(id__in=targets.values_list('groupManagers')).delete()
+        targets.delete()
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('api_workflow_list Exception:{0}'.format(str(e)))

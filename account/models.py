@@ -119,11 +119,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     last_experiment_id = models.IntegerField(blank=True, null=True, verbose_name=u'最后做的一个实验id')
     is_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
     avatar = models.ImageField(upload_to='avatars', null=True)
-    roles = models.ManyToManyField(
-        TRole,
-        through='TUserRole',
-        through_fields=('user', 'role')
-    )
+    roles = models.ManyToManyField(TRole)
 
     objects = UserManager()
 
