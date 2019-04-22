@@ -121,7 +121,11 @@ def delete_selected_group(request):
     try:
         selected = eval(request.POST.get("ids", ''))
         print(selected)
-        AllGroups.objects.filter(id__in=selected).delete()
+
+        targets = AllGroups.objects.filter(id__in=selected)
+        Tuser.objects.filter(id__in=targets.values_list('groupManagers')).delete()
+        targets.delete()
+
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
