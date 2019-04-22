@@ -391,7 +391,7 @@ def api_workflow_role_assign_info(request):
                     })
                 if item.name != const.ROLE_TYPE_OBSERVER:
                     role_list.append({
-                        'role_id': item.id, 'role_name': item.name,  'role_type': item.type,
+                        'role_id': item.id, 'role_name': item.name, 'role_type': item.type,
                         'assign_info': allocation_list
                     })
             types = list(set(roles.values_list('type', flat=True)))
@@ -919,9 +919,10 @@ def api_workflow_roles_allocate(request):
                             #     return HttpResponse(json.dumps(resp, ensure_ascii=False),
                             #                         content_type="application/json")
                             FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id,
-                                                              role_id=item['role_id']).update(can_terminate=item['can_terminate'],
-                                                                                              can_brought=item['can_brought'],
-                                                                                              del_flag=0)
+                                                              role_id=item['role_id']).update(
+                                can_terminate=item['can_terminate'],
+                                can_brought=item['can_brought'],
+                                del_flag=0)
                         else:
                             new_allocations.append(FlowRoleAllocation(flow_id=flow_id, node_id=node_id,
                                                                       role_id=item['role_id'],
@@ -938,7 +939,8 @@ def api_workflow_roles_allocate(request):
                     else:
                         # 取消选择
                         FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id,
-                                                          role_id=item['role_id']).update(del_flag=const.DELETE_FLAG_YES)
+                                                          role_id=item['role_id']).update(
+                            del_flag=const.DELETE_FLAG_YES)
                 if new_allocations:
                     FlowRoleAllocation.objects.bulk_create(new_allocations)
                 if new_actions:
@@ -1600,9 +1602,58 @@ def api_workflow_list(request):
         page = int(request.GET.get("page", 1))
         size = int(request.GET.get("size", const.ROW_SIZE))
 
-        # 只返回本人未发布和所有已发布, 三期， 加上共享数据
-        qs = Flow.objects.filter(Q(status=1, created_by=request.user.id, del_flag=0) | Q(status=2, del_flag=0)
-                                 | Q(is_share=1, del_flag=0))
+        user = request.user
+        if request.session['login_type'] == 2:
+            try:
+                group = user.allgroups_set.all().first()  # get group that this user belongs to
+                groupManagers = group.groupManagers.all()  # get all group managers
+            except AttributeError as ae:
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            createdBys = [groupManager.id for groupManager in groupManagers]
+            companies = group.tcompany_set.all()  # get all companies
+            for company in companies:
+                companyManagers = company.tcompanymanagers_set.all()  # get all company managers
+                for companyManager in companyManagers:
+                    createdBys.append(companyManager.tuser.id)
+            qs = Flow.objects.filter(
+                Q(created_by=request.user.id, del_flag=0) | Q(status=2, is_public=1, created_by__in=createdBys,
+                                                              del_flag=0)
+                | Q(status=2, is_share=1, del_flag=0))
+        elif request.session['login_type'] == 3:
+            try:
+                company = user.tcompanymanagers_set.all().first().tcompany  # get company info
+                companyId = company.id  # company ID
+                group = company.group  # get group info
+            except AttributeError as ae:
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            groupManagers = group.groupManagers.all()  # get all group managers
+            groupMembers = [groupManager.id for groupManager in groupManagers]
+            companies = group.tcompany_set.all()  # get all companies
+            for company in companies:
+                companyManagers = company.tcompanymanagers_set.all()  # get all company managers
+                for companyManager in companyManagers:
+                    groupMembers.append(companyManager.tuser.id)
+                if company.id == companyId:
+                    createdBys = [companyManager.tuser.id for companyManager in companyManagers]
+            qs = Flow.objects.filter(
+                Q(created_by=request.user.id, del_flag=0) | Q(status=2, is_public=1, created_by__in=createdBys,
+                                                              del_flag=0)
+                | Q(status=2, is_share=1, created_by__in=groupMembers, del_flag=0))
+        elif request.session['login_type'] == 1:
+            qs = Flow.objects.filter(Q(status=2, del_flag=0))
+        else:
+            # 只返回本人未发布和所有已发布, 三期， 加上共享数据
+            # qs = Flow.objects.filter(Q(status=1, created_by=request.user.id, del_flag=0) | Q(status=2, del_flag=0)
+            #                          | Q(is_share=1, del_flag=0))
+            # # 三期 - 加上是否共享字段 并且 只显示本单位数据或者共享数据
+            # if request.session['login_type'] != 4:
+            #     users = Tuser.objects.filter(del_flag=0, manage=True, tcompany_id=user.tcompany_id)
+            #     ids = [item.id for item in users]
+            #     qs = qs.filter(Q(is_share=1) | Q(created_by__in=ids))
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         # 发布状态过滤
         if status:
@@ -1611,13 +1662,6 @@ def api_workflow_list(request):
         # 搜索关键字过滤
         if search:
             qs = qs.filter(Q(name__icontains=search))
-
-        # 三期 - 加上是否共享字段 并且 只显示本单位数据或者共享数据
-        user = request.user
-        if request.session['login_type'] != 4:
-            users = Tuser.objects.filter(del_flag=0, manage=True, tcompany_id=user.tcompany_id)
-            ids = [item.id for item in users]
-            qs = qs.filter(Q(is_share=1) | Q(created_by__in=ids))
 
         # 分页
         paginator = Paginator(qs, size)
@@ -1635,7 +1679,8 @@ def api_workflow_list(request):
             results.append({
                 'id': flow.id, 'name': flow.name, 'xml': flow.xml, 'animation1': file_info(flow.animation1),
                 'animation2': file_info(flow.animation2), 'status': flow.status, 'type_label': flow.type_label,
-                'task_label': flow.task_label, 'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d') or "",
+                'task_label': flow.task_label,
+                'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d') or "",
                 'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share
             })
         # 分页信息
@@ -1731,7 +1776,8 @@ def api_workflow_trans_query(request):
                 if item.incoming.startswith('ExclusiveGateway'):
                     gateway_trans = FlowTrans.objects.filter(flow_id=flow_id, outgoing=item.incoming, del_flag=0)
                     for gateway_tran in gateway_trans:
-                        obj = FlowNode.objects.filter(flow_id=flow_id, task_id=gateway_tran.incoming, del_flag=0).first()
+                        obj = FlowNode.objects.filter(flow_id=flow_id, task_id=gateway_tran.incoming,
+                                                      del_flag=0).first()
                         if obj:
                             previous_nodes.append({
                                 'tran_id': gateway_tran.id, 'tran_name': gateway_tran.name,
@@ -1930,4 +1976,3 @@ def api_workflow_share(request):
         logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-

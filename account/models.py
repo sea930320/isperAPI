@@ -78,6 +78,19 @@ class TCompany(models.Model):
         return self.name
 
 
+class TCompanyManagers(models.Model):
+    tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
+    tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "t_company_managers"
+        verbose_name_plural = u"单位经理员"
+        verbose_name = u"单位经理员"
+
+    def __unicode__(self):
+        return self.tuser.username + "--" + self.tcompany.name
+
+
 # 角色
 class TRole(models.Model):
     name = models.CharField(max_length=32, verbose_name=u'名称')
@@ -142,6 +155,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     @property
     def is_staff(self):
         return self.is_admin
+
 
 # 用户角色
 class TUserRole(models.Model):
