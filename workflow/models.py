@@ -24,6 +24,7 @@ class Flow(models.Model):
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     protected = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否保护')
     is_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
+    is_public = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否公开')
 
     class Meta:
         db_table = "t_flow"

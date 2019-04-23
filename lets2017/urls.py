@@ -32,13 +32,16 @@ urlpatterns += (
     url(r'^api/account/user/update$', account_views.api_account_user_update),
     url(r'^api/account/password/update$', account_views.api_account_password_update),
     url(r'^api/account/avatar-img/update', account_views.api_account_avatar_img_update),
+    url(r'^api/account/avatar-img/upload', account_views.api_account_avatar_img_upload),
     url(r'^api/account/user/save$', account_views.api_account_user_save),
+    url(r'^api/account/user/create', account_views.api_account_user_create),
     url(r'^api/account/get/user/$', account_views.api_account_get_user),
     url(r'^api/account/import$', account_views.api_account_import),
     url(r'^api/account/export$', account_views.api_account_export),
     url(r'^api/account/user/auth/update', account_views.api_account_user_auth_update),
     url(r'^api/account/user/delete', account_views.api_course_user_delete),
     url(r'^api/account/share', account_views.api_account_share),
+    url(r'^api/account/default-group', account_views.api_get_default_group),
 )
 
 urlpatterns += (

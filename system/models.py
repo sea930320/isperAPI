@@ -113,7 +113,7 @@ class UploadFile(models.Model):
     filename = models.CharField(max_length=128, verbose_name=u'文件名')
     file = models.FileField(upload_to='files/%Y/%m/%d', storage=FileStorage(), verbose_name=u'文件')
     md5sum = models.CharField(max_length=128, verbose_name=u'MD5哈希值')
-    created_by = models.IntegerField(verbose_name=u'上传者')
+    created_by = models.IntegerField(verbose_name=u'上传者', null=True)
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
 
@@ -124,3 +124,8 @@ class UploadFile(models.Model):
 
     def __unicode__(self):
         return self.filename
+
+    def delete(self, using=None):
+        name = self.file.name
+        super(UploadFile, self).delete(using)
+        self.file.storage.delete(name)
