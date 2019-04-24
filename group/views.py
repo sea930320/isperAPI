@@ -10,7 +10,7 @@ from django.contrib.auth.hashers import (
     check_password, is_password_usable, make_password,
 )
 from group.models import AllGroups
-from account.models import Tuser, TRole
+from account.models import Tuser, TRole, OfficeItems
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,6 @@ def get_groups_list(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-
         search = request.GET.get("search", None)
         page = int(request.GET.get("page", 1))
         size = int(request.GET.get("size", const.ROW_SIZE))
@@ -33,6 +32,7 @@ def get_groups_list(request):
             qs = AllGroups.objects.all()
 
         # if request.session['login_type'] == 1:
+
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': [], 'paging': {}}
@@ -231,6 +231,109 @@ def group_reset_manager(request):
         password = request.POST.get("password", None)
 
         Tuser.objects.filter(id=id).update(password=make_password(password))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def get_own_group(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", None)
+        group = AllGroups.objects.get(groupManagers=id)
+        groupInstructors = [{'id': instructor.id, 'name': instructor.username, 'instructorItems': [{'id': item.id, 'text': item.name} for item in instructor.instructorItems.all()]} for instructor in group.groupInstructors.all()]
+
+        result = [{
+            'id': group.id,
+            'name': group.name,
+            'created': str(group.created),
+            'instructors': groupInstructors
+        }]
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': result}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def get_instructor_items(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        groupInstructors = [{'id': item.id, 'text': item.name} for item in OfficeItems.objects.all()]
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': groupInstructors}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def set_instructors(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", None)
+        items = eval(request.POST.get("items", '[]'))
+        user = Tuser.objects.get(id=id)
+        user.instructorItems.clear()
+        user.instructorItems.add(*OfficeItems.objects.filter(id__in=items))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def create_instructors(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", None)
+        name = request.POST.get("data[name]", None)
+        password = request.POST.get("data[password]", None)
+        AllGroups.objects.get(id=id).groupInstructors.create(
+            username=name,
+            password=make_password(password),
+            is_superuser=0,
+            gender=1,
+            name='',
+            identity=1,
+            type=1,
+            is_active=1,
+            is_admin=0,
+            director=0,
+            manage=0,
+            update_time='',
+            del_flag=0,
+            is_register=0
+        )
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
