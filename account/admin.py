@@ -254,3 +254,12 @@ class TUserRoleAdmin(admin.ModelAdmin):
 
 admin.site.register(TUserRole, TUserRoleAdmin)
 
+
+# 用户角色
+class TCompanyManagersAdmin(admin.ModelAdmin):
+    list_display = ['tuser', 'tcompany']
+    fields = ['tuser', 'tcompany']
+
+
+admin.site.register(TCompanyManagers, TCompanyManagersAdmin)
+

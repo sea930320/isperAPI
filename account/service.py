@@ -12,7 +12,7 @@ def user_info(user_id):
     if user:
         result = {'username': user.username, 'gender': user.gender, 'nickname': user.nickname, 'name': user.name,
                   'email': user.email, 'phone': user.phone, 'qq': user.qq, 'identity': user.identity,
-                  'type': user.type, 'ip': user.ip, 'id': user.id, 'avatar': user.avatar.url}
+                  'type': user.type, 'ip': user.ip, 'id': user.id, 'avatar': user.avatar and user.avatar.url or None}
         return result
     else:
         return {}

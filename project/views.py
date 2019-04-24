@@ -807,7 +807,7 @@ def api_project_list(request):
                 'level': project.level, 'entire_graph': project.entire_graph, 'type': project.type,
                 'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target,
                 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by),
-                'create_time': project.create_time.strftime('%Y-%m-%d'), 'flow': flow_data,
+                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '', 'flow': flow_data,
                 'protected': project.protected, 'is_share': project.is_share
             })
 

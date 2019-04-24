@@ -5,7 +5,6 @@ import logging
 from time import sleep
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
-
 from utils import const
 from utils import easemob
 
@@ -68,6 +67,7 @@ class TCompany(models.Model):
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE)
 
     class Meta:
         db_table = "t_company"
@@ -76,6 +76,19 @@ class TCompany(models.Model):
 
     def __unicode__(self):
         return self.name
+
+
+class TCompanyManagers(models.Model):
+    tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
+    tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "t_company_managers"
+        verbose_name_plural = u"单位经理员"
+        verbose_name = u"单位经理员"
+
+    def __unicode__(self):
+        return self.tuser.username + "--" + self.tcompany.name
 
 
 # 角色
@@ -98,7 +111,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=18, db_index=True, unique=True, verbose_name=u'账号')
     nickname = models.CharField(max_length=24, blank=True, null=True, verbose_name=u'昵称')
     gender = models.PositiveIntegerField(choices=const.GENDER, default=1, verbose_name=u'性别')
-    name = models.CharField(max_length=8, verbose_name=u'姓名')
+    name = models.CharField(max_length=256, verbose_name=u'姓名')
     email = models.CharField(max_length=56, blank=True, null=True, verbose_name=u'邮箱')
     phone = models.CharField(max_length=16, blank=True, null=True, verbose_name=u'联系方式')
     qq = models.CharField(max_length=28, blank=True, null=True, verbose_name=u'QQ')
@@ -119,11 +132,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     last_experiment_id = models.IntegerField(blank=True, null=True, verbose_name=u'最后做的一个实验id')
     is_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
     avatar = models.ImageField(upload_to='avatars', null=True)
-    roles = models.ManyToManyField(
-        TRole,
-        through='TUserRole',
-        through_fields=('user', 'role')
-    )
+    roles = models.ManyToManyField(TRole)
 
     objects = UserManager()
 
@@ -146,6 +155,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     @property
     def is_staff(self):
         return self.is_admin
+
 
 # 用户角色
 class TUserRole(models.Model):
