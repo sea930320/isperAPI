@@ -4,6 +4,7 @@
 from django.db import models
 from utils.storage import *
 from utils import const
+from account.models import Tuser
 
 
 # 实验项目
@@ -26,12 +27,13 @@ class Project(models.Model):
     purpose = models.TextField(verbose_name=u'实验目的')
     requirement = models.TextField(verbose_name=u'实验要求')
     step = models.IntegerField(default=const.PRO_STEP_0, verbose_name=u'设置步骤')
-    created_by = models.IntegerField(verbose_name=u'创建者')
+    created_by = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'创建者')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     protected = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否保护')
-    is_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
+    is_group_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
+    is_company_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否集群共享')
 
     class Meta:
         db_table = "t_project"

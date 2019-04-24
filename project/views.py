@@ -296,7 +296,7 @@ def api_project_roles_detail(request):
                                                                         role_id=role_id).values_list('node_id',
                                                                                                      flat=True))
                 project_roles[i]['node_ids'] = list(node_ids)
-            project_role_type = ProjectRole.objects.filter(project_id=project_id)\
+            project_role_type = ProjectRole.objects.filter(project_id=project_id) \
                 .exclude(type=const.ROLE_TYPE_OBSERVER).values_list('type', flat=True).distinct()
             logger.info(project_role_type.query)
             # 项目环节角色设置
@@ -778,12 +778,27 @@ def api_project_list(request):
         if type:
             qs = qs.filter(type=type)
 
-        # 三期 - 加上是否共享字段 并且 只显示本单位数据或者共享数据
         user = request.user
-        if request.session['login_type'] != 4:
-            users = Tuser.objects.filter(del_flag=0, manage=True, tcompany_id=user.tcompany_id)
-            ids = [item.id for item in users]
-            qs = qs.filter(Q(is_share=1) | Q(created_by__in=ids))
+        # if request.session['login_type'] != 4:
+        #     users = Tuser.objects.filter(del_flag=0, manage=True, tcompany_id=user.tcompany_id)
+        #     ids = [item.id for item in users]
+        #     qs = qs.filter(Q(is_group_share=1) | Q(created_by__in=ids))
+
+        # filter by using userid
+
+
+        # If User Is Group Manager
+
+        if request.session['login_type'] == 2:
+            groupInfo = public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id)
+            groupID = groupInfo['group_id']
+            qs = Project.objects.filter(Q(is_group_share=1) | Q(created_by__tcompany__group_id=groupID))
+
+        # If User Is Company Manager
+        if request.session['login_type'] == 3:
+            groupInfo = public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id']
+            groupID = groupInfo['group_id']
+            qs = Project.objects.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
         paginator = Paginator(qs, size)
 
@@ -801,14 +816,17 @@ def api_project_list(request):
             if flow:
                 flow_data = {'name': flow.name, 'xml': flow.xml}
 
+
+
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
                 'course': project.course, 'reference': project.reference, 'public_status': project.public_status,
                 'level': project.level, 'entire_graph': project.entire_graph, 'type': project.type,
                 'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target,
                 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by),
-                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '', 'flow': flow_data,
-                'protected': project.protected, 'is_share': project.is_share
+                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
+                'flow': flow_data,
+                'protected': project.protected, 'is_share': project.is_group_share
             })
 
         # 分页信息
@@ -1168,3 +1186,37 @@ def api_project_share(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
+def api_project_unshare(request):
+    # print request.session['login_type']
+    # print request.user
+    # # test
+    # loginType = 2
+    # userID = 1608
+    # # loginType = 3
+    # # userID = 264
+    # public_fun.getGroupByGroupManagerID(loginType, userID)
+    # # test
+
+    return True
+    # resp = auth_check(request, "GET")
+    # if resp != {}:
+    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    #
+    # try:
+    #     data = request.GET.get("data", None)  # id列表json:[1,2,3]
+    #     if data is None:
+    #         resp = code.get_msg(code.PARAMETER_ERROR)
+    #         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    #     data = json.loads(data)
+    #     ids_set = set(data)
+    #     ids = [i for i in ids_set]
+    #     Project.objects.filter(id__in=ids).update(is_share=0)
+    #
+    #     resp = code.get_msg(code.SUCCESS)
+    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    #
+    # except Exception as e:
+    #     logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+    #     resp = code.get_msg(code.SYSTEM_ERROR)
+    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

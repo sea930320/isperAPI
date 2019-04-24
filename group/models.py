@@ -12,8 +12,8 @@ class AllGroups(models.Model):
     publish = models.IntegerField(default=1, choices=((1, u"是"), (0, u"否")))
     default = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
-    groupManagers = models.ManyToManyField(Tuser, related_name="groupManagers")
-    groupInstructors = models.ManyToManyField(Tuser, related_name="groupInstructors")
+    groupManagers = models.ManyToManyField(Tuser, related_name="allgroups_set")
+    groupInstructors = models.ManyToManyField(Tuser, related_name="allgroups_set_instructors")
 
     class Meta:
         db_table = "t_allGroups"

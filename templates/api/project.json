@@ -735,6 +735,26 @@
                     ]
                 }
             ]
+        },{
+            "path":"/api/project/unshare",
+            "operations":[
+                {
+                    "method":"GET",
+                    "summary":"取消共享",
+                    "notes":"",
+                    "nickname":"project__api_unshare_",
+                    "parameters":[
+                        {
+                            "name":"data",
+                            "description":"id列表json:[1,2,3]",
+                            "type": "string",
+                            "paramType": "query",
+                            "required": true,
+                            "allowMultiple": false
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }
