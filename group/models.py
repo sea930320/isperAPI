@@ -11,7 +11,9 @@ class AllGroups(models.Model):
     comment = models.CharField(max_length=256)
     publish = models.IntegerField(default=1, choices=((1, u"是"), (0, u"否")))
     default = models.IntegerField(default=0)
-    groupManagers = models.ManyToManyField(Tuser)
+    created = models.DateTimeField(auto_now_add=True)
+    groupManagers = models.ManyToManyField(Tuser, related_name="groupManagers")
+    groupInstructors = models.ManyToManyField(Tuser, related_name="groupInstructors")
 
     class Meta:
         db_table = "t_allGroups"
