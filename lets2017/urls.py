@@ -141,6 +141,7 @@ urlpatterns += (
     url(r'^api/project/related$', project_views.api_project_related),
     url(r'^api/project/protected', project_views.api_project_protected),
     url(r'^api/project/share', project_views.api_project_share),
+    url(r'^api/project/unshare', project_views.api_project_unshare),
 )
 
 urlpatterns += (

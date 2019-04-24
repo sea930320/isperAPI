@@ -1168,3 +1168,32 @@ def api_project_share(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
+def api_project_unshare(request):
+    # test
+    loginType = 2
+    userID = 265
+    # test
+    public_fun.getGroupAndCompanyIDsByUserID(loginType, userID)
+    return True
+    # resp = auth_check(request, "GET")
+    # if resp != {}:
+    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    #
+    # try:
+    #     data = request.GET.get("data", None)  # id列表json:[1,2,3]
+    #     if data is None:
+    #         resp = code.get_msg(code.PARAMETER_ERROR)
+    #         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    #     data = json.loads(data)
+    #     ids_set = set(data)
+    #     ids = [i for i in ids_set]
+    #     Project.objects.filter(id__in=ids).update(is_share=0)
+    #
+    #     resp = code.get_msg(code.SUCCESS)
+    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    #
+    # except Exception as e:
+    #     logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+    #     resp = code.get_msg(code.SYSTEM_ERROR)
+    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

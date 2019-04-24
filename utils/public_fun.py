@@ -3,6 +3,7 @@
 import os
 import time
 import random
+from project.models import *
 
 
 # 构造文件名称
@@ -30,3 +31,20 @@ def get_map(data, id):
         if d[0] == id:
             return d[1]
     return None
+
+# get group and company ID
+def getGroupAndCompanyIDsByUserID(loginType, userID):
+    # Group Manager
+    if (loginType == 2):
+        print loginType
+    # Company Manager
+    if (loginType == 3):
+        Project.objects.filter(id__in=ids).update(is_share=0)
+        print loginType
+
+    print userID
+    return userID
+
+# get group memvers by user Id
+def getGroupMembersByUserID(userID):
+    return userID
