@@ -31,7 +31,8 @@ class Project(models.Model):
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     protected = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否保护')
-    is_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
+    is_group_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
+    is_company_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否集群共享')
 
     class Meta:
         db_table = "t_project"
