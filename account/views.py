@@ -164,6 +164,7 @@ def api_account_login(request):
                     request.session['login_type'] = role.id
                     resp = code.get_msg(code.SUCCESS)
                     resp['d'] = user_info(user.id)
+                    resp['d']['identity'] = role.id
                     resp['d']['role'] = role.id
                     resp['d']['manage'] = user.manage
                     resp['d']['admin'] = user.is_admin
@@ -484,7 +485,7 @@ def api_account_avatar_img_update(request):
         }
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
-        logger.exception('api_account_logout Exception:{0}'.format(str(e)))
+        logger.exception('api_account_avatar_img_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
