@@ -79,6 +79,19 @@ def create_new_group(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
+        if AllGroups.objects.filter(name=request.POST.get("name")).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'nameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if Tuser.objects.filter(username=request.POST.get("managerName")).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'managerNameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if int(request.POST.get("default")) == 1:
+            AllGroups.objects.filter(default=1).update(default=0)
+
         NewGroup = AllGroups(
             name=request.POST.get("name", ''),
             comment=request.POST.get("comment", ''),
