@@ -106,6 +106,27 @@ class TRole(models.Model):
         return self.name
 
 
+class OfficeKinds(models.Model):
+    name = models.CharField(max_length=256)
+
+    class Meta:
+        db_table = "t_officeKinds"
+
+    def __unicode__(self):
+        return self.name
+
+
+class OfficeItems(models.Model):
+    name = models.CharField(max_length=256)
+    kinds = models.ManyToManyField(OfficeKinds)
+
+    class Meta:
+        db_table = "t_officeItems"
+
+    def __unicode__(self):
+        return self.name
+
+
 # 用户
 class Tuser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=18, db_index=True, unique=True, verbose_name=u'账号')
@@ -133,6 +154,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     is_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
     avatar = models.ImageField(upload_to='avatars', null=True)
     roles = models.ManyToManyField(TRole)
+    instructorItems = models.ManyToManyField(OfficeItems)
 
     objects = UserManager()
 
