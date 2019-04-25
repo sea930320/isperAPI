@@ -166,6 +166,7 @@ def api_account_login(request):
                     resp['d'] = user_info(user.id)
                     resp['d']['identity'] = role.id
                     resp['d']['role'] = role.id
+                    resp['d']['role_name'] = role.name
                     resp['d']['manage'] = user.manage
                     resp['d']['admin'] = user.is_admin
                     resp['d']['company_id'] = user.tcompany.id if user.tcompany else ''
