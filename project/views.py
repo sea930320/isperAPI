@@ -528,6 +528,7 @@ def api_project_delete(request):
                                                                                                  flat=True)
                 Experiment.objects.filter(project_id__in=project_ids).update(del_flag=1)
                 ProjectJump.objects.filter(jump_project_id=project_id).delete()
+                Project.objects.filter(id=project_id).delete()
 
                 # 三期 - 如果一个课程下面的项目全部删除了，同时删除课程
                 project_list = Project.objects.filter(course=obj.course, del_flag=0)
@@ -1189,8 +1190,14 @@ def api_project_share(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         data = json.loads(data)
         ids_set = set(data)
-        ids = [i for i in ids_set]
-        Project.objects.filter(id__in=ids).update(is_share=1)
+
+        # Group Manager
+        if request.session['login_type'] == 2:
+            ids = [i for i in ids_set]
+            Project.objects.filter(id__in=ids).update(is_group_share=1)
+        if request.session['login_type'] == 3:
+            ids = [i for i in ids_set]
+            Project.objects.filter(id__in=ids).update(is_company_share=1)
 
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1202,35 +1209,31 @@ def api_project_share(request):
 
 
 def api_project_unshare(request):
-    # print request.session['login_type']
-    # print request.user
-    # # test
-    # loginType = 2
-    # userID = 1608
-    # # loginType = 3
-    # # userID = 264
-    # public_fun.getGroupByGroupManagerID(loginType, userID)
-    # # test
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-    return True
-    # resp = auth_check(request, "GET")
-    # if resp != {}:
-    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    #
-    # try:
-    #     data = request.GET.get("data", None)  # id列表json:[1,2,3]
-    #     if data is None:
-    #         resp = code.get_msg(code.PARAMETER_ERROR)
-    #         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    #     data = json.loads(data)
-    #     ids_set = set(data)
-    #     ids = [i for i in ids_set]
-    #     Project.objects.filter(id__in=ids).update(is_share=0)
-    #
-    #     resp = code.get_msg(code.SUCCESS)
-    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    #
-    # except Exception as e:
-    #     logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
-    #     resp = code.get_msg(code.SYSTEM_ERROR)
-    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        data = request.GET.get("data", None)  # id列表json:[1,2,3]
+        if data is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        data = json.loads(data)
+        ids_set = set(data)
+
+        # Group Manager
+        if request.session['login_type'] == 2:
+            ids = [i for i in ids_set]
+            Project.objects.filter(id__in=ids).update(is_group_share=0)
+        if request.session['login_type'] == 3:
+            ids = [i for i in ids_set]
+            Project.objects.filter(id__in=ids).update(is_company_share=0)
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
