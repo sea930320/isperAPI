@@ -790,13 +790,13 @@ def api_project_list(request):
         # If User Is Group Manager
 
         if request.session['login_type'] == 2:
-            groupInfo = public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id)
+            groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
             groupID = groupInfo['group_id']
             qs = Project.objects.filter(Q(is_group_share=1) | Q(created_by__tcompany__group_id=groupID))
 
         # If User Is Company Manager
         if request.session['login_type'] == 3:
-            groupInfo = public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id']
+            groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
             groupID = groupInfo['group_id']
             qs = Project.objects.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
@@ -812,6 +812,7 @@ def api_project_list(request):
             shareAble = 0
             editAble = 0
             deleteAble = 0
+            currentShare = 0
             start_time = project.start_time.strftime('%Y-%m-%d') if project.start_time else ''
             end_time = project.end_time.strftime('%Y-%m-%d') if project.end_time else ''
             flow = Flow.objects.filter(pk=project.flow_id, del_flag=0).first()
@@ -819,11 +820,19 @@ def api_project_list(request):
             if flow:
                 flow_data = {'name': flow.name, 'xml': flow.xml}
 
-
             if (project.created_by.id == user.id):
                 shareAble = 1
                 editAble = 1
                 deleteAble = 1
+            if (project.created_by.id == user.id):
+                if (request.session['login_type'] == 2):
+                    if (project.is_group_share == 1):
+                        currentShare = 1
+            if (project.created_by.id == user.id):
+                if (request.session['login_type'] == 1):
+                    if (project.is_company_share == 1):
+                        currentShare = 1
+
 
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
@@ -834,7 +843,7 @@ def api_project_list(request):
                 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
                 'flow': flow_data,
                 'protected': project.protected, 'is_group_share': project.is_group_share,'is_company_share': project.is_company_share,
-                'share_able':shareAble, 'edit_able': editAble, 'delete_able': deleteAble
+                'share_able':shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share':currentShare
             })
 
         # 分页信息
