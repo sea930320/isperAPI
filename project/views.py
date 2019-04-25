@@ -809,6 +809,9 @@ def api_project_list(request):
 
         results = []
         for project in projects:
+            shareAble = 0
+            editAble = 0
+            deleteAble = 0
             start_time = project.start_time.strftime('%Y-%m-%d') if project.start_time else ''
             end_time = project.end_time.strftime('%Y-%m-%d') if project.end_time else ''
             flow = Flow.objects.filter(pk=project.flow_id, del_flag=0).first()
@@ -817,6 +820,10 @@ def api_project_list(request):
                 flow_data = {'name': flow.name, 'xml': flow.xml}
 
 
+            if (project.created_by == user.id):
+                shareAble = 1
+                editAble = 1
+                deleteAble = 1
 
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
@@ -826,7 +833,8 @@ def api_project_list(request):
                 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by),
                 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
                 'flow': flow_data,
-                'protected': project.protected, 'is_share': project.is_group_share
+                'protected': project.protected, 'is_group_share': project.is_group_share,'is_company_share': project.is_company_share,
+                'share_able':shareAble, 'edit_able': editAble, 'delete_able': deleteAble
             })
 
         # 分页信息
