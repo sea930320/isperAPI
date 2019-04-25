@@ -61,36 +61,6 @@ class UserManager(BaseUserManager):
         return accounts
 
 
-# 单位
-class TCompany(models.Model):
-    name = models.CharField(max_length=32, verbose_name=u'名称')
-    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
-    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
-    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
-    group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = "t_company"
-        verbose_name_plural = u"单位"
-        verbose_name = u"单位"
-
-    def __unicode__(self):
-        return self.name
-
-
-class TCompanyManagers(models.Model):
-    tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
-    tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = "t_company_managers"
-        verbose_name_plural = u"单位经理员"
-        verbose_name = u"单位经理员"
-
-    def __unicode__(self):
-        return self.tuser.username + "--" + self.tcompany.name
-
-
 # 角色
 class TRole(models.Model):
     name = models.CharField(max_length=32, verbose_name=u'名称')
@@ -125,6 +95,36 @@ class OfficeItems(models.Model):
 
     def __unicode__(self):
         return self.name
+
+
+# 单位
+class TCompany(models.Model):
+    name = models.CharField(max_length=32, verbose_name=u'名称')
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "t_company"
+        verbose_name_plural = u"单位"
+        verbose_name = u"单位"
+
+    def __unicode__(self):
+        return self.name
+
+
+class TCompanyManagers(models.Model):
+    tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
+    tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "t_company_managers"
+        verbose_name_plural = u"单位经理员"
+        verbose_name = u"单位经理员"
+
+    def __unicode__(self):
+        return self.tuser.username + "--" + self.tcompany.name
 
 
 # 用户
@@ -191,3 +191,5 @@ class TUserRole(models.Model):
 
     def __unicode__(self):
         return self.user.name + " : " + self.role.name
+
+

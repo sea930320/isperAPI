@@ -10,7 +10,7 @@ from django.contrib.auth.hashers import (
     check_password, is_password_usable, make_password,
 )
 from group.models import AllGroups
-from account.models import Tuser, TRole, OfficeItems
+from account.models import Tuser, TRole, OfficeItems, TCompany
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,19 @@ def create_new_group(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
+        if AllGroups.objects.filter(name=request.POST.get("name")).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'nameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if Tuser.objects.filter(username=request.POST.get("managerName")).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'managerNameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if int(request.POST.get("default")) == 1:
+            AllGroups.objects.filter(default=1).update(default=0)
+
         NewGroup = AllGroups(
             name=request.POST.get("name", ''),
             comment=request.POST.get("comment", ''),
@@ -334,6 +347,24 @@ def create_instructors(request):
             del_flag=0,
             is_register=0
         )
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def get_company_list(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        data = TCompany.objects.filter(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
