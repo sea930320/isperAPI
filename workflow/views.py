@@ -223,7 +223,7 @@ def api_workflow_flow_draw(request):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        flow = Flow.objects.filter(pk=flow_id).first()
+        flow = Flow.objects.filter(pk=flow_id, created_by=request.user.id).first()
         if flow:
             if flow.status == 2:
                 resp = code.get_msg(code.FLOW_HAS_PUBLISHED)
@@ -298,7 +298,7 @@ def api_workflow_flow_draw(request):
                             FlowTrans.objects.bulk_create(tran_list)
                     resp = code.get_msg(code.SUCCESS)
         else:
-            resp = code.get_msg(code.FLOW_NOT_EXIST)
+            resp = code.get_msg(code.METHOD_NOT_ALLOW)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_workflow_flow_draw Exception:{0}'.format(str(e)))
@@ -1473,6 +1473,9 @@ def api_workflow_delete(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         flow = Flow.objects.get(pk=flow_id)
+        if (flow.created_by != request.user.id and request.session['login_type']!=1):
+            resp = code.get_msg(code.METHOD_NOT_ALLOW)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         with transaction.atomic():
             flow.del_flag = 1
             flow.save()
@@ -1515,14 +1518,12 @@ def api_workflow_update(request):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        flow = Flow.objects.filter(pk=flow_id).first()
-
-        # 验证流程名称是否唯一
-        if Flow.objects.exclude(id=flow_id).filter(name=name, del_flag=0).exists():
-            resp = code.get_msg(code.FLOW_SAME_NAME_HAS_EXIST)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+        flow = Flow.objects.filter(pk=flow_id, created_by=request.user.id).first()
         if flow:
+            # 验证流程名称是否唯一
+            if Flow.objects.exclude(id=flow_id).filter(name=name, del_flag=0).exists():
+                resp = code.get_msg(code.FLOW_SAME_NAME_HAS_EXIST)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             with transaction.atomic():
                 flow.name = name
                 flow.type_label = type_label
@@ -1540,7 +1541,7 @@ def api_workflow_update(request):
                 'create_time': flow.create_time.strftime('%Y-%m-%d')
             }
         else:
-            resp = code.get_msg(code.FLOW_NOT_EXIST)
+            resp = code.get_msg(code.METHOD_NOT_ALLOW)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_workflow_update Exception:{0}'.format(str(e)))
@@ -1932,6 +1933,9 @@ def api_workflow_protected(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if request.session['login_type']!=1:
+        resp = code.get_msg(code.METHOD_NOT_ALLOW)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
         flow_id = request.POST.get("flow_id", None)  # 环节ID
@@ -1968,12 +1972,81 @@ def api_workflow_share(request):
         data = json.loads(data)
         ids_set = set(data)
         ids = [i for i in ids_set]
-        Flow.objects.filter(id__in=ids).update(is_share=1)
+        Flow.objects.filter(id__in=ids, created_by=request.user.id).update(is_share=1)
 
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('api_workflow_share Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_workflow_unshare(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        data = request.GET.get("data", None)  # id列表json:[1,2,3]
+        if data is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        data = json.loads(data)
+        ids_set = set(data)
+        ids = [i for i in ids_set]
+        Flow.objects.filter(id__in=ids, created_by=request.user.id).update(is_share=0)
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_unshare Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_workflow_public(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        data = request.GET.get("data", None)  # id列表json:[1,2,3]
+        if data is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        data = json.loads(data)
+        ids_set = set(data)
+        ids = [i for i in ids_set]
+        Flow.objects.filter(id__in=ids, created_by=request.user.id).update(is_public=1)
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_public Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_workflow_unpublic(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        data = request.GET.get("data", None)  # id列表json:[1,2,3]
+        if data is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        data = json.loads(data)
+        ids_set = set(data)
+        ids = [i for i in ids_set]
+        Flow.objects.filter(id__in=ids, created_by=request.user.id).update(is_public=0)
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_public Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

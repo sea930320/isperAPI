@@ -205,7 +205,10 @@ urlpatterns += (
     url(r'^api/workflow/opt/import$', workflow_views.api_workflow_opt_import),
     url(r'^api/workflow/opt/export$', workflow_views.workflow_opt_export),
     url(r'^api/workflow/protected$', workflow_views.api_workflow_protected),
+    url(r'^api/workflow/public$', workflow_views.api_workflow_public),
+    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic),
     url(r'^api/workflow/share$', workflow_views.api_workflow_share),
+    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare),
 )
 
 urlpatterns += (
