@@ -61,7 +61,6 @@ def getGroupByGroupManagerID(loginType, userID):
             res['groupManagers'] = groupManagersIDs
         except AttributeError as ae:
             resp = code.get_msg(code.PERMISSION_DENIED)
-        print json.dumps(res)
         return json.dumps(res)
 
 def getGroupByCompanyManagerID(loginType, userID):
@@ -72,7 +71,7 @@ def getGroupByCompanyManagerID(loginType, userID):
         res['login_type'] = 'C'
         user = Tuser.objects.get(id=userID)
         # Company ID
-        company_id = user.tcompany.id
+        company_id = user.created_by.tcompanymanagers_set.get().tcompany.id
         # Group ID
         groupID = TCompany.objects.get(id=company_id).group.id
         companies = []
@@ -80,5 +79,4 @@ def getGroupByCompanyManagerID(loginType, userID):
         # Companies Lists
         res['companies'] = companies
         res['group_id'] = groupID
-    print json.dumps(res)
     return json.dumps(res)
