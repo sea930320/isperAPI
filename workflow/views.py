@@ -1681,7 +1681,8 @@ def api_workflow_list(request):
                 'animation2': file_info(flow.animation2), 'status': flow.status, 'type_label': flow.type_label,
                 'task_label': flow.task_label,
                 'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d') or "",
-                'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share
+                'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share,
+                'is_public': flow.is_public
             })
         # 分页信息
         paging = {
@@ -1973,6 +1974,6 @@ def api_workflow_share(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('api_workflow_share Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
