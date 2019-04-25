@@ -820,7 +820,7 @@ def api_project_list(request):
                 flow_data = {'name': flow.name, 'xml': flow.xml}
 
 
-            if (project.created_by == user.id):
+            if (project.created_by.id == user.id):
                 shareAble = 1
                 editAble = 1
                 deleteAble = 1
@@ -830,7 +830,7 @@ def api_project_list(request):
                 'course': project.course, 'reference': project.reference, 'public_status': project.public_status,
                 'level': project.level, 'entire_graph': project.entire_graph, 'type': project.type,
                 'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target,
-                'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by),
+                'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id),
                 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
                 'flow': flow_data,
                 'protected': project.protected, 'is_group_share': project.is_group_share,'is_company_share': project.is_company_share,
