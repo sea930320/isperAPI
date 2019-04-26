@@ -6,6 +6,7 @@ import random
 from account.models import *
 from group.models import *
 from group.models import AllGroups
+from account.models import LoginLog
 import json
 import code
 
@@ -81,7 +82,7 @@ def getGroupByCompanyManagerID(loginType, userID):
         res['group_id'] = groupID
     return json.dumps(res)
 
-def loginLog(loginType, userID):
+def loginLog(loginType, userID, ip):
     user = Tuser.objects.get(id=userID)
     role = user.roles.get(pk=loginType)
 
@@ -99,16 +100,15 @@ def loginLog(loginType, userID):
         group = company.group
     elif loginType == 7:
         company = user.t_company_set_assistants.all().first()
-        group = company.group
+        if company is not None:
+            group = company.group
     elif loginType == 4:
         group = user.allgroups_set_instructors.all().first()
-        pass
     elif loginType == 8:
-        group = user.allgroups_set_instructors.all().first()
-        pass
+        group = user.allgroups_set_instructor_assistants.all().first()
     else:
-        # group =
-        pass
-
-    login_log = LoginLog(user=user, role=role)
+        company = user.tcompany
+        if company is not None:
+            group = company.group
+    login_log = LoginLog(user=user, role=role, group=group, company=company, login_ip=ip)
     login_log.save()

@@ -43,6 +43,8 @@ urlpatterns += (
     url(r'^api/account/share', account_views.api_account_share),
     url(r'^api/account/default-group', account_views.api_get_default_group),
     url(r'^api/account/get/loginlogs', account_views.api_get_log_list),
+    url(r'^api/account/remove/loginlogs', account_views.api_remove_loginlogs),
+    url(r'^api/account/export/loginlogs', account_views.api_export_loginlogs),
 )
 
 urlpatterns += (
@@ -226,6 +228,7 @@ urlpatterns += (
     url(r'^api/group/createInstructors$', group_views.create_instructors),
     url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
     url(r'^api/company/createCompany$', group_views.create_new_company),
+    url(r'^api/group/all-list$', group_views.get_groups_all_list),
 )
 
 urlpatterns += (

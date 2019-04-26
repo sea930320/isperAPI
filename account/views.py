@@ -25,6 +25,7 @@ from account.models import Tuser, TCompany, TClass, LoginLog
 from experiment.models import Experiment
 from team.models import TeamMember
 from utils import code, const, query, easemob, tools, config
+from utils.public_fun import loginLog
 from utils.request_auth import auth_check
 from django.contrib.sessions.models import Session
 from django.utils import timezone
@@ -35,6 +36,7 @@ from aliyunsdkcore.request import CommonRequest
 from random import randint
 from datetime import datetime, timedelta
 from system.models import UploadFile
+from django.core.paginator import Paginator, EmptyPage
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +181,7 @@ def api_account_login(request):
                         last_exp = Experiment()
                     resp['d']['last_experiment_status'] = last_exp.status
                     resp['d']['last_experiment_name'] = last_exp.name
+                    loginLog(loginType=login_type, userID=user.id, ip = get_client_ip(request))
                 except ObjectDoesNotExist:
                     resp = code.get_msg(code.PERMISSION_DENIED)
             else:
@@ -1259,7 +1262,7 @@ def api_account_export(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_account_logout Exception:{0}'.format(str(e)))
+        logger.exception('api_account_export Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -1291,7 +1294,7 @@ def api_account_user_auth_update(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_account_logout Exception:{0}'.format(str(e)))
+        logger.exception('api_account_user_auth_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -1367,7 +1370,7 @@ def api_account_share(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('api_account_share Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -1376,14 +1379,133 @@ def api_get_log_list(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+        search = request.GET.get("search", None)  # 搜索关键字
+        page = int(request.GET.get("page", 1))
+        size = int(request.GET.get("size", const.ROW_SIZE))
+        group_id = request.GET.get("group_id", None)
+        company_id = request.GET.get("company_id", None)
+        start_date = request.GET.get("start_date", None)
+        end_date = request.GET.get("end_date", None)
+
         if request.session['login_type'] == 1:
+            qs = LoginLog.objects.filter(del_flag=0)
+            if search:
+                qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(role__name__icontains=search) | Q(login_ip__icontains=search))
+            if group_id:
+                qs = qs.filter(group__pk=int(group_id))
+            if company_id:
+                qs = qs.filter(company__pk=int(company_id))
+            if start_date:
+                qs = qs.filter(login_time__gt=datetime.strptime(start_date, '%Y-%m-%d'))
+            if end_date:
+                qs = qs.filter(login_time__lte=datetime.strptime(end_date, '%Y-%m-%d'))
+            # 分页
+            paginator = Paginator(qs, size)
+            try:
+                logs = paginator.page(page)
+            except EmptyPage:
+                logs = paginator.page(1)
+
+            results = []
+            for log in logs:
+                group = log.group is not None and model_to_dict(log.group, fields=['id', 'name']) or None
+                company = log.company is not None and model_to_dict(log.company, fields=['id', 'name']) or None
+                role = log.role is not None and model_to_dict(log.role, fields=['id', 'name']) or None
+                results.append({
+                    'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group, 'company': company,
+                    'role': role, 'login_time': log.login_time is not None and log.login_time.strftime('%Y-%m-%d') or "",
+                    'login_ip': log.login_ip
+                })
+            paging = {
+                'count': paginator.count,
+                'has_previous': logs.has_previous(),
+                'has_next': logs.has_next(),
+                'num_pages': paginator.num_pages,
+                'cur_page': logs.number,
+            }
             resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': results, 'paging': paging}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         else:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('api_get_log_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_remove_loginlogs(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        data = request.GET.get("data", None)  # id列表json:[1,2,3]
+        if data is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        data = json.loads(data)
+        ids_set = set(data)
+        ids = [i for i in ids_set]
+        LoginLog.objects.filter(id__in=ids).update(del_flag=1)
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_remove_loginlogs Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_export_loginlogs(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        search = request.GET.get("search", None)  # 搜索关键字
+        group_id = request.GET.get("group_id", None)
+        company_id = request.GET.get("company_id", None)
+        start_date = request.GET.get("start_date", None)
+        end_date = request.GET.get("end_date", None)
+        qs = LoginLog.objects.filter(del_flag=0)
+        if search:
+            qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(
+                role__name__icontains=search) | Q(login_ip__icontains=search))
+        if group_id:
+            qs = qs.filter(group__pk=int(group_id))
+        if company_id:
+            qs = qs.filter(company__pk=int(company_id))
+        if start_date:
+            qs = qs.filter(login_time__gt=datetime.strptime(start_date, '%Y-%m-%d'))
+        if end_date:
+            qs = qs.filter(login_time__lte=datetime.strptime(end_date, '%Y-%m-%d'))
+
+        report = xlwt.Workbook(encoding='utf8')
+        sheet = report.add_sheet(u'日志列表')
+        row = 1
+        title = [u'ID', u'姓名', u'集群', u'单位', u'昵称', u'登录角色', u'登录时间', u'登录IP']
+        print qs
+        for log in qs:
+            sheet.write(row, 0, log.user.username)
+            sheet.write(row, 1, log.user.name)
+            sheet.write(row, 2, log.group.name if log.group else '')
+            sheet.write(row, 3, log.company.name if log.company else '')
+            sheet.write(row, 4, log.role.name if log.role else '')
+            sheet.write(row, 5, log.login_time)
+            sheet.write(row, 6, log.login_ip)
+            row += 1
+        # 设置样式
+        for i in range(0, len(title)):
+            sheet.write(0, i, title[i], set_style(220, True))
+
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        filename = urlquote(u'日志列表')
+        response['Content-Disposition'] = u'attachment;filename=%s.xls' % filename
+        report.save(response)
+        return response
+
+    except Exception as e:
+        logger.exception('api_export_loginlogs Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

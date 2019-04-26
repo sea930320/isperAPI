@@ -11,6 +11,7 @@ from django.contrib.auth.hashers import (
 )
 from group.models import AllGroups
 from account.models import Tuser, TRole, OfficeItems, TCompany, TCompanyType
+from django.forms.models import model_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,8 @@ def get_groups_list(request):
 
             results = []
             for flow in flows:
-                groupManager = [{'id': item.id, 'name': item.username, 'description': item.name} for item in flow.groupManagers.all()]
+                groupManager = [{'id': item.id, 'name': item.username, 'description': item.name} for item in
+                                flow.groupManagers.all()]
                 if groupManager is None:
                     groupManager = [{}]
                 results.append({
@@ -276,7 +278,10 @@ def get_own_group(request):
     try:
         id = request.POST.get("id", None)
         group = AllGroups.objects.get(groupManagers=id)
-        groupInstructors = [{'id': instructor.id, 'name': instructor.username, 'instructorItems': [{'id': item.id, 'text': item.name} for item in instructor.instructorItems.all()]} for instructor in group.groupInstructors.all()]
+        groupInstructors = [{'id': instructor.id, 'name': instructor.username,
+                             'instructorItems': [{'id': item.id, 'text': item.name} for item in
+                                                 instructor.instructorItems.all()]} for instructor in
+                            group.groupInstructors.all()]
 
         result = [{
             'id': group.id,
@@ -385,9 +390,11 @@ def get_company_list(request):
         size = int(request.POST.get("size", const.ROW_SIZE))
 
         if search:
-            data = TCompany.objects.filter(Q(name__icontains=search) & Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id))
+            data = TCompany.objects.filter(Q(name__icontains=search) & Q(
+                group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id))
         else:
-            data = TCompany.objects.filter(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id)
+            data = TCompany.objects.filter(
+                group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id)
 
         if len(data) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -446,7 +453,9 @@ def create_new_company(request):
         cManagerName = request.POST.get("cManagerName", None)
         cManagerPass = request.POST.get("cManagerPass", None)
 
-        if TCompany.objects.filter(Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(name=request.POST.get("name"))).count() > 0:
+        if TCompany.objects.filter(
+                        Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(
+                        name=request.POST.get("name"))).count() > 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': 'nameError'}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -488,5 +497,29 @@ def create_new_company(request):
 
     except Exception as e:
         logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def get_groups_all_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        groups = AllGroups.objects.all()
+        results = []
+        for group in groups:
+            result = model_to_dict(group, fields=['id', 'name'])
+            result['companies'] = [model_to_dict(company, fields=['id', 'name']) for company in
+                                   group.tcompany_set.all()]
+            results.append(result)
+        print results
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
