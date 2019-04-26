@@ -42,6 +42,7 @@ urlpatterns += (
     url(r'^api/account/user/delete', account_views.api_course_user_delete),
     url(r'^api/account/share', account_views.api_account_share),
     url(r'^api/account/default-group', account_views.api_get_default_group),
+    url(r'^api/account/get/loginlogs', account_views.api_get_log_list),
 )
 
 urlpatterns += (

@@ -71,7 +71,7 @@ def getGroupByCompanyManagerID(loginType, userID):
         res['login_type'] = 'C'
         user = Tuser.objects.get(id=userID)
         # Company ID
-        company_id = user.created_by.tcompanymanagers_set.get().tcompany.id
+        company_id = user.tcompanymanagers_set.get().tcompany.id
         # Group ID
         groupID = TCompany.objects.get(id=company_id).group.id
         companies = []
@@ -80,3 +80,35 @@ def getGroupByCompanyManagerID(loginType, userID):
         res['companies'] = companies
         res['group_id'] = groupID
     return json.dumps(res)
+
+def loginLog(loginType, userID):
+    user = Tuser.objects.get(id=userID)
+    role = user.roles.get(pk=loginType)
+
+    group = None
+    company = None
+    if loginType == 1:
+        pass
+    elif loginType == 2:
+        group = user.allgroups_set.all().first()
+    elif loginType == 6:
+        group = user.allgroups_set_assistants.all().first()
+    elif loginType == 3:
+        company_id = user.tcompanymanagers_set.get().tcompany.id
+        company = TCompany.objects.get(pk=company_id)
+        group = company.group
+    elif loginType == 7:
+        company = user.t_company_set_assistants.all().first()
+        group = company.group
+    elif loginType == 4:
+        group = user.allgroups_set_instructors.all().first()
+        pass
+    elif loginType == 8:
+        group = user.allgroups_set_instructors.all().first()
+        pass
+    else:
+        # group =
+        pass
+
+    login_log = LoginLog(user=user, role=role)
+    login_log.save()
