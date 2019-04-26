@@ -10,7 +10,7 @@ from django.contrib.auth.hashers import (
     check_password, is_password_usable, make_password,
 )
 from group.models import AllGroups
-from account.models import Tuser, TRole, OfficeItems, TCompany
+from account.models import Tuser, TRole, OfficeItems, TCompany, TCompanyType
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +162,14 @@ def update_group(request):
         default = int(request.POST.get("default", 0))
         publish = int(request.POST.get("publish", 1))
 
+        if int(request.POST.get("default")) == 1:
+            AllGroups.objects.filter(default=1).update(default=0)
+
+        if AllGroups.objects.filter(name=request.POST.get("name")).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'nameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
         AllGroups.objects.filter(id=id).update(name=name, comment=comment, default=default, publish=publish)
 
         resp = code.get_msg(code.SUCCESS)
@@ -184,6 +192,11 @@ def group_add_manager(request):
         name = request.POST.get("data[name]", '')
         description = request.POST.get("data[description]", '')
         password = request.POST.get("data[password]", None)
+
+        if Tuser.objects.filter(username=request.POST.get("data[name]")).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'managerNameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         newUser = AllGroups.objects.get(id=groupID).groupManagers.create(
             username=name,
@@ -358,13 +371,116 @@ def create_instructors(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+# Company Action API
+
+
 def get_company_list(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        data = TCompany.objects.filter(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id)
+        search = request.POST.get("search", None)
+        page = int(request.POST.get("page", 1))
+        size = int(request.POST.get("size", const.ROW_SIZE))
+
+        if search:
+            data = TCompany.objects.filter(Q(name__icontains=search) & Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id))
+        else:
+            data = TCompany.objects.filter(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id)
+
+        if len(data) == 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': [], 'paging': {}}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        else:
+            paginator = Paginator(data, size)
+
+            try:
+                flows = paginator.page(page)
+            except EmptyPage:
+                flows = paginator.page(1)
+
+            result = [{
+                'id': item.id,
+                'name': item.name,
+                'type': item.companyType.name,
+                'creator': item.created_by.username,
+                'create_time': str(item.create_time),
+                'companyManagers': [{
+                    'id': user.tuser.id,
+                    'name': user.tuser.username,
+                    'description': user.tuser.name
+                } for user in item.tcompanymanagers_set.all()],
+            } for item in flows]
+
+            paging = {
+                'count': paginator.count,
+                'has_previous': flows.has_previous(),
+                'has_next': flows.has_next(),
+                'num_pages': paginator.num_pages,
+                'cur_page': flows.number,
+            }
+
+            cTypes = [{'value': item.name, 'text': item.name} for item in TCompanyType.objects.all()]
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': result, 'paging': paging, 'cTypes': cTypes}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def create_new_company(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        name = request.POST.get("name", None)
+        ctype = request.POST.get("type", None)
+        comment = request.POST.get("comment", None)
+        cManagerName = request.POST.get("cManagerName", None)
+        cManagerPass = request.POST.get("cManagerPass", None)
+
+        if TCompany.objects.filter(Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(name=request.POST.get("name"))).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'nameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if Tuser.objects.filter(username=request.POST.get("cManagerName")).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'managerNameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        newCompany = TCompany(
+            name=name,
+            comment=comment,
+            group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get(),
+            created_by=Tuser.objects.get(id=request.session['_auth_user_id']),
+            companyType=TCompanyType.objects.get(name=ctype)
+        )
+        newCompany.save()
+        newCManager = newCompany.tuser_set.create(
+            username=cManagerName,
+            password=make_password(cManagerPass),
+            is_superuser=0,
+            gender=1,
+            name='',
+            identity=1,
+            type=1,
+            is_active=1,
+            is_admin=0,
+            director=0,
+            manage=0,
+            update_time='',
+            del_flag=0,
+            is_register=0
+        )
+        newCompany.tcompanymanagers_set.create(tuser=newCManager)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}

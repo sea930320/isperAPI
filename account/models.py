@@ -97,9 +97,22 @@ class OfficeItems(models.Model):
         return self.name
 
 
+class TCompanyType(models.Model):
+    name = models.CharField(max_length=256)
+
+    class Meta:
+        db_table = "t_companyType"
+
+    def __unicode__(self):
+        return self.name
+
+
 # 单位
 class TCompany(models.Model):
     name = models.CharField(max_length=32, verbose_name=u'名称')
+    comment = models.CharField(max_length=256)
+    created_by = models.ForeignKey('Tuser', related_name="created_company_set")
+    companyType = models.ForeignKey('TCompanyType')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')

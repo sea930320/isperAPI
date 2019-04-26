@@ -224,7 +224,8 @@ urlpatterns += (
     url(r'^api/group/getInstructorItemList$', group_views.get_instructor_items),
     url(r'^api/group/saveInstructors$', group_views.set_instructors),
     url(r'^api/group/createInstructors$', group_views.create_instructors),
-    url(r'^api/group/fetchCompanyList$', group_views.get_company_list),
+    url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
+    url(r'^api/company/createCompany$', group_views.create_new_company),
 )
 
 urlpatterns += (
