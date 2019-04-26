@@ -47,7 +47,7 @@ def get_groups_list(request):
 
             results = []
             for flow in flows:
-                groupManager = [{'id': item.id, 'name': item.username, 'description': item.name} for item in flow.groupManagers.all()]
+                groupManager = [{'id': item.id, 'name': item.username, 'description': item.comment} for item in flow.groupManagers.all()]
                 if groupManager is None:
                     groupManager = [{}]
                 results.append({
@@ -105,6 +105,7 @@ def create_new_group(request):
             is_superuser=0,
             gender=1,
             name='',
+            comment='',
             identity=1,
             type=1,
             is_active=1,
@@ -203,7 +204,7 @@ def group_add_manager(request):
             password=make_password(password),
             is_superuser=0,
             gender=1,
-            name=description,
+            comment=description,
             identity=1,
             type=1,
             is_active=1,
@@ -235,7 +236,7 @@ def group_update_manager(request):
         id = request.POST.get("id", None)
         description = request.POST.get("description", '')
 
-        Tuser.objects.filter(id=id).update(name=description)
+        Tuser.objects.filter(id=id).update(comment=description)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -350,6 +351,7 @@ def create_instructors(request):
             is_superuser=0,
             gender=1,
             name='',
+            comment='',
             identity=1,
             type=1,
             is_active=1,
@@ -410,7 +412,7 @@ def get_company_list(request):
                 'companyManagers': [{
                     'id': user.tuser.id,
                     'name': user.tuser.username,
-                    'description': user.tuser.name
+                    'description': user.tuser.comment
                 } for user in item.tcompanymanagers_set.all()],
             } for item in flows]
 
@@ -470,6 +472,7 @@ def create_new_company(request):
             is_superuser=0,
             gender=1,
             name='',
+            comment='',
             identity=1,
             type=1,
             is_active=1,
@@ -481,6 +484,144 @@ def create_new_company(request):
             is_register=0
         )
         newCompany.tcompanymanagers_set.create(tuser=newCManager)
+        newCManager.roles.add(TRole.objects.get(id=3))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def delete_selected_company(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        selected = eval(request.POST.get("ids", ''))
+        print(selected)
+
+        targets = TCompany.objects.filter(id__in=selected)
+        Tuser.objects.filter(id__in=targets.values_list('tuser')).delete()
+        targets.delete()
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def update_company(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", '')
+        name = request.POST.get("name", '')
+        type = request.POST.get("type", '')
+
+        if TCompany.objects.filter(Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(name=name)).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'nameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        TCompany.objects.filter(id=id).update(name=name, companyType=TCompanyType.objects.get(name=type))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def add_company_manager(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        companyID = request.POST.get("companyID", '')
+        name = request.POST.get("data[name]", '')
+        description = request.POST.get("data[description]", '')
+        password = request.POST.get("data[password]", None)
+
+        if Tuser.objects.filter(username=request.POST.get("data[name]")).count() > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'managerNameError'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        newUser = TCompany.objects.get(id=companyID).tuser_set.create(
+            username=name,
+            password=make_password(password),
+            is_superuser=0,
+            gender=1,
+            comment=description,
+            identity=1,
+            type=1,
+            is_active=1,
+            is_admin=0,
+            director=0,
+            manage=0,
+            update_time='',
+            del_flag=0,
+            is_register=0
+        )
+        TCompany.objects.get(id=companyID).tcompanymanagers_set.create(tuser=newUser)
+        newUser.roles.add(TRole.objects.get(id=3))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def update_company_manager(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", None)
+        description = request.POST.get("description", '')
+
+        Tuser.objects.filter(id=id).update(comment=description)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def reset_company_manager(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id", None)
+        password = request.POST.get("password", None)
+
+        Tuser.objects.filter(id=id).update(password=make_password(password))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}

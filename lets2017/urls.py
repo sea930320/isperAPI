@@ -222,6 +222,11 @@ urlpatterns += (
     url(r'^api/group/createInstructors$', group_views.create_instructors),
     url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
     url(r'^api/company/createCompany$', group_views.create_new_company),
+    url(r'^api/company/deleteCompany$', group_views.delete_selected_company),
+    url(r'^api/company/updateCompany$', group_views.update_company),
+    url(r'^api/company/addCManager$', group_views.add_company_manager),
+    url(r'^api/company/updateCManager$', group_views.update_company_manager),
+    url(r'^api/company/pCResetManager$', group_views.reset_company_manager),
 )
 
 urlpatterns += (

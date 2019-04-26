@@ -146,6 +146,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     nickname = models.CharField(max_length=24, blank=True, null=True, verbose_name=u'昵称')
     gender = models.PositiveIntegerField(choices=const.GENDER, default=1, verbose_name=u'性别')
     name = models.CharField(max_length=256, verbose_name=u'姓名')
+    comment = models.CharField(max_length=256, default="")
     email = models.CharField(max_length=56, blank=True, null=True, verbose_name=u'邮箱')
     phone = models.CharField(max_length=16, blank=True, null=True, verbose_name=u'联系方式')
     qq = models.CharField(max_length=28, blank=True, null=True, verbose_name=u'QQ')
@@ -190,19 +191,5 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     @property
     def is_staff(self):
         return self.is_admin
-
-
-# 用户角色
-class TUserRole(models.Model):
-    user = models.ForeignKey(Tuser, on_delete=models.CASCADE)
-    role = models.ForeignKey(TRole, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = "t_user_role"
-        verbose_name_plural = u"用户角色"
-        verbose_name = u"用户角色"
-
-    def __unicode__(self):
-        return self.user.name + " : " + self.role.name
 
 
