@@ -1388,10 +1388,18 @@ def api_get_log_list(request):
         end_date = request.GET.get("end_date", None)
         user = request.user
         if request.session['login_type'] == 1:
-            qs = LoginLog.objects.filter(del_flag=0)
+            qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
         elif request.session['login_type'] == 2:
             group_id = user.allgroups_set.all().first().id
-            qs = LoginLog.objects.filter(del_flag=0)
+            qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
+        elif request.session['login_type'] == 3:
+            company_id = user.tcompanymanagers_set.get().tcompany.id
+            company = TCompany.objects.get(pk=company_id)
+            group_id = company.group.id
+            qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
+        else:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if search:
             qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(role__name__icontains=search) | Q(login_ip__icontains=search))
@@ -1467,12 +1475,31 @@ def api_export_loginlogs(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
+        if request.session['login_type'] not in [1, 2, 3]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
         search = request.GET.get("search", None)  # 搜索关键字
         group_id = request.GET.get("group_id", None)
         company_id = request.GET.get("company_id", None)
         start_date = request.GET.get("start_date", None)
         end_date = request.GET.get("end_date", None)
-        qs = LoginLog.objects.filter(del_flag=0)
+
+        user = request.user
+        if request.session['login_type'] == 1:
+            qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
+        elif request.session['login_type'] == 2:
+            group_id = user.allgroups_set.all().first().id
+            qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
+        elif request.session['login_type'] == 3:
+            company_id = user.tcompanymanagers_set.get().tcompany.id
+            company = TCompany.objects.get(pk=company_id)
+            group_id = company.group.id
+            qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
+        else:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
         if search:
             qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(
                 role__name__icontains=search) | Q(login_ip__icontains=search))

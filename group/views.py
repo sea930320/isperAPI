@@ -657,7 +657,6 @@ def get_groups_all_list(request):
             result['companies'] = [model_to_dict(company, fields=['id', 'name']) for company in
                                    group.tcompany_set.all()]
             results.append(result)
-        print results
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

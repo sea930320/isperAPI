@@ -204,6 +204,7 @@ class LoginLog(models.Model):
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     class Meta:
         db_table = "t_login_logs"
+        ordering = ['-login_time']
         verbose_name_plural = u"登录记录"
         verbose_name = u"登录记录"
 
