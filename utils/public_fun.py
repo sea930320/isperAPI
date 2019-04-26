@@ -6,6 +6,7 @@ import random
 from account.models import *
 from group.models import *
 from group.models import AllGroups
+from account.models import LoginLog
 import json
 import code
 
@@ -61,7 +62,6 @@ def getGroupByGroupManagerID(loginType, userID):
             res['groupManagers'] = groupManagersIDs
         except AttributeError as ae:
             resp = code.get_msg(code.PERMISSION_DENIED)
-        print json.dumps(res)
         return json.dumps(res)
 
 def getGroupByCompanyManagerID(loginType, userID):
@@ -72,7 +72,7 @@ def getGroupByCompanyManagerID(loginType, userID):
         res['login_type'] = 'C'
         user = Tuser.objects.get(id=userID)
         # Company ID
-        company_id = user.tcompany.id
+        company_id = user.tcompanymanagers_set.get().tcompany.id
         # Group ID
         groupID = TCompany.objects.get(id=company_id).group.id
         companies = []
@@ -80,5 +80,35 @@ def getGroupByCompanyManagerID(loginType, userID):
         # Companies Lists
         res['companies'] = companies
         res['group_id'] = groupID
-    print json.dumps(res)
     return json.dumps(res)
+
+def loginLog(loginType, userID, ip):
+    user = Tuser.objects.get(id=userID)
+    role = user.roles.get(pk=loginType)
+
+    group = None
+    company = None
+    if loginType == 1:
+        pass
+    elif loginType == 2:
+        group = user.allgroups_set.all().first()
+    elif loginType == 6:
+        group = user.allgroups_set_assistants.all().first()
+    elif loginType == 3:
+        company_id = user.tcompanymanagers_set.get().tcompany.id
+        company = TCompany.objects.get(pk=company_id)
+        group = company.group
+    elif loginType == 7:
+        company = user.t_company_set_assistants.all().first()
+        if company is not None:
+            group = company.group
+    elif loginType == 4:
+        group = user.allgroups_set_instructors.all().first()
+    elif loginType == 8:
+        group = user.allgroups_set_instructor_assistants.all().first()
+    else:
+        company = user.tcompany
+        if company is not None:
+            group = company.group
+    login_log = LoginLog(user=user, role=role, group=group, company=company, login_ip=ip)
+    login_log.save()

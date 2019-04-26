@@ -42,6 +42,9 @@ urlpatterns += (
     url(r'^api/account/user/delete', account_views.api_course_user_delete),
     url(r'^api/account/share', account_views.api_account_share),
     url(r'^api/account/default-group', account_views.api_get_default_group),
+    url(r'^api/account/get/loginlogs', account_views.api_get_log_list),
+    url(r'^api/account/remove/loginlogs', account_views.api_remove_loginlogs),
+    url(r'^api/account/export/loginlogs', account_views.api_export_loginlogs),
 )
 
 urlpatterns += (
@@ -205,7 +208,10 @@ urlpatterns += (
     url(r'^api/workflow/opt/import$', workflow_views.api_workflow_opt_import),
     url(r'^api/workflow/opt/export$', workflow_views.workflow_opt_export),
     url(r'^api/workflow/protected$', workflow_views.api_workflow_protected),
+    url(r'^api/workflow/public$', workflow_views.api_workflow_public),
+    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic),
     url(r'^api/workflow/share$', workflow_views.api_workflow_share),
+    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare),
 )
 
 urlpatterns += (
@@ -220,6 +226,7 @@ urlpatterns += (
     url(r'^api/group/getInstructorItemList$', group_views.get_instructor_items),
     url(r'^api/group/saveInstructors$', group_views.set_instructors),
     url(r'^api/group/createInstructors$', group_views.create_instructors),
+    url(r'^api/group/all-list$', group_views.get_groups_all_list),
     url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
     url(r'^api/company/createCompany$', group_views.create_new_company),
     url(r'^api/company/deleteCompany$', group_views.delete_selected_company),

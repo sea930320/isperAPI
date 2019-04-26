@@ -117,6 +117,7 @@ class TCompany(models.Model):
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE)
+    assistants = models.ManyToManyField('Tuser', related_name="t_company_set_assistants")
 
     class Meta:
         db_table = "t_company"
@@ -192,4 +193,20 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     def is_staff(self):
         return self.is_admin
 
+
+class LoginLog(models.Model):
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE)
+    role = models.ForeignKey(TRole, on_delete=models.CASCADE)
+    group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE, null=True)
+    company = models.ForeignKey(TCompany, on_delete=models.CASCADE, null=True)
+    login_time=models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    login_ip=models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    class Meta:
+        db_table = "t_login_logs"
+        verbose_name_plural = u"登录记录"
+        verbose_name = u"登录记录"
+
+    def __unicode__(self):
+        return self.user.name
 
