@@ -1386,49 +1386,50 @@ def api_get_log_list(request):
         company_id = request.GET.get("company_id", None)
         start_date = request.GET.get("start_date", None)
         end_date = request.GET.get("end_date", None)
-
+        user = request.user
         if request.session['login_type'] == 1:
             qs = LoginLog.objects.filter(del_flag=0)
-            if search:
-                qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(role__name__icontains=search) | Q(login_ip__icontains=search))
-            if group_id:
-                qs = qs.filter(group__pk=int(group_id))
-            if company_id:
-                qs = qs.filter(company__pk=int(company_id))
-            if start_date:
-                qs = qs.filter(login_time__gt=datetime.strptime(start_date, '%Y-%m-%d'))
-            if end_date:
-                qs = qs.filter(login_time__lte=datetime.strptime(end_date, '%Y-%m-%d'))
-            # 分页
-            paginator = Paginator(qs, size)
-            try:
-                logs = paginator.page(page)
-            except EmptyPage:
-                logs = paginator.page(1)
+        elif request.session['login_type'] == 2:
+            group_id = user.allgroups_set.all().first().id
+            qs = LoginLog.objects.filter(del_flag=0)
 
-            results = []
-            for log in logs:
-                group = log.group is not None and model_to_dict(log.group, fields=['id', 'name']) or None
-                company = log.company is not None and model_to_dict(log.company, fields=['id', 'name']) or None
-                role = log.role is not None and model_to_dict(log.role, fields=['id', 'name']) or None
-                results.append({
-                    'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group, 'company': company,
-                    'role': role, 'login_time': log.login_time is not None and log.login_time.strftime('%Y-%m-%d') or "",
-                    'login_ip': log.login_ip
-                })
-            paging = {
-                'count': paginator.count,
-                'has_previous': logs.has_previous(),
-                'has_next': logs.has_next(),
-                'num_pages': paginator.num_pages,
-                'cur_page': logs.number,
-            }
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': results, 'paging': paging}
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        else:
-            resp = code.get_msg(code.PERMISSION_DENIED)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if search:
+            qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(role__name__icontains=search) | Q(login_ip__icontains=search))
+        if group_id:
+            qs = qs.filter(group__pk=int(group_id))
+        if company_id:
+            qs = qs.filter(company__pk=int(company_id))
+        if start_date:
+            qs = qs.filter(login_time__gt=datetime.strptime(start_date, '%Y-%m-%d'))
+        if end_date:
+            qs = qs.filter(login_time__lte=datetime.strptime(end_date, '%Y-%m-%d'))
+        # 分页
+        paginator = Paginator(qs, size)
+        try:
+            logs = paginator.page(page)
+        except EmptyPage:
+            logs = paginator.page(1)
+
+        results = []
+        for log in logs:
+            group = log.group is not None and model_to_dict(log.group, fields=['id', 'name']) or None
+            company = log.company is not None and model_to_dict(log.company, fields=['id', 'name']) or None
+            role = log.role is not None and model_to_dict(log.role, fields=['id', 'name']) or None
+            results.append({
+                'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group, 'company': company,
+                'role': role, 'login_time': log.login_time is not None and log.login_time.strftime('%Y-%m-%d') or "",
+                'login_ip': log.login_ip
+            })
+        paging = {
+            'count': paginator.count,
+            'has_previous': logs.has_previous(),
+            'has_next': logs.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': logs.number,
+        }
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'paging': paging}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('api_get_log_list Exception:{0}'.format(str(e)))
@@ -1441,6 +1442,9 @@ def api_remove_loginlogs(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+        if request.session['login_type'] != 1:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         data = request.GET.get("data", None)  # id列表json:[1,2,3]
         if data is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
@@ -1484,15 +1488,14 @@ def api_export_loginlogs(request):
         report = xlwt.Workbook(encoding='utf8')
         sheet = report.add_sheet(u'日志列表')
         row = 1
-        title = [u'ID', u'姓名', u'集群', u'单位', u'昵称', u'登录角色', u'登录时间', u'登录IP']
-        print qs
+        title = [u'用户名', u'姓名', u'集群', u'单位', u'登录角色', u'登录时间', u'登录IP']
         for log in qs:
             sheet.write(row, 0, log.user.username)
             sheet.write(row, 1, log.user.name)
             sheet.write(row, 2, log.group.name if log.group else '')
             sheet.write(row, 3, log.company.name if log.company else '')
             sheet.write(row, 4, log.role.name if log.role else '')
-            sheet.write(row, 5, log.login_time)
+            sheet.write(row, 5, log.login_time is not None and log.login_time.strftime('%Y-%m-%d') or "")
             sheet.write(row, 6, log.login_ip)
             row += 1
         # 设置样式
