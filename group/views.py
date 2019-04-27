@@ -167,10 +167,11 @@ def update_group(request):
         if int(request.POST.get("default")) == 1:
             AllGroups.objects.filter(default=1).update(default=0)
 
-        if AllGroups.objects.filter(name=request.POST.get("name")).count() > 0:
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': 'nameError'}
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if AllGroups.objects.get(id=id).name != name:
+            if AllGroups.objects.filter(name=request.POST.get("name")).count() > 0:
+                resp = code.get_msg(code.SUCCESS)
+                resp['d'] = {'results': 'nameError'}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         AllGroups.objects.filter(id=id).update(name=name, comment=comment, default=default, publish=publish)
 
