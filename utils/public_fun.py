@@ -71,7 +71,7 @@ def getGroupByCompanyManagerID(loginType, userID):
         res['login_type'] = 'C'
         user = Tuser.objects.get(id=userID)
         # Company ID
-        company_id = user.created_by.tcompanymanagers_set.get().tcompany.id
+        company_id = user.tcompanymanagers_set.get().tcompany.id
         # Group ID
         groupID = TCompany.objects.get(id=company_id).group.id
         companies = []

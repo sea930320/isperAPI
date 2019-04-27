@@ -385,12 +385,13 @@ def api_project_roles_configurate(request):
 
 # 修改项目
 def api_project_update(request):
+    print 'update'
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        project_id = request.POST.get("project_id")  # 项目ID
+        project_id = request.POST.get("id")  # 项目ID
         name = request.POST.get("name", None)  # 名称
         all_role = request.POST.get("all_role", None)  # 允许一人扮演所有角色
         course = request.POST.get("course", None)  # 课程ID
@@ -410,15 +411,17 @@ def api_project_update(request):
         # 课程没有就保存
         Course.objects.get_or_create(name=course)
 
-        obj = Project.objects.filter(pk=project_id, del_flag=0).first()
+        obj = Project.objects.filter(id=project_id, del_flag=0).first()
         if obj:
             if all([name, all_role, course, reference, public_status, level, entire_graph, can_redo,
                     is_open, ability_target, intro, purpose, requirement]):
                 if len(name) == 0 or len(name) > 60:
                     resp = code.get_msg(code.PARAMETER_ERROR)
+                    print '1',code
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
                 if len(course) == 0 or len(course) > 45:
                     resp = code.get_msg(code.PARAMETER_ERROR)
+                    print '2', code
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                 if is_open == '1' or is_open == '3':
@@ -434,6 +437,7 @@ def api_project_update(request):
                 if is_open == '2':
                     if start_time is None or start_time == '' or end_time is None or end_time == '':
                         resp = code.get_msg(code.PARAMETER_ERROR)
+                        print '3', code
                         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
                     start_time = datetime.strptime(start_time, '%Y-%m-%d')
                     end_time = datetime.strptime(end_time, '%Y-%m-%d')
@@ -457,6 +461,7 @@ def api_project_update(request):
                     obj.step = const.PRO_STEP_1
                 obj.save()
                 resp = code.get_msg(code.SUCCESS)
+                print '4', code
                 start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
                 end_time = obj.end_time.strftime('%Y-%m-%d') if obj.end_time else ''
                 resp['d'] = {
@@ -471,12 +476,15 @@ def api_project_update(request):
 
             else:
                 resp = code.get_msg(code.PARAMETER_ERROR)
+                print '5', code
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
+            print '6', code
 
     except Exception as e:
         logger.exception('api_project_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
+        print '7', code
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -610,6 +618,7 @@ def api_project_detail(request):
 
 # 创建项目
 def api_project_create(request):
+    print 'create'
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -632,15 +641,18 @@ def api_project_create(request):
         purpose = request.POST.get("purpose", None)  # 实验目的
         requirement = request.POST.get("requirement", None)  # 实验要求
         logger.info('-----api_project_create----')
+        print intro
         if all([flow_id, name, all_role, course, reference, public_status, level, entire_graph, can_redo,
                 is_open, ability_target, intro, purpose, requirement]):
             name = name.strip()
             if len(name) == 0 or len(name) > 32:
                 resp = code.get_msg(code.PARAMETER_ERROR)
+                print '2', code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             if len(course) == 0 or len(course) > 45:
                 resp = code.get_msg(code.PARAMETER_ERROR)
+                print '3',code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 开始模式是自由的话，不需要传start_time和end_time
@@ -657,6 +669,7 @@ def api_project_create(request):
             if is_open == '2':
                 if None in (start_time, end_time) or '' in (start_time, end_time):
                     resp = code.get_msg(code.PARAMETER_ERROR)
+                    print '4',code
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
                 start_time = datetime.strptime(start_time, '%Y-%m-%d')
                 end_time = datetime.strptime(end_time, '%Y-%m-%d')
@@ -664,36 +677,40 @@ def api_project_create(request):
             if start_time and end_time:
                 if end_time < start_time:
                     resp = code.get_msg(code.PARAMETER_ERROR)
+                    print '5',code
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # logger.info('start_time:%s,end_time:%s' % (start_time, end_time))
             flow = Flow.objects.filter(pk=flow_id).first()
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
+                print '6',code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 验证名称
             exists = Project.objects.filter(name=name, del_flag=0).exists()
             if exists:
                 resp = code.get_msg(code.PROJECT_NAME_HAS_EXIST)
+                print '7',code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 判断流程是否有角色设置
             roles = FlowRole.objects.filter(flow_id=flow_id, del_flag=0)
             if roles.exists() is False:
                 resp = code.get_msg(code.FLOW_ROLE_NOT_EXIST)
+                print '8',code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 课程没有就保存
             Course.objects.get_or_create(name=course)
-
+            print 'continue'
             with transaction.atomic():
                 obj = Project.objects.create(flow_id=flow_id, name=name, all_role=all_role, course=course,
                                              reference=reference, public_status=public_status, level=level,
                                              entire_graph=entire_graph, can_redo=can_redo, is_open=is_open,
                                              ability_target=ability_target, start_time=start_time, end_time=end_time,
                                              intro=intro, purpose=purpose, requirement=requirement,
-                                             type=flow.type_label, created_by=request.user.pk)
+                                             type=flow.type_label, created_by=Tuser.objects.get(id=request.user.pk))
                 # 复制流程角
                 project_roles = []
                 for item in roles:
@@ -736,6 +753,7 @@ def api_project_create(request):
                 # logger.info('-----bulk_create docs_allocations:%s----' % len(docs_allocations))
 
                 resp = code.get_msg(code.SUCCESS)
+                print '1',code
                 start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
                 end_time = obj.end_time.strftime('%Y-%m-%d') if obj.end_time else ''
                 resp['d'] = {
@@ -748,10 +766,11 @@ def api_project_create(request):
                 }
         else:
             resp = code.get_msg(code.PARAMETER_ERROR)
-
+            print '10',code
     except Exception as e:
         logger.exception('api_project_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
+        print '11', code
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
@@ -839,7 +858,7 @@ def api_project_list(request):
                 'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target,
                 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id),
                 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
-                'flow': flow_data,
+                'flow': flow_data,'intro':project.intro,'purpose':project.purpose,'requirement':project.requirement,
                 'protected': project.protected, 'is_group_share': project.is_group_share,'is_company_share': project.is_company_share,
                 'share_able':shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share':currentShare
             })
