@@ -69,7 +69,7 @@ def get_groups_list(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('get_groups_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -124,7 +124,7 @@ def create_new_group(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('create_new_group Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -147,7 +147,7 @@ def delete_selected_group(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('delete_selected_group Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -180,7 +180,7 @@ def update_group(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('update_group Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -224,7 +224,7 @@ def group_add_manager(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('group_add_manager Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -245,7 +245,7 @@ def group_update_manager(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('group_update_manager Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -266,7 +266,7 @@ def group_reset_manager(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('group_reset_manager Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -296,7 +296,7 @@ def get_own_group(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('get_own_group Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -314,7 +314,7 @@ def get_instructor_items(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('get_instructor_items Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -336,7 +336,7 @@ def set_instructors(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('set_instructors Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -373,7 +373,7 @@ def create_instructors(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('create_instructors Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -438,7 +438,7 @@ def get_company_list(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('get_company_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -500,7 +500,7 @@ def create_new_company(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('create_new_company Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -523,7 +523,7 @@ def delete_selected_company(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('delete_selected_company Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -550,7 +550,7 @@ def update_company(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('update_company Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -595,7 +595,7 @@ def add_company_manager(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('add_company_manager Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -616,7 +616,7 @@ def update_company_manager(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('update_company_manager Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -637,7 +637,7 @@ def reset_company_manager(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        logger.exception('reset_company_manager Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 

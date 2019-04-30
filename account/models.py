@@ -78,6 +78,9 @@ class TRole(models.Model):
 
 class OfficeKinds(models.Model):
     name = models.CharField(max_length=256)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "t_officeKinds"
@@ -88,7 +91,10 @@ class OfficeKinds(models.Model):
 
 class OfficeItems(models.Model):
     name = models.CharField(max_length=256)
-    kinds = models.ManyToManyField(OfficeKinds)
+    kinds = models.ForeignKey(OfficeKinds)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "t_officeItems"
@@ -99,9 +105,52 @@ class OfficeItems(models.Model):
 
 class TCompanyType(models.Model):
     name = models.CharField(max_length=256)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "t_companyType"
+
+    def __unicode__(self):
+        return self.name
+
+
+class TJobType(models.Model):
+    name = models.CharField(max_length=256)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_jobType"
+
+    def __unicode__(self):
+        return self.name
+
+
+class TCourseKinds(models.Model):
+    name = models.CharField(max_length=256)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_courseKinds"
+
+    def __unicode__(self):
+        return self.name
+
+
+class TCourseItems(models.Model):
+    name = models.CharField(max_length=256)
+    kinds = models.ForeignKey(TCourseKinds)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_courseItems"
 
     def __unicode__(self):
         return self.name

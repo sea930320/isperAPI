@@ -15,6 +15,7 @@ from system import views as system_views
 from team import views as team_views
 from workflow import views as workflow_views
 from group import views as group_views
+from dictionary import views as dictionary_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -234,6 +235,13 @@ urlpatterns += (
     url(r'^api/company/addCManager$', group_views.add_company_manager),
     url(r'^api/company/updateCManager$', group_views.update_company_manager),
     url(r'^api/company/pCResetManager$', group_views.reset_company_manager),
+)
+
+urlpatterns += (
+    url(r'^api/dic/getDicData$', dictionary_views.get_dic_data),
+    url(r'^api/dic/newItemSave$', dictionary_views.new_item_save),
+    url(r'^api/dic/editItemSave$', dictionary_views.edit_item_save),
+    url(r'^api/dic/deleteItemSave$', dictionary_views.delete_item_save),
 )
 
 urlpatterns += (
