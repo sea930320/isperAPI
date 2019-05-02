@@ -16,6 +16,7 @@ from team import views as team_views
 from workflow import views as workflow_views
 from group import views as group_views
 from dictionary import views as dictionary_views
+from userManage import views as userManage_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -242,6 +243,14 @@ urlpatterns += (
     url(r'^api/dic/newItemSave$', dictionary_views.new_item_save),
     url(r'^api/dic/editItemSave$', dictionary_views.edit_item_save),
     url(r'^api/dic/deleteItemSave$', dictionary_views.delete_item_save),
+)
+
+urlpatterns += (
+    url(r'^api/userManager/getNormalUsers$', userManage_views.get_normal_users),
+    url(r'^api/userManager/getManageUsers$', userManage_views.get_manage_users),
+    url(r'^api/userManager/getInstructorUsers$', userManage_views.get_instructor_users),
+    url(r'^api/userManager/getStudentUsers$', userManage_views.get_student_users),
+    url(r'^api/userManager/resetPass$', userManage_views.reset_user_password),
 )
 
 urlpatterns += (

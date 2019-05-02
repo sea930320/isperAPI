@@ -205,6 +205,8 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     ip = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
     is_active = models.BooleanField(default=True, verbose_name=u'账号状态')
     is_admin = models.BooleanField(default=False, verbose_name=u'超级管理员')
+    class_name = models.CharField(max_length=256, null=True, blank=True)
+    student_id = models.IntegerField(null=True, blank=True)
     tclass = models.ForeignKey(TClass, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'班级')
     tcompany = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'所在单位')
     director = models.BooleanField(default=False, verbose_name=u'是否具有指导权限')
