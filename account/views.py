@@ -527,7 +527,7 @@ def api_account_avatar_img_upload(request):
 def api_get_default_group(request):
     try:
         defaultGroup = AllGroups.objects.get(default=1)
-        companies = defaultGroup.tcompany_set.all()
+        companies = defaultGroup.tcompany_set.filter(is_default=0)
         defaultGroup = model_to_dict(defaultGroup, fields=['id', 'name'])
         defaultGroup['companies'] = [{'id': i.id, 'name': i.name} for i in companies]
         resp = code.get_msg(code.SUCCESS)
@@ -547,7 +547,10 @@ def api_account_user_create(request):
         passwordConfirmation = request.POST.get('passwordConfirmation', None)  # 昵称
         phone = request.POST.get('phone', None)  # 联系方式
         email = request.POST.get('email', None)  # 邮箱
+        defaultGroup = AllGroups.objects.get(default=1)
+        company = defaultGroup.tcompany_set.get(is_default=1)
         company_id = request.POST.get('company_id', None)  # 所在单位
+        company_id = company_id if company_id is not u'' else company.id
         avatar_id = request.POST.get('avatar_id', None)  # 所在单位
         verification_code = request.POST.get('verificationCode', None)
 

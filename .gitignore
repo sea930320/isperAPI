@@ -107,3 +107,4 @@ venv.bak/
 .mypy_cache/
 
 media/avatars
+media/workflow
