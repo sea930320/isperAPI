@@ -30,6 +30,9 @@ UPLOAD_FILE_NAME_TOOLONG_ERROR = 10005
 
 PHONE_NOT_VERIFIED = 10006
 
+USER_NOT_REVIEWED = 10007
+USER_REVIEWED_FAILED = 10008
+
 # 流程不存在
 FLOW_NOT_EXIST = 20001
 # 流程已经发布
@@ -159,6 +162,8 @@ MSG = {
     10004: u'文件格式错误',
     10005: u'上传文件名长度过长',
     10006: u'电话验证失败',
+    10007: u'等待审核',
+    10008: u'审核不通过',
     20001: u'流程不存在',
     20002: u'该流程已经发布',
     20003: u'该素材不存在或已被删除',
