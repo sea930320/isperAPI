@@ -27,19 +27,15 @@ def api_course_list(request):
     try:
         search = request.GET.get("search", None)  # 搜索关键字
 
-        qs = Course.objects.all()
-
         if search:
-            qs = qs.filter(Q(name__icontains=search))
+            qs = Course.objects.filter(Q(name__icontains=search))
+        else:
+            qs = Course.objects.all()
 
-        data = []
+        data = [{'value': item.id, 'text': item.name} for item in qs]
 
-        for course in qs:
-            projects = Project.objects.filter(course=course.name, del_flag=0)
-            if projects and len(projects) > 0:
-                data.append({'name': course.name})
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = data
+        resp['d'] = {'results': data}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:

@@ -1663,6 +1663,7 @@ def api_workflow_list(request):
         # 搜索关键字过滤
         if search:
             qs = qs.filter(Q(name__icontains=search))
+            # qs = qs.filter(name=search)
 
         # 分页
         paginator = Paginator(qs, size)

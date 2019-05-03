@@ -111,14 +111,19 @@ def api_project_docs_detail(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        project_id = request.GET.get("project_id", None)  # 项目ID
+        project_id = int(request.GET.get("project_id", None))  # 项目ID
+        print '1',project_id
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
+        print '2'
         if obj:
             resp = code.get_msg(code.SUCCESS)
+            print '1',code
             # 流程
             flow = Flow.objects.filter(pk=obj.flow_id, del_flag=0).first()
+            print flow
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
+                print '2', code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             has_jump_project = False
@@ -177,9 +182,12 @@ def api_project_docs_detail(request):
                          'project_role_type': list(project_role_type)}
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
+            print '3', code
     except Exception as e:
         logger.exception('api_project_docs_detail Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
+        print '4', code
+    print '5'
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
@@ -240,6 +248,7 @@ def api_project_docs_allocate(request):
 
 # 项目角色设置
 def api_project_roles_detail(request):
+    print 'start'
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -249,20 +258,24 @@ def api_project_roles_detail(request):
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
         if obj:
             resp = code.get_msg(code.SUCCESS)
+            print '0', code
             # 流程
             flow = Flow.objects.filter(pk=obj.flow_id, del_flag=0).first()
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+            print '1',code
             has_jump_project = False
             jump_process = FlowProcess.objects.filter(type=const.PROCESS_JUMP_TYPE,
                                                       del_flag=const.DELETE_FLAG_NO).first()
+            print '2', jump_process
             if jump_process:
                 is_exists = FlowNode.objects.filter(flow_id=flow.pk, process=jump_process,
                                                     del_flag=const.DELETE_FLAG_NO).exists()
+                print '3', jump_process
                 if is_exists:
                     has_jump_project = True
+                    print '4', code
 
             project = {'id': obj.id, 'name': obj.name, 'level': obj.level, 'purpose': obj.purpose,
                        'flow_id': flow.pk, 'flow_name': flow.name, 'type': obj.type,
@@ -306,6 +319,7 @@ def api_project_roles_detail(request):
                          'project_role_type': list(project_role_type), 'project_node_roles': list(project_node_roles)}
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
+            print '1', code
     except Exception as e:
         logger.exception('api_project_roles_detail Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -385,12 +399,13 @@ def api_project_roles_configurate(request):
 
 # 修改项目
 def api_project_update(request):
+    print 'update'
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        project_id = request.POST.get("project_id")  # 项目ID
+        project_id = request.POST.get("id")  # 项目ID
         name = request.POST.get("name", None)  # 名称
         all_role = request.POST.get("all_role", None)  # 允许一人扮演所有角色
         course = request.POST.get("course", None)  # 课程ID
@@ -410,7 +425,7 @@ def api_project_update(request):
         # 课程没有就保存
         Course.objects.get_or_create(name=course)
 
-        obj = Project.objects.filter(pk=project_id, del_flag=0).first()
+        obj = Project.objects.filter(id=project_id, del_flag=0).first()
         if obj:
             if all([name, all_role, course, reference, public_status, level, entire_graph, can_redo,
                     is_open, ability_target, intro, purpose, requirement]):
@@ -637,6 +652,7 @@ def api_project_create(request):
             name = name.strip()
             if len(name) == 0 or len(name) > 32:
                 resp = code.get_msg(code.PARAMETER_ERROR)
+                print '2', code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             if len(course) == 0 or len(course) > 45:
@@ -686,14 +702,13 @@ def api_project_create(request):
 
             # 课程没有就保存
             Course.objects.get_or_create(name=course)
-
             with transaction.atomic():
                 obj = Project.objects.create(flow_id=flow_id, name=name, all_role=all_role, course=course,
                                              reference=reference, public_status=public_status, level=level,
                                              entire_graph=entire_graph, can_redo=can_redo, is_open=is_open,
                                              ability_target=ability_target, start_time=start_time, end_time=end_time,
                                              intro=intro, purpose=purpose, requirement=requirement,
-                                             type=flow.type_label, created_by=request.user.pk)
+                                             type=flow.type_label, created_by=Tuser.objects.get(id=request.user.pk))
                 # 复制流程角
                 project_roles = []
                 for item in roles:
@@ -748,7 +763,6 @@ def api_project_create(request):
                 }
         else:
             resp = code.get_msg(code.PARAMETER_ERROR)
-
     except Exception as e:
         logger.exception('api_project_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -762,7 +776,7 @@ def api_project_list(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        search = request.GET.get("search", "")  # 搜索关键字
+        search = request.GET.get("search", None)  # 搜索关键字
         page = int(request.GET.get("page", 1))  # 页码
         size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
         course = request.GET.get("course", None)  # 课程
@@ -772,6 +786,8 @@ def api_project_list(request):
 
         if search:
             qs = qs.filter(name__icontains=search)
+            # qs = qs.filter(name='test')
+            print search
 
         if course:
             qs = qs.filter(course=course)
@@ -792,13 +808,13 @@ def api_project_list(request):
         if request.session['login_type'] == 2:
             groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
             groupID = groupInfo['group_id']
-            qs = Project.objects.filter( Q(is_group_share=1)|(Q(created_by__tcompany__group_id=groupID)|Q(created_by__allgroups_set__in=[groupID])))
+            qs = qs.filter( Q(is_group_share=1)|(Q(created_by__tcompany__group_id=groupID)|Q(created_by__allgroups_set__in=[groupID])))
 
         # If User Is Company Manager
         if request.session['login_type'] == 3:
             groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
             groupID = groupInfo['group_id']
-            qs = Project.objects.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
+            qs = qs.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
         paginator = Paginator(qs, size)
 
@@ -839,7 +855,7 @@ def api_project_list(request):
                 'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target,
                 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id),
                 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
-                'flow': flow_data,
+                'flow': flow_data,'intro':project.intro,'purpose':project.purpose,'requirement':project.requirement,
                 'protected': project.protected, 'is_group_share': project.is_group_share,'is_company_share': project.is_company_share,
                 'share_able':shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share':currentShare
             })
