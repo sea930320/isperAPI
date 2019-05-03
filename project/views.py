@@ -111,14 +111,19 @@ def api_project_docs_detail(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        project_id = request.GET.get("project_id", None)  # 项目ID
+        project_id = int(request.GET.get("project_id", None))  # 项目ID
+        print '1',project_id
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
+        print '2'
         if obj:
             resp = code.get_msg(code.SUCCESS)
+            print '1',code
             # 流程
             flow = Flow.objects.filter(pk=obj.flow_id, del_flag=0).first()
+            print flow
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
+                print '2', code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             has_jump_project = False
@@ -177,9 +182,12 @@ def api_project_docs_detail(request):
                          'project_role_type': list(project_role_type)}
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
+            print '3', code
     except Exception as e:
         logger.exception('api_project_docs_detail Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
+        print '4', code
+    print '5'
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
@@ -240,6 +248,7 @@ def api_project_docs_allocate(request):
 
 # 项目角色设置
 def api_project_roles_detail(request):
+    print 'start'
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -249,20 +258,24 @@ def api_project_roles_detail(request):
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
         if obj:
             resp = code.get_msg(code.SUCCESS)
+            print '0', code
             # 流程
             flow = Flow.objects.filter(pk=obj.flow_id, del_flag=0).first()
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+            print '1',code
             has_jump_project = False
             jump_process = FlowProcess.objects.filter(type=const.PROCESS_JUMP_TYPE,
                                                       del_flag=const.DELETE_FLAG_NO).first()
+            print '2', jump_process
             if jump_process:
                 is_exists = FlowNode.objects.filter(flow_id=flow.pk, process=jump_process,
                                                     del_flag=const.DELETE_FLAG_NO).exists()
+                print '3', jump_process
                 if is_exists:
                     has_jump_project = True
+                    print '4', code
 
             project = {'id': obj.id, 'name': obj.name, 'level': obj.level, 'purpose': obj.purpose,
                        'flow_id': flow.pk, 'flow_name': flow.name, 'type': obj.type,
@@ -306,6 +319,7 @@ def api_project_roles_detail(request):
                          'project_role_type': list(project_role_type), 'project_node_roles': list(project_node_roles)}
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
+            print '1', code
     except Exception as e:
         logger.exception('api_project_roles_detail Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -417,11 +431,9 @@ def api_project_update(request):
                     is_open, ability_target, intro, purpose, requirement]):
                 if len(name) == 0 or len(name) > 60:
                     resp = code.get_msg(code.PARAMETER_ERROR)
-                    print '1',code
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
                 if len(course) == 0 or len(course) > 45:
                     resp = code.get_msg(code.PARAMETER_ERROR)
-                    print '2', code
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                 if is_open == '1' or is_open == '3':
@@ -437,7 +449,6 @@ def api_project_update(request):
                 if is_open == '2':
                     if start_time is None or start_time == '' or end_time is None or end_time == '':
                         resp = code.get_msg(code.PARAMETER_ERROR)
-                        print '3', code
                         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
                     start_time = datetime.strptime(start_time, '%Y-%m-%d')
                     end_time = datetime.strptime(end_time, '%Y-%m-%d')
@@ -461,7 +472,6 @@ def api_project_update(request):
                     obj.step = const.PRO_STEP_1
                 obj.save()
                 resp = code.get_msg(code.SUCCESS)
-                print '4', code
                 start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
                 end_time = obj.end_time.strftime('%Y-%m-%d') if obj.end_time else ''
                 resp['d'] = {
@@ -476,15 +486,12 @@ def api_project_update(request):
 
             else:
                 resp = code.get_msg(code.PARAMETER_ERROR)
-                print '5', code
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
-            print '6', code
 
     except Exception as e:
         logger.exception('api_project_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
-        print '7', code
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -618,7 +625,6 @@ def api_project_detail(request):
 
 # 创建项目
 def api_project_create(request):
-    print 'create'
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -641,7 +647,6 @@ def api_project_create(request):
         purpose = request.POST.get("purpose", None)  # 实验目的
         requirement = request.POST.get("requirement", None)  # 实验要求
         logger.info('-----api_project_create----')
-        print intro
         if all([flow_id, name, all_role, course, reference, public_status, level, entire_graph, can_redo,
                 is_open, ability_target, intro, purpose, requirement]):
             name = name.strip()
@@ -652,7 +657,6 @@ def api_project_create(request):
 
             if len(course) == 0 or len(course) > 45:
                 resp = code.get_msg(code.PARAMETER_ERROR)
-                print '3',code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 开始模式是自由的话，不需要传start_time和end_time
@@ -669,7 +673,6 @@ def api_project_create(request):
             if is_open == '2':
                 if None in (start_time, end_time) or '' in (start_time, end_time):
                     resp = code.get_msg(code.PARAMETER_ERROR)
-                    print '4',code
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
                 start_time = datetime.strptime(start_time, '%Y-%m-%d')
                 end_time = datetime.strptime(end_time, '%Y-%m-%d')
@@ -677,33 +680,28 @@ def api_project_create(request):
             if start_time and end_time:
                 if end_time < start_time:
                     resp = code.get_msg(code.PARAMETER_ERROR)
-                    print '5',code
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # logger.info('start_time:%s,end_time:%s' % (start_time, end_time))
             flow = Flow.objects.filter(pk=flow_id).first()
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
-                print '6',code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 验证名称
             exists = Project.objects.filter(name=name, del_flag=0).exists()
             if exists:
                 resp = code.get_msg(code.PROJECT_NAME_HAS_EXIST)
-                print '7',code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 判断流程是否有角色设置
             roles = FlowRole.objects.filter(flow_id=flow_id, del_flag=0)
             if roles.exists() is False:
                 resp = code.get_msg(code.FLOW_ROLE_NOT_EXIST)
-                print '8',code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 课程没有就保存
             Course.objects.get_or_create(name=course)
-            print 'continue'
             with transaction.atomic():
                 obj = Project.objects.create(flow_id=flow_id, name=name, all_role=all_role, course=course,
                                              reference=reference, public_status=public_status, level=level,
@@ -753,7 +751,6 @@ def api_project_create(request):
                 # logger.info('-----bulk_create docs_allocations:%s----' % len(docs_allocations))
 
                 resp = code.get_msg(code.SUCCESS)
-                print '1',code
                 start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
                 end_time = obj.end_time.strftime('%Y-%m-%d') if obj.end_time else ''
                 resp['d'] = {
@@ -766,11 +763,9 @@ def api_project_create(request):
                 }
         else:
             resp = code.get_msg(code.PARAMETER_ERROR)
-            print '10',code
     except Exception as e:
         logger.exception('api_project_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
-        print '11', code
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
@@ -781,7 +776,7 @@ def api_project_list(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        search = request.GET.get("search", "")  # 搜索关键字
+        search = request.GET.get("search", None)  # 搜索关键字
         page = int(request.GET.get("page", 1))  # 页码
         size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
         course = request.GET.get("course", None)  # 课程
@@ -791,6 +786,8 @@ def api_project_list(request):
 
         if search:
             qs = qs.filter(name__icontains=search)
+            # qs = qs.filter(name='test')
+            print search
 
         if course:
             qs = qs.filter(course=course)
@@ -811,13 +808,13 @@ def api_project_list(request):
         if request.session['login_type'] == 2:
             groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
             groupID = groupInfo['group_id']
-            qs = Project.objects.filter( Q(is_group_share=1)|(Q(created_by__tcompany__group_id=groupID)|Q(created_by__allgroups_set__in=[groupID])))
+            qs = qs.filter( Q(is_group_share=1)|(Q(created_by__tcompany__group_id=groupID)|Q(created_by__allgroups_set__in=[groupID])))
 
         # If User Is Company Manager
         if request.session['login_type'] == 3:
             groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
             groupID = groupInfo['group_id']
-            qs = Project.objects.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
+            qs = qs.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
         paginator = Paginator(qs, size)
 
