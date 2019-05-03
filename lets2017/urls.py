@@ -252,6 +252,7 @@ urlpatterns += (
     url(r'^api/userManager/getStudentUsers$', userManage_views.get_student_users),
     url(r'^api/userManager/getGroupUsers$', userManage_views.get_group_users),
     url(r'^api/userManager/getGroupNonCompanyUsers$', userManage_views.get_group_nonCompanyUsers),
+    url(r'^api/userManager/set_Review$', userManage_views.set_is_review),
     url(r'^api/userManager/resetPass$', userManage_views.reset_user_password),
 )
 
