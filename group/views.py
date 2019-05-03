@@ -471,7 +471,7 @@ def create_new_company(request):
         newCompany = TCompany(
             name=name,
             comment=comment,
-            group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get(),
+            group=Tuser.objects.get(id=request.session['']).allgroups_set.get(),
             created_by=Tuser.objects.get(id=request.session['_auth_user_id']),
             companyType=TCompanyType.objects.get(name=ctype)
         )

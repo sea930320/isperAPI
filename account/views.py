@@ -21,7 +21,7 @@ from account.service import get_client_ip
 from django.contrib import auth
 from django.http import JsonResponse
 from django.http import HttpResponse
-from account.models import Tuser, TCompany, TClass, LoginLog
+from account.models import Tuser, TCompany, TClass, LoginLog, TRole
 from experiment.models import Experiment
 from team.models import TeamMember
 from utils import code, const, query, easemob, tools, config
@@ -167,6 +167,7 @@ def api_account_login(request):
                     resp = code.get_msg(code.SUCCESS)
                     resp['d'] = user_info(user.id)
                     resp['d']['identity'] = role.id
+                    resp['d']['defaultGroup'] = (Tuser.objects.get(id=user.id).allgroups_set.get().default == 1) if role.id == 2 else False
                     resp['d']['role'] = role.id
                     resp['d']['role_name'] = role.name
                     resp['d']['manage'] = user.manage
@@ -576,6 +577,7 @@ def api_account_user_create(request):
                      phone=phone,
                      tcompany_id=company_id)
         user.save()
+        user.roles.add(TRole.objects.get(id=5))
         user.set_password(password)
         user.save()
 

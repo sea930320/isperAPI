@@ -14,6 +14,8 @@ from group.models import *
 
 logger = logging.getLogger(__name__)
 
+# Super
+
 
 def get_normal_users(request):
     resp = auth_check(request, "POST")
@@ -264,6 +266,129 @@ def get_student_users(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+# Group
+
+
+def get_group_users(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 2:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        search = request.POST.get("search", None)
+        group_id = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id
+        page = int(request.POST.get("page", 1))
+        size = int(request.POST.get("size", const.ROW_SIZE))
+
+        if search:
+            qs = Tuser.objects.filter(Q(roles=5) & Q(username__icontains=search))
+        else:
+            qs = Tuser.objects.filter(roles=5)
+
+        if group_id:
+            qs = qs.filter(tcompany__group_id=group_id)
+
+        if len(qs) == 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': [], 'paging': {}}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        else:
+            paginator = Paginator(qs, size)
+
+            try:
+                flows = paginator.page(page)
+            except EmptyPage:
+                flows = paginator.page(1)
+
+            results = [{
+                'id': item.id,
+                'name': item.name,
+                'company': item.tcompany.name if item.tcompany is not None else '',
+                'companyType': item.tcompany.companyType.name if item.tcompany is not None else '',
+            } for item in flows]
+
+            paging = {
+                'count': paginator.count,
+                'has_previous': flows.has_previous(),
+                'has_next': flows.has_next(),
+                'num_pages': paginator.num_pages,
+                'cur_page': flows.number,
+            }
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': results, 'paging': paging}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def get_group_nonCompanyUsers(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        is_default = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().default
+        if request.session['login_type'] != 2 | is_default == 0:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        search = request.POST.get("search", None)
+        page = int(request.POST.get("page", 1))
+        size = int(request.POST.get("size", const.ROW_SIZE))
+
+        if search:
+            qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(username__icontains=search))
+        else:
+            qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0))
+
+        if len(qs) == 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': [], 'paging': {}}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        else:
+            paginator = Paginator(qs, size)
+
+            try:
+                flows = paginator.page(page)
+            except EmptyPage:
+                flows = paginator.page(1)
+
+            results = [{
+                'id': item.id,
+                'username': item.username,
+                'name': item.name,
+                'phone': item.phone if item.phone is not None else '',
+            } for item in flows]
+
+            paging = {
+                'count': paginator.count,
+                'has_previous': flows.has_previous(),
+                'has_next': flows.has_next(),
+                'num_pages': paginator.num_pages,
+                'cur_page': flows.number,
+            }
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': results, 'paging': paging}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# Common
+
+
 def reset_user_password(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -281,6 +406,33 @@ def reset_user_password(request):
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('reset_user_password Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def is_default_group(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 2:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        uid = request.session['_auth_user_id']
+
+        if Tuser.objects.get(id=uid).allgroups_set.get().default == 1:
+            results = 'success'
+        else:
+            results = 'no'
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
