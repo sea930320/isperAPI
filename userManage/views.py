@@ -55,8 +55,8 @@ def get_normal_users(request):
             results = [{
                 'id': item.id,
                 'name': item.username,
-                'company': item.tcompany.name if item.tcompany is not None else '',
-                'companyType': item.tcompany.companyType.name if item.tcompany is not None else '',
+                'company': item.tcompany.name if int(item.tcompany.is_default) is not 1 else '',
+                'companyType': item.tcompany.companyType.name if int(item.tcompany.is_default) is not 1 else '',
                 'group': item.tcompany.group.name if item.tcompany is not None else '',
             } for item in flows]
 
@@ -119,9 +119,13 @@ def get_manage_users(request):
             results = [{
                 'id': item.id,
                 'name': item.username,
-                'company': item.tcompanymanagers_set.all()[0].tcompany.name if len(item.tcompanymanagers_set.all()) > 0 else '',
+                'company': item.tcompanymanagers_set.get().tcompany.name if len(item.tcompanymanagers_set.all()) > 0 else
+                           item.t_company_set_assistants.get().name if len(item.t_company_set_assistants.all()) > 0 else '',
                 'created': str(item.create_time),
-                'group': item.allgroups_set.all()[0].name if len(item.allgroups_set.all()) > 0 else '',
+                'group': item.allgroups_set.get().name if len(item.allgroups_set.all()) > 0 else
+                         item.allgroups_set_assistants.get().name if len(item.allgroups_set_assistants.all()) > 0 else
+                         item.tcompanymanagers_set.get().tcompany.group.name if len(item.tcompanymanagers_set.all()) > 0 else
+                         item.t_company_set_assistants.get().group.name if len(item.t_company_set_assistants.all()) > 0 else '',
             } for item in flows]
 
             paging = {
@@ -182,7 +186,8 @@ def get_instructor_users(request):
                 'name': item.username,
                 'officeItem': [i.name for i in item.instructorItems.all()] if len(item.instructorItems.all()) > 0 else [],
                 'created': str(item.create_time),
-                'group': item.allgroups_set.all()[0].name if len(item.allgroups_set.all()) > 0 else '',
+                'group': item.allgroups_set_instructors.get().name if len(item.allgroups_set_instructors.all()) > 0 else
+                         item.allgroups_set_instructor_assistants.get().name if len(item.allgroups_set_instructor_assistants.all()) > 0 else '',
             } for item in flows]
 
             paging = {
@@ -281,14 +286,10 @@ def get_group_users(request):
 
         search = request.POST.get("search", None)
         group_id = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id
-        is_default = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().default
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
-        if is_default == 1:
-            qs = Tuser.objects.filter(Q(roles=5) & (Q(tcompany__group_id=group_id) | (Q(is_review=1) & Q(tcompany=None))))
-        else:
-            qs = Tuser.objects.filter(Q(roles=5) & Q(tcompany__group_id=group_id))
+        qs = Tuser.objects.filter(Q(roles=5) & Q(tcompany__group_id=group_id) & Q(is_review=1))
 
         if search:
             qs = qs.filter(username__icontains=search)
@@ -308,8 +309,8 @@ def get_group_users(request):
             results = [{
                 'id': item.id,
                 'name': item.name,
-                'company': item.tcompany.name if item.tcompany is not None else '',
-                'companyType': item.tcompany.companyType.name if item.tcompany is not None else '',
+                'company': item.tcompany.name if int(item.tcompany.is_default) is not 1 else '',
+                'companyType': item.tcompany.companyType.name if int(item.tcompany.is_default) is not 1 else '',
             } for item in flows]
 
             paging = {
@@ -336,19 +337,19 @@ def get_group_nonCompanyUsers(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        is_default = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().default
-        if request.session['login_type'] != 2 | is_default == 0:
+        if request.session['login_type'] != 2:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
+        group_id = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
+        qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(tcompany__group_id=group_id))
+
         if search:
-            qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(tcompany=None) & Q(username__icontains=search))
-        else:
-            qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(tcompany=None))
+            qs = qs.filter(username__icontains=search)
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
