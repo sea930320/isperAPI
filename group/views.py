@@ -101,7 +101,7 @@ def create_new_group(request):
         )
         NewGroup.save()
         TCompany(
-            name='DEFAULT-GROUP',
+            name='DEFAULT-COMPANY',
             comment='This is default Group',
             group=NewGroup,
             created_by=Tuser.objects.get(id=request.session['_auth_user_id']),
