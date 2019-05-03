@@ -100,6 +100,14 @@ def create_new_group(request):
             publish=int(request.POST.get("publish", 1))
         )
         NewGroup.save()
+        TCompany(
+            name='DEFAULT-GROUP',
+            comment='This is default Group',
+            group=NewGroup,
+            created_by=Tuser.objects.get(id=request.session['_auth_user_id']),
+            companyType=TCompanyType.objects.get(id=1),
+            is_default=1
+        ).save()
         newUser = NewGroup.groupManagers.create(
             username=request.POST.get("managerName", ''),
             password=make_password(request.POST.get("managerPass", None)),

@@ -165,6 +165,7 @@ class TCompany(models.Model):
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    is_default = models.IntegerField(default=0)
     group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE)
     assistants = models.ManyToManyField('Tuser', related_name="t_company_set_assistants")
 
@@ -251,8 +252,8 @@ class LoginLog(models.Model):
     role = models.ForeignKey(TRole, on_delete=models.CASCADE)
     group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE, null=True)
     company = models.ForeignKey(TCompany, on_delete=models.CASCADE, null=True)
-    login_time=models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
-    login_ip=models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
+    login_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    login_ip = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     class Meta:
         db_table = "t_login_logs"

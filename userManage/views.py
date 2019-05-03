@@ -281,16 +281,17 @@ def get_group_users(request):
 
         search = request.POST.get("search", None)
         group_id = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id
+        is_default = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().default
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
-        if search:
-            qs = Tuser.objects.filter(Q(roles=5) & Q(username__icontains=search))
+        if is_default == 1:
+            qs = Tuser.objects.filter(Q(roles=5) & (Q(tcompany__group_id=group_id) | (Q(is_review=1) & Q(tcompany=None))))
         else:
-            qs = Tuser.objects.filter(roles=5)
+            qs = Tuser.objects.filter(Q(roles=5) & Q(tcompany__group_id=group_id))
 
-        if group_id:
-            qs = qs.filter(tcompany__group_id=group_id)
+        if search:
+            qs = qs.filter(username__icontains=search)
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -345,9 +346,9 @@ def get_group_nonCompanyUsers(request):
         size = int(request.POST.get("size", const.ROW_SIZE))
 
         if search:
-            qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(username__icontains=search))
+            qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(tcompany=None) & Q(username__icontains=search))
         else:
-            qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0))
+            qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(tcompany=None))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -379,6 +380,32 @@ def get_group_nonCompanyUsers(request):
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': results, 'paging': paging}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def set_is_review(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        is_default = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().default
+        if request.session['login_type'] != 2 | is_default == 0:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        selected = eval(request.POST.get("ids", ''))
+        set = request.POST.get("set", '')
+
+        Tuser.objects.filter(id__in=selected).update(is_review=set)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('get_normal_users Exception:{0}'.format(str(e)))
