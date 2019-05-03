@@ -350,7 +350,7 @@ def create_instructors(request):
         id = request.POST.get("id", None)
         name = request.POST.get("data[name]", None)
         password = request.POST.get("data[password]", None)
-        AllGroups.objects.get(id=id).groupInstructors.create(
+        newInstructor = AllGroups.objects.get(id=id).groupInstructors.create(
             username=name,
             password=make_password(password),
             is_superuser=0,
@@ -367,6 +367,7 @@ def create_instructors(request):
             del_flag=0,
             is_register=0
         )
+        newInstructor.roles.add(TRole.objects.get(id=4))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
