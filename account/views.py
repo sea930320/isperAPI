@@ -157,13 +157,13 @@ def api_account_login(request):
 
             user = auth.authenticate(username=username, password=password)
             if user:
-                if user.is_review == 0:
+                if login_type in [5, 9] and user.is_review == 0:
                     resp = code.get_msg(code.USER_NOT_REVIEWED)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-                elif user.is_review == 2:
+                elif login_type in [5, 9] and user.is_review == 2:
                     resp = code.get_msg(code.USER_REVIEWED_FAILED)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-                    
+
                 # todo 登出相同账号其它登录用户
                 logout_all(user)
                 try:
