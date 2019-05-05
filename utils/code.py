@@ -146,6 +146,9 @@ MESSAGE_SITTING_UP_CANNOT_SPEAKER = 60005
 # 课程下面有学生，无法删除
 MESSAGE_COURSE_STUDENT_EXISTS = 70001
 
+#
+ADVERTISING_NAME_ALREADY_EXISTS = 90001
+
 MSG = {
     0: u'success',
     400: u'提交数据验证失败',
@@ -218,7 +221,9 @@ MSG = {
     60004: u'表达管理中,每次申请发言只能发言三次',
     60005: u'角色未入席，不能执行相关操作！',
 
-    70001: u'该课程下存在学生，不能删除该课程'
+    70001: u'该课程下存在学生，不能删除该课程',
+
+    90001: u'公告名称已存在'
 
 }
 

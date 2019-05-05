@@ -24,6 +24,7 @@ INSTALLED_APPS = (
     'suit',
     'django.contrib.admin',
     'corsheaders',
+    'advertising',
     # 'DjangoUeditor',
     # 'django_select2',
     'account',
