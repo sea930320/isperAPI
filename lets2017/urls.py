@@ -17,6 +17,7 @@ from workflow import views as workflow_views
 from group import views as group_views
 from dictionary import views as dictionary_views
 from userManage import views as userManage_views
+from advertising import views as advertising_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -269,6 +270,11 @@ urlpatterns += (
     url(r'^api/docs/(?P<json>\w+)/$', api_views.module),
 )
 
+urlpatterns += (
+    url(r'^api/advertising/list$', advertising_views.api_advertising_list),
+    url(r'^api/advertising/delete$', advertising_views.api_advertising_delete),
+    url(r'^api/advertising/create$', advertising_views.api_advertising_create),
+)
 if settings.DEBUG:
     from django.conf.urls.static import static
 

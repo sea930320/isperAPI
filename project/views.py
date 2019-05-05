@@ -112,18 +112,14 @@ def api_project_docs_detail(request):
 
     try:
         project_id = int(request.GET.get("project_id", None))  # 项目ID
-        print '1',project_id
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
-        print '2'
         if obj:
             resp = code.get_msg(code.SUCCESS)
-            print '1',code
             # 流程
             flow = Flow.objects.filter(pk=obj.flow_id, del_flag=0).first()
             print flow
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
-                print '2', code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             has_jump_project = False
@@ -182,12 +178,9 @@ def api_project_docs_detail(request):
                          'project_role_type': list(project_role_type)}
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
-            print '3', code
     except Exception as e:
         logger.exception('api_project_docs_detail Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
-        print '4', code
-    print '5'
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
@@ -248,7 +241,6 @@ def api_project_docs_allocate(request):
 
 # 项目角色设置
 def api_project_roles_detail(request):
-    print 'start'
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -258,24 +250,19 @@ def api_project_roles_detail(request):
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
         if obj:
             resp = code.get_msg(code.SUCCESS)
-            print '0', code
             # 流程
             flow = Flow.objects.filter(pk=obj.flow_id, del_flag=0).first()
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            print '1',code
             has_jump_project = False
             jump_process = FlowProcess.objects.filter(type=const.PROCESS_JUMP_TYPE,
                                                       del_flag=const.DELETE_FLAG_NO).first()
-            print '2', jump_process
             if jump_process:
                 is_exists = FlowNode.objects.filter(flow_id=flow.pk, process=jump_process,
                                                     del_flag=const.DELETE_FLAG_NO).exists()
-                print '3', jump_process
                 if is_exists:
                     has_jump_project = True
-                    print '4', code
 
             project = {'id': obj.id, 'name': obj.name, 'level': obj.level, 'purpose': obj.purpose,
                        'flow_id': flow.pk, 'flow_name': flow.name, 'type': obj.type,
@@ -319,7 +306,6 @@ def api_project_roles_detail(request):
                          'project_role_type': list(project_role_type), 'project_node_roles': list(project_node_roles)}
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
-            print '1', code
     except Exception as e:
         logger.exception('api_project_roles_detail Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -399,7 +385,6 @@ def api_project_roles_configurate(request):
 
 # 修改项目
 def api_project_update(request):
-    print 'update'
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -565,12 +550,11 @@ def api_project_detail(request):
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
     try:
         project_id = request.GET.get("project_id", None)  # 项目ID
 
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
-
+        print project_id
         if obj:
             flow = Flow.objects.get(pk=obj.flow_id)
             # 项目角色
@@ -580,7 +564,6 @@ def api_project_detail(request):
             WHERE t.type != \'''' + const.ROLE_TYPE_OBSERVER + '''\' and t.project_id={0}'''.format(project_id)
             project_roles = query.select(sql, ['id', 'type', 'role_name', 'max', 'min', 'category', 'image_id',
                                                'image_name', 'image_url'])
-
             # 项目素材
             project_docs = ProjectDoc.objects.filter(project_id=project_id)
             doc_list = []
@@ -591,7 +574,6 @@ def api_project_detail(request):
                     'content': item.content, 'is_initial': item.is_initial, 'file_type': item.file_type
                 }
                 doc_list.append(doc)
-
             resp = code.get_msg(code.SUCCESS)
             start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
             end_time = obj.end_time.strftime('%Y-%m-%d') if obj.end_time else ''
@@ -652,7 +634,6 @@ def api_project_create(request):
             name = name.strip()
             if len(name) == 0 or len(name) > 32:
                 resp = code.get_msg(code.PARAMETER_ERROR)
-                print '2', code
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             if len(course) == 0 or len(course) > 45:
@@ -805,16 +786,17 @@ def api_project_list(request):
 
 
         # If User Is Group Manager
-        if request.session['login_type'] == 2:
-            groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
-            groupID = groupInfo['group_id']
-            qs = qs.filter( Q(is_group_share=1)|(Q(created_by__tcompany__group_id=groupID)|Q(created_by__allgroups_set__in=[groupID])))
+        if request.session['login_type'] != 1:
+            if request.session['login_type'] == 2:
+                groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
+                groupID = groupInfo['group_id']
+                qs = qs.filter( Q(is_group_share=1)|(Q(created_by__tcompany__group_id=groupID)|Q(created_by__allgroups_set__in=[groupID])))
 
-        # If User Is Company Manager
-        if request.session['login_type'] == 3:
-            groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
-            groupID = groupInfo['group_id']
-            qs = qs.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
+            # If User Is Company Manager
+            if request.session['login_type'] == 3:
+                groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
+                groupID = groupInfo['group_id']
+                qs = qs.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
         paginator = Paginator(qs, size)
 
@@ -835,18 +817,24 @@ def api_project_list(request):
             flow_data = None
             if flow:
                 flow_data = {'name': flow.name, 'xml': flow.xml}
-            if (project.created_by.id == user.id):
+
+            if (request.session['login_type'] == 1):
                 shareAble = 1
                 editAble = 1
                 deleteAble = 1
-            if (project.created_by.id == user.id):
-                if (request.session['login_type'] == 2):
-                    if (project.is_group_share == 1):
-                        currentShare = 1
-            if (project.created_by.id == user.id):
-                if (request.session['login_type'] == 1):
-                    if (project.is_company_share == 1):
-                        currentShare = 1
+            else:
+                if (project.created_by.id == user.id):
+                    shareAble = 1
+                    editAble = 1
+                    deleteAble = 1
+                if (project.created_by.id == user.id):
+                    if (request.session['login_type'] == 2):
+                        if (project.is_group_share == 1):
+                            currentShare = 1
+                if (project.created_by.id == user.id):
+                    if (request.session['login_type'] == 3):
+                        if (project.is_company_share == 1):
+                            currentShare = 1
 
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
