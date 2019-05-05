@@ -701,7 +701,7 @@ def api_project_create(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 课程没有就保存
-            # Course.objects.get_or_create(name=course)
+            Course.objects.get_or_create(name=course)
             with transaction.atomic():
                 obj = Project.objects.create(flow_id=flow_id, name=name, all_role=all_role, course=course,
                                              reference=reference, public_status=public_status, level=level,
