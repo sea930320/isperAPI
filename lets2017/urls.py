@@ -214,6 +214,11 @@ urlpatterns += (
     url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic),
     url(r'^api/workflow/share$', workflow_views.api_workflow_share),
     url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare),
+    url(r'^api/workflow/job_type/candidate', workflow_views.api_workflow_job_type_candidate),
+    url(r'^api/workflow/role/allocation/list', workflow_views.api_workflow_role_allocation_list),
+    url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create),
+    url(r'^api/workflow/role/allocation/remove', workflow_views.api_workflow_role_allocation_remove),
+    url(r'^api/workflow/role/allocation/bulk_update', workflow_views.api_workflow_role_allocation_bulk_update),
 )
 
 urlpatterns += (

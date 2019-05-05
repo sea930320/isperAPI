@@ -6,7 +6,7 @@ import logging
 import xlwt, xlrd
 from docx import Document
 
-from account.models import Tuser
+from account.models import Tuser, TJobType
 from django.shortcuts import redirect
 from course.models import CourseClass
 from django.core.paginator import Paginator, EmptyPage
@@ -26,6 +26,7 @@ from workflow.models import Flow, FlowNode, FlowTrans, FlowProcess, FlowDocs, Fl
     FlowRoleActionNew, FlowRolePosition, RoleImage, RoleImageType, FlowNodeDocs, FlowAction, FlowPosition, \
     ProcessRoleActionNew, ProcessAction
 from workflow.service import bpmn_parse, flow_nodes, get_end_node, flow_doc_save
+from django.forms.models import model_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -457,26 +458,33 @@ def api_workflow_role_list(request):
         flow = Flow.objects.filter(pk=flow_id).first()
 
         if flow:
-            qs = FlowRole.objects.filter(flow_id=flow_id, del_flag=0).all()
-            types = list(set(qs.values_list('type', flat=True)))
-            if const.ROLE_TYPE_OBSERVER in types:
-                types.remove(const.ROLE_TYPE_OBSERVER)
+            qs = FlowRole.objects.filter(flow_id=flow_id, del_flag=0).all().order_by('-create_time')
+            # types = list(set(qs.values_list('type', flat=True)))
+            jobTypes = list(TJobType.objects.all().values('id', 'name', 'content'))
+
+            # if const.ROLE_TYPE_OBSERVER in types:
+            #     types.remove(const.ROLE_TYPE_OBSERVER)
 
             role_list = []
             for role in qs:
-                obj = RoleImage.objects.get(pk=role.image_id)
-                if obj:
-                    img = {'id': obj.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None,
-                           'gender': obj.gender}
+                if role.image_id:
+                    obj = RoleImage.objects.get(pk=role.image_id)
+                    if obj:
+                        img = {'id': obj.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None,
+                               'gender': obj.gender}
+                    else:
+                        img = None
                 else:
                     img = None
-                if role.type != const.ROLE_TYPE_OBSERVER:
-                    role_list.append({
-                        'id': role.id, 'name': role.name, 'min': role.min, 'max': role.max, 'category': role.category,
-                        'type': role.type, 'image': img
-                    })
+                # if role.type != const.ROLE_TYPE_OBSERVER:
+                role_list.append({
+                    'id': role.id, 'name': role.name, 'min': role.min, 'max': role.max, 'category': role.category,
+                    'type': role.type, 'image': img, 'capacity': role.capacity,
+                    'job_type': role.job_type and model_to_dict(role.job_type, fields=['id', 'name', 'content']) or {
+                        'id': None}
+                })
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'roles': role_list, 'flow_role_types': types}
+            resp['d'] = {'roles': role_list, 'job_types': jobTypes}
         else:
             resp = code.get_msg(code.FLOW_NOT_EXIST)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -972,32 +980,30 @@ def api_workflow_roles_update(request):
     try:
         role_id = request.POST.get('id', None)
         name = request.POST.get("name", None)  # 角色名称
-        role_type = request.POST.get("type", None)  # 角色类型
-        minimum = request.POST.get("min", None)  # 最小人数
-        maximum = request.POST.get("max", None)  # 最大人数
-        category = request.POST.get("category", None)  # 类别
-        image_id = request.POST.get("image_id", None)  # 形象文件
+        image_id = request.POST.get("image_id", None)  # 形象
+        capacity = request.POST.get("capacity", None)  # capacity
+        job_type_id = request.POST.get("job_type_id", None)  # job_type id
 
         # 参数验证
-        if all([role_id, name, role_type, minimum, maximum, category]):
+        if all([role_id, name, capacity]):
             role = FlowRole.objects.filter(pk=role_id).first()
             if role:
                 role.name = name
-                role.min = minimum
-                role.max = maximum
-                role.type = role_type
-                role.category = category
+                role.capacity = capacity
+                role.job_type = job_type_id and TJobType.objects.get(pk=job_type_id) or None
                 if image_id:
                     role.image_id = image_id
                 role.save()
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
-                    'id': role.id, 'name': role.name, 'type': role.type, 'min': role.min, 'max': role.max,
+                    'id': role.id, 'name': role.name, 'capacity': role.capacity,
+                    'job_type': role.job_type and model_to_dict(role.job_type, fields=['id', 'name', 'content']) or {
+                        'id': None}
                 }
 
                 flow = Flow.objects.get(pk=role.flow_id)
-                if flow.step < const.FLOW_STEP_3:
-                    flow.step = const.FLOW_STEP_3
+                if flow.step < const.FLOW_STEP_2:
+                    flow.step = const.FLOW_STEP_2
                     flow.save()
             else:
                 resp = code.get_msg(code.FLOW_ROLE_NOT_EXIST)
@@ -1151,26 +1157,30 @@ def api_workflow_roles_create(request):
     try:
         flow_id = request.POST.get("flow_id", None)  # 流程ID
         name = request.POST.get("name", None)  # 角色名称
-        role_type = request.POST.get("type", None)  # 角色类型
-        minimum = request.POST.get("min", None)  # 最小人数
-        maximum = request.POST.get("max", None)  # 最大人数
-        category = request.POST.get("category", None)  # 类别
+        # role_type = request.POST.get("type", None)  # 角色类型
+        # minimum = request.POST.get("min", None)  # 最小人数
+        # maximum = request.POST.get("max", None)  # 最大人数
+        # category = request.POST.get("category", None)  # 类别
         image_id = request.POST.get("image_id", None)  # 形象
+        capacity = request.POST.get("capacity", None)  # capacity
+        job_type_id = request.POST.get("job_type_id", None)  # job_type id
 
         # 参数验证
-        if all([flow_id, name, role_type, minimum, maximum, category, image_id]):
+        if all([flow_id, name, capacity]):
             flow = Flow.objects.get(pk=flow_id)
-            role = FlowRole.objects.create(name=name, flow_id=flow_id, type=role_type, min=minimum, max=maximum,
-                                           image_id=image_id, category=category)
-            obj = RoleImage.objects.get(pk=role.image_id)
-            img = {'id': obj.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None}
-            if flow.step < const.FLOW_STEP_3:
-                flow.step = const.FLOW_STEP_3
+            jobType = job_type_id and TJobType.objects.get(pk=job_type_id) or None
+            role = FlowRole.objects.create(name=name, flow_id=flow_id, capacity=capacity, job_type=jobType)
+            # obj = RoleImage.objects.get(pk=role.image_id)
+            # img = {'id': obj.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None}
+            if flow.step < const.FLOW_STEP_2:
+                flow.step = const.FLOW_STEP_2
                 flow.save()
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {
-                'id': role.id, 'name': role.name, 'type': role.type, 'min': role.min, 'max': role.max,
-                'category': role.category, 'image': img, 'step': flow.step
+                'id': role.id, 'name': role.name, 'capacity': role.capacity,
+                'job_type': role.job_type and model_to_dict(role.job_type, fields=['id', 'name', 'content']) or {
+                    'id': None},
+                'step': flow.step
             }
         else:
             resp = code.get_msg(code.PARAMETER_ERROR)
@@ -1473,7 +1483,7 @@ def api_workflow_delete(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         flow = Flow.objects.get(pk=flow_id)
-        if (flow.created_by != request.user.id and request.session['login_type']!=1):
+        if (flow.created_by != request.user.id and request.session['login_type'] != 1):
             resp = code.get_msg(code.METHOD_NOT_ALLOW)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         with transaction.atomic():
@@ -1934,7 +1944,7 @@ def api_workflow_protected(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    if request.session['login_type']!=1:
+    if request.session['login_type'] != 1:
         resp = code.get_msg(code.METHOD_NOT_ALLOW)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -1983,6 +1993,7 @@ def api_workflow_share(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_workflow_unshare(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -2005,6 +2016,7 @@ def api_workflow_unshare(request):
         logger.exception('api_workflow_unshare Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_workflow_public(request):
     resp = auth_check(request, "GET")
@@ -2029,6 +2041,7 @@ def api_workflow_public(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_workflow_unpublic(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -2049,5 +2062,197 @@ def api_workflow_unpublic(request):
 
     except Exception as e:
         logger.exception('api_workflow_public Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_job_type_candidate(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    resp = code.get_msg(code.SUCCESS)
+    resp['d'] = {'job_type': None}
+    try:
+        name = request.GET.get("name", None)
+        if name is None or name == '':
+            resp['d'] = {'job_type': None}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        role = FlowRole.objects.filter(name=name, del_flag=0).order_by('-id')[0]
+        jobType = model_to_dict(role.job_type, fields=['id', 'name', 'content'])
+        resp['d'] = {'job_type': jobType}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_role_allocation_create(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        flow_id = request.POST.get('flow_id', None)
+        role_id = request.POST.get('role_id', None)
+        node_ids = request.POST.get('node_ids', None)
+        if flow_id and node_ids and role_id:
+            role = FlowRole.objects.get(pk=role_id)
+            flow_id = int(flow_id)
+            role_id = int(role_id)
+            if role.flow_id != flow_id:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            capacity = role.capacity
+            node_ids = json.loads(node_ids)
+            new_allocations = []
+            with transaction.atomic():
+                for node_id in node_ids:
+                    node_id = int(node_id)
+                    node = FlowNode.objects.get(pk=node_id)
+                    if node.flow_id != flow_id:
+                        continue
+                    FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id,
+                                                      no__gt=capacity).update(can_terminate=0, can_brought=0,
+                                                                              del_flag=1)
+                    for no in range(1, capacity + 1):
+                        if FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id,
+                                                             no=no).exists():
+                            FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id, no=no) \
+                                .update(can_terminate=0, can_brought=0, del_flag=0)
+                        else:
+                            new_allocations.append(
+                                FlowRoleAllocation(flow_id=flow_id, node_id=node_id, role_id=role_id, no=no,
+                                                   can_terminate=0, can_brought=0, del_flag=0))
+                if new_allocations:
+                    FlowRoleAllocation.objects.bulk_create(new_allocations)
+            qs = FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id__in=node_ids,
+                                                   role_id=role_id)
+            roleAllocations = []
+            flow = model_to_dict(Flow.objects.get(pk=flow_id))
+            role = model_to_dict(FlowRole.objects.get(pk=role_id))
+            for roleAllocation in qs:
+                node = model_to_dict(FlowNode.objects.get(pk=roleAllocation.node_id))
+                roleAllocations.append({
+                    'id': roleAllocation.id, 'flow': flow, 'node': node, 'role': role, 'no': roleAllocation.no,
+                    'can_terminate': roleAllocation.can_terminate, 'can_brought': roleAllocation.can_brought,
+                    'can_take_in': roleAllocation.can_take_in
+                })
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'role_allocations': roleAllocations}
+        else:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_role_allocation_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        flow_id = int(request.GET.get('flow_id', 0))
+        node_id = int(request.GET.get('node_id', 0))
+        if flow_id and node_id:
+            node = FlowNode.objects.get(pk=node_id)
+            if node.flow_id != flow_id:
+                print "PARAM_ERROR"
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            flow = model_to_dict(Flow.objects.get(pk=flow_id))
+            node = model_to_dict(node)
+
+            roles = FlowRole.objects.filter(flow_id=flow_id).order_by('-create_time')
+            roleAllocations = []
+            for role in roles:
+                qs = FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id,
+                                                       role_id=role.id).order_by('no')
+                role = model_to_dict(role)
+                allocations = []
+                for allocation in qs:
+                    allocations.append({
+                        'id': allocation.id, 'flow': flow, 'node': node, 'role': role, 'no': allocation.no,
+                        'can_terminate': allocation.can_terminate, 'can_brought': allocation.can_brought,
+                        'can_take_in': allocation.can_take_in
+                    })
+                roleAllocations.append({
+                    'role_id': role['id'],
+                    'allocations': allocations
+                })
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'role_allocations': roleAllocations}
+        else:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_role_allocation_remove(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        id = int(request.POST.get('id', 0))
+        role_id = int(request.POST.get('role_id', 0))
+        if id and role_id:
+            role = FlowRole.objects.get(pk=role_id)
+            allocation = FlowRoleAllocation.objects.get(pk=id)
+            no = allocation.no
+            if role.flow_id != allocation.flow_id:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            if (FlowRoleAllocation.objects.filter(role_id=role.id, no=no, can_take_in=1).exists()):
+                resp = code.get_msg(code.FLOW_ROLE_TAKE_IN)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            FlowRoleAllocation.objects.filter(role_id=role.id, no=no).delete()
+            capacity = int(role.capacity)
+            if (capacity == 1):
+                role.delete()
+            else:
+                role.capacity = capacity - 1
+                role.save()
+            resp = code.get_msg(code.SUCCESS)
+        else:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_remove Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_role_allocation_bulk_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        allocations = request.POST.get('allocations', None)
+        flow_id = request.POST.get('flow_id', None)
+        if allocations:
+            allocations = json.loads(allocations)
+            print allocations
+            for allocation in allocations:
+                print allocation
+                FlowRoleAllocation.objects.filter(pk=allocation['id']).update(can_take_in=allocation['can_take_in'],
+                                                                        can_terminate=allocation['can_terminate'],
+                                                                        can_brought=allocation['can_brought'])
+            resp = code.get_msg(code.SUCCESS)
+
+            if flow_id:
+                flow = Flow.objects.get(pk=flow_id)
+                if flow.step < const.FLOW_STEP_3:
+                    flow.step = const.FLOW_STEP_3
+                    flow.save()
+                resp['d'] = {'step': flow.step}
+        else:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_remove Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

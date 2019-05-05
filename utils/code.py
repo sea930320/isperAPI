@@ -57,6 +57,7 @@ FLOW_END_NODE_MUST_REPORT_TYPE = 20010
 FLOW_OPT_DOC_IMPORT_FAIL = 20011
 # 每个环节只能有一个操作指南
 FLOW_OPT_DOC_ONLY_ONE = 20012
+FLOW_ROLE_TAKE_IN = 20013
 
 # 项目不存在
 PROJECT_NOT_EXIST = 30001
@@ -176,6 +177,7 @@ MSG = {
     20010: u'结束环节类型必须为实验报告类型！',
     20011: u'没有可导入本流程的操作指南数据！',
     20012: u'每个环节只能有一个操作指南!',
+    20013: u'该身份已经在使用！',
 
     30001: u'项目不存在',
     30002: u'项目名称已存在',

@@ -3,6 +3,7 @@
 
 from django.db import models
 from account.models import Tuser
+from account.models import TJobType
 from utils import const
 from utils.storage import *
 
@@ -99,6 +100,7 @@ class FlowDocs(models.Model):
 
     class Meta:
         db_table = "t_flow_docs"
+        ordering = ['-create_time']
         verbose_name_plural = u"素材文档"
         verbose_name = u"素材文档"
 
@@ -124,15 +126,17 @@ class FlowNodeDocs(models.Model):
 # 环节角色
 class FlowRole(models.Model):
     flow_id = models.IntegerField(verbose_name=u'流程')
-    image_id = models.IntegerField(verbose_name=u'角色形象')
+    image_id = models.IntegerField(verbose_name=u'角色形象', null=True, blank=True)
     name = models.CharField(max_length=32, verbose_name=u'角色名称')
-    type = models.CharField(max_length=28, verbose_name=u'角色类型')
-    min = models.IntegerField(verbose_name=u'最小人数')
-    max = models.IntegerField(verbose_name=u'最大人数')
-    category = models.PositiveIntegerField(verbose_name=u'类别', choices=const.ROLE_CATEGORY)
+    type = models.CharField(max_length=28, verbose_name=u'角色类型', null=True, blank=True)
+    min = models.IntegerField(verbose_name=u'最小人数', null=True, blank=True)
+    max = models.IntegerField(verbose_name=u'最大人数', null=True, blank=True)
+    category = models.PositiveIntegerField(verbose_name=u'类别', choices=const.ROLE_CATEGORY, null=True, blank=True)
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    capacity = models.IntegerField(verbose_name=u'人数', default=1)
+    job_type = models.ForeignKey(TJobType, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         db_table = "t_flow_role"
@@ -150,6 +154,8 @@ class FlowRoleAllocation(models.Model):
     role = models.ForeignKey(FlowRole, verbose_name=u'角色')
     can_terminate = models.BooleanField(verbose_name=u'结束环节权限')
     can_brought = models.BooleanField(verbose_name=u'是否被带入')
+    can_take_in = models.BooleanField(verbose_name=u'Take Part in this guy', default=False)
+    no = models.IntegerField(default=1, verbose_name=u'Number')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
 
     class Meta:
