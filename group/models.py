@@ -5,7 +5,6 @@ from django.db import models
 from account.models import Tuser
 
 
-# Create your models here.
 class AllGroups(models.Model):
     name = models.CharField(max_length=48)
     comment = models.CharField(max_length=256)
@@ -22,3 +21,17 @@ class AllGroups(models.Model):
 
     def __unicode__(self):
         return self.name
+
+
+class TGroupChange(models.Model):
+    user = models.ForeignKey(Tuser)
+    reason = models.CharField(max_length=256, default='')
+    target = models.ForeignKey(AllGroups)
+    sAgree = models.IntegerField(default=0)
+    tAgree = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "t_group_change"
+
+    def __unicode__(self):
+        return self.reason

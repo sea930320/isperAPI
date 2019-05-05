@@ -171,6 +171,10 @@ def update_group(request):
         comment = request.POST.get("comment", '')
         default = int(request.POST.get("default", 0))
         publish = int(request.POST.get("publish", 1))
+        newDefault = request.POST.get("newDefault", None)
+
+        if newDefault != u'':
+            AllGroups.objects.filter(id=newDefault).update(default=1)
 
         if int(request.POST.get("default")) == 1:
             AllGroups.objects.filter(default=1).update(default=0)
@@ -407,6 +411,8 @@ def get_company_list(request):
             data = TCompany.objects.filter(
                 group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id)
 
+        data = data.filter(is_default=0)
+
         if len(data) == 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': [], 'paging': {}}
@@ -465,8 +471,8 @@ def create_new_company(request):
         cManagerPass = request.POST.get("cManagerPass", None)
 
         if TCompany.objects.filter(
-                        Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(
-                        name=request.POST.get("name"))).count() > 0:
+                Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(
+                    name=request.POST.get("name"))).count() > 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': 'nameError'}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
