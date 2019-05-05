@@ -15,6 +15,8 @@ from system import views as system_views
 from team import views as team_views
 from workflow import views as workflow_views
 from group import views as group_views
+from dictionary import views as dictionary_views
+from userManage import views as userManage_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -42,6 +44,9 @@ urlpatterns += (
     url(r'^api/account/user/delete', account_views.api_course_user_delete),
     url(r'^api/account/share', account_views.api_account_share),
     url(r'^api/account/default-group', account_views.api_get_default_group),
+    url(r'^api/account/get/loginlogs', account_views.api_get_log_list),
+    url(r'^api/account/remove/loginlogs', account_views.api_remove_loginlogs),
+    url(r'^api/account/export/loginlogs', account_views.api_export_loginlogs),
 )
 
 urlpatterns += (
@@ -205,7 +210,10 @@ urlpatterns += (
     url(r'^api/workflow/opt/import$', workflow_views.api_workflow_opt_import),
     url(r'^api/workflow/opt/export$', workflow_views.workflow_opt_export),
     url(r'^api/workflow/protected$', workflow_views.api_workflow_protected),
+    url(r'^api/workflow/public$', workflow_views.api_workflow_public),
+    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic),
     url(r'^api/workflow/share$', workflow_views.api_workflow_share),
+    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare),
 )
 
 urlpatterns += (
@@ -220,7 +228,32 @@ urlpatterns += (
     url(r'^api/group/getInstructorItemList$', group_views.get_instructor_items),
     url(r'^api/group/saveInstructors$', group_views.set_instructors),
     url(r'^api/group/createInstructors$', group_views.create_instructors),
-    url(r'^api/group/fetchCompanyList$', group_views.get_company_list),
+    url(r'^api/group/all-list$', group_views.get_groups_all_list),
+    url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
+    url(r'^api/company/createCompany$', group_views.create_new_company),
+    url(r'^api/company/deleteCompany$', group_views.delete_selected_company),
+    url(r'^api/company/updateCompany$', group_views.update_company),
+    url(r'^api/company/addCManager$', group_views.add_company_manager),
+    url(r'^api/company/updateCManager$', group_views.update_company_manager),
+    url(r'^api/company/pCResetManager$', group_views.reset_company_manager),
+)
+
+urlpatterns += (
+    url(r'^api/dic/getDicData$', dictionary_views.get_dic_data),
+    url(r'^api/dic/newItemSave$', dictionary_views.new_item_save),
+    url(r'^api/dic/editItemSave$', dictionary_views.edit_item_save),
+    url(r'^api/dic/deleteItemSave$', dictionary_views.delete_item_save),
+)
+
+urlpatterns += (
+    url(r'^api/userManager/getNormalUsers$', userManage_views.get_normal_users),
+    url(r'^api/userManager/getManageUsers$', userManage_views.get_manage_users),
+    url(r'^api/userManager/getInstructorUsers$', userManage_views.get_instructor_users),
+    url(r'^api/userManager/getStudentUsers$', userManage_views.get_student_users),
+    url(r'^api/userManager/getGroupUsers$', userManage_views.get_group_users),
+    url(r'^api/userManager/getGroupNonCompanyUsers$', userManage_views.get_group_nonCompanyUsers),
+    url(r'^api/userManager/set_Review$', userManage_views.set_is_review),
+    url(r'^api/userManager/resetPass$', userManage_views.reset_user_password),
 )
 
 urlpatterns += (

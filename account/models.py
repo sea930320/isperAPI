@@ -78,6 +78,9 @@ class TRole(models.Model):
 
 class OfficeKinds(models.Model):
     name = models.CharField(max_length=256)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "t_officeKinds"
@@ -88,7 +91,10 @@ class OfficeKinds(models.Model):
 
 class OfficeItems(models.Model):
     name = models.CharField(max_length=256)
-    kinds = models.ManyToManyField(OfficeKinds)
+    kinds = models.ForeignKey(OfficeKinds)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "t_officeItems"
@@ -97,13 +103,71 @@ class OfficeItems(models.Model):
         return self.name
 
 
+class TCompanyType(models.Model):
+    name = models.CharField(max_length=256)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_companyType"
+
+    def __unicode__(self):
+        return self.name
+
+
+class TJobType(models.Model):
+    name = models.CharField(max_length=256)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_jobType"
+
+    def __unicode__(self):
+        return self.name
+
+
+class TCourseKinds(models.Model):
+    name = models.CharField(max_length=256)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_courseKinds"
+
+    def __unicode__(self):
+        return self.name
+
+
+class TCourseItems(models.Model):
+    name = models.CharField(max_length=256)
+    kinds = models.ForeignKey(TCourseKinds)
+    content = models.CharField(max_length=256)
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_courseItems"
+
+    def __unicode__(self):
+        return self.name
+
+
 # 单位
 class TCompany(models.Model):
     name = models.CharField(max_length=32, verbose_name=u'名称')
+    comment = models.CharField(max_length=256)
+    created_by = models.ForeignKey('Tuser', related_name="created_company_set")
+    companyType = models.ForeignKey('TCompanyType')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    is_default = models.IntegerField(default=0)
     group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE)
+    assistants = models.ManyToManyField('Tuser', related_name="t_company_set_assistants")
 
     class Meta:
         db_table = "t_company"
@@ -133,6 +197,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     nickname = models.CharField(max_length=24, blank=True, null=True, verbose_name=u'昵称')
     gender = models.PositiveIntegerField(choices=const.GENDER, default=1, verbose_name=u'性别')
     name = models.CharField(max_length=256, verbose_name=u'姓名')
+    comment = models.CharField(max_length=256, default="")
     email = models.CharField(max_length=56, blank=True, null=True, verbose_name=u'邮箱')
     phone = models.CharField(max_length=16, blank=True, null=True, verbose_name=u'联系方式')
     qq = models.CharField(max_length=28, blank=True, null=True, verbose_name=u'QQ')
@@ -141,6 +206,8 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     ip = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
     is_active = models.BooleanField(default=True, verbose_name=u'账号状态')
     is_admin = models.BooleanField(default=False, verbose_name=u'超级管理员')
+    class_name = models.CharField(max_length=256, null=True, blank=True)
+    student_id = models.IntegerField(null=True, blank=True)
     tclass = models.ForeignKey(TClass, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'班级')
     tcompany = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'所在单位')
     director = models.BooleanField(default=False, verbose_name=u'是否具有指导权限')
@@ -152,6 +219,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     is_register = models.BooleanField(default=False, verbose_name=u'环信状态')
     last_experiment_id = models.IntegerField(blank=True, null=True, verbose_name=u'最后做的一个实验id')
     is_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
+    is_review = models.IntegerField(default=0)
     avatar = models.ImageField(upload_to='avatars', null=True)
     roles = models.ManyToManyField(TRole)
     instructorItems = models.ManyToManyField(OfficeItems)
@@ -179,17 +247,20 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
         return self.is_admin
 
 
-# 用户角色
-class TUserRole(models.Model):
+class LoginLog(models.Model):
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE)
     role = models.ForeignKey(TRole, on_delete=models.CASCADE)
-
+    group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE, null=True)
+    company = models.ForeignKey(TCompany, on_delete=models.CASCADE, null=True)
+    login_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    login_ip = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     class Meta:
-        db_table = "t_user_role"
-        verbose_name_plural = u"用户角色"
-        verbose_name = u"用户角色"
+        db_table = "t_login_logs"
+        ordering = ['-login_time']
+        verbose_name_plural = u"登录记录"
+        verbose_name = u"登录记录"
 
     def __unicode__(self):
-        return self.user.name + " : " + self.role.name
-
+        return self.user.name
 
