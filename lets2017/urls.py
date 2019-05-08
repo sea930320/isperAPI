@@ -253,9 +253,17 @@ urlpatterns += (
     url(r'^api/userManager/getGroupUsers$', userManage_views.get_group_users),
     url(r'^api/userManager/getGroupNonCompanyUsers$', userManage_views.get_group_nonCompanyUsers),
     url(r'^api/userManager/getGroupChangeList$', userManage_views.get_group_changes),
+    url(r'^api/userManager/queryCompanyUsers$', userManage_views.get_company_users),
+    url(r'^api/userManager/excelDataSave$', userManage_views.create_company_excelUsers),
+    url(r'^api/userManager/newUserSet$', userManage_views.create_company_newUser),
+    url(r'^api/userManager/deleteUsers$', userManage_views.delete_company_users),
+    url(r'^api/userManager/getCompanyNonReviewUsers$', userManage_views.get_group_nonReviewUsers),
+    url(r'^api/userManager/getCompanyChangeList$', userManage_views.get_company_changes),
     url(r'^api/userManager/set_Review$', userManage_views.set_is_review),
     url(r'^api/userManager/set_gChange$', userManage_views.set_group_change),
+    url(r'^api/userManager/set_cChange$', userManage_views.set_company_change),
     url(r'^api/userManager/resetPass$', userManage_views.reset_user_password),
+    url(r'^api/userManager/sampleUserExcel$', userManage_views.download_sample_excel),
 )
 
 urlpatterns += (
