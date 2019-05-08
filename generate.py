@@ -1287,10 +1287,10 @@ class MakeCode:
 BASE_URL = u"http://zh.whhuiyu.com"
 
 # 工程目录，api下面的json会自动覆盖
-SERVER_PATH = u'D:\\code\\lets2017'
+SERVER_PATH = u'D:\\code\\isper2019'
 
 # 备份目录，除api，其它都生成在这个目录下
-SERVER_BAK_PATH = u'D:\\code\\lets2017_bak'
+SERVER_BAK_PATH = u'D:\\code\\isper2019_bak'
 
 # 登录综合平台的用户名和密码
 USER = u'XXXX'
@@ -1298,7 +1298,7 @@ PWD = u'XXXX'
 
 
 # 工程名称，和工程中对应
-PROJECT_NAME = u'lets2017'
+PROJECT_NAME = u'isper2019'
 
 # 没有参数，全部模块生成，参数一:模块名称
 if __name__ == "__main__":

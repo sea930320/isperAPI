@@ -2,7 +2,7 @@
 import MySQLdb
 from django.db.models import ManyToManyRel, ManyToOneRel, ForeignKey
 
-from lets2017 import settings
+from isper2019 import settings
 from django.apps import apps
 import os, django
 
@@ -217,7 +217,7 @@ def export_mysql_database_word(title):
 
 if __name__ == '__main__':
     # 加载当前项目的环境
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lets2017.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "isper2019.settings")
     django.setup()
     get_models()
     export_mysql_database_word(u"项目数据库文档")

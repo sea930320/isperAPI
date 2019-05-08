@@ -1,1 +1,1 @@
-gunicorn --config gunicorn.conf lets2017.wsgi:application --daemon
+gunicorn --config gunicorn.conf isper2019.wsgi:application --daemon
