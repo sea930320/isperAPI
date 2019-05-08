@@ -191,6 +191,28 @@ class TCompanyManagers(models.Model):
         return self.tuser.username + "--" + self.tcompany.name
 
 
+class TParts(models.Model):
+    name = models.CharField(max_length=256)
+    company = models.ForeignKey(TCompany)
+
+    class Meta:
+        db_table = "t_parts"
+
+    def __unicode__(self):
+        return self.name
+
+
+class TPositions(models.Model):
+    name = models.CharField(max_length=256)
+    parts = models.ForeignKey(TParts)
+
+    class Meta:
+        db_table = "t_positions"
+
+    def __unicode__(self):
+        return self.name
+
+
 # 用户
 class Tuser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=18, db_index=True, unique=True, verbose_name=u'账号')
@@ -210,6 +232,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     student_id = models.IntegerField(null=True, blank=True)
     tclass = models.ForeignKey(TClass, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'班级')
     tcompany = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'所在单位')
+    tposition = models.ForeignKey(TPositions, blank=True, null=True)
     director = models.BooleanField(default=False, verbose_name=u'是否具有指导权限')
     manage = models.BooleanField(default=False, verbose_name=u'是否具有管理权限')
     assigned_by = models.IntegerField(blank=True, null=True, verbose_name=u'权限是被谁赋予的')
@@ -245,6 +268,20 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     @property
     def is_staff(self):
         return self.is_admin
+
+
+class TCompanyChange(models.Model):
+    user = models.ForeignKey(Tuser)
+    reason = models.CharField(max_length=256, default='')
+    target = models.ForeignKey(TCompany)
+    sAgree = models.IntegerField(default=0)
+    tAgree = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "t_company_change"
+
+    def __unicode__(self):
+        return self.reason
 
 
 class LoginLog(models.Model):
