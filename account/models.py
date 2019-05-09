@@ -204,7 +204,7 @@ class TParts(models.Model):
 
 class TPositions(models.Model):
     name = models.CharField(max_length=256)
-    parts = models.ForeignKey(TParts)
+    parts = models.ForeignKey(TParts, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "t_positions"
@@ -232,7 +232,7 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     student_id = models.IntegerField(null=True, blank=True)
     tclass = models.ForeignKey(TClass, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'班级')
     tcompany = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'所在单位')
-    tposition = models.ForeignKey(TPositions, blank=True, null=True)
+    tposition = models.ForeignKey(TPositions, blank=True, null=True, on_delete=models.SET_NULL)
     director = models.BooleanField(default=False, verbose_name=u'是否具有指导权限')
     manage = models.BooleanField(default=False, verbose_name=u'是否具有管理权限')
     assigned_by = models.IntegerField(blank=True, null=True, verbose_name=u'权限是被谁赋予的')

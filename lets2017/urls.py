@@ -17,6 +17,7 @@ from workflow import views as workflow_views
 from group import views as group_views
 from dictionary import views as dictionary_views
 from userManage import views as userManage_views
+from partPosition import views as partPosition_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -264,6 +265,15 @@ urlpatterns += (
     url(r'^api/userManager/set_cChange$', userManage_views.set_company_change),
     url(r'^api/userManager/resetPass$', userManage_views.reset_user_password),
     url(r'^api/userManager/sampleUserExcel$', userManage_views.download_sample_excel),
+)
+
+urlpatterns += (
+    url(r'^api/partPosition/getPartPositionData$', partPosition_views.get_part_positions),
+    url(r'^api/partPosition/newPPSave$', partPosition_views.new_part_position),
+    url(r'^api/partPosition/deletePPSave$', partPosition_views.delete_part_position),
+    url(r'^api/partPosition/getPartUsers$', partPosition_views.get_part_users),
+    url(r'^api/partPosition/getNonPPUsers$', partPosition_views.get_non_ppUsers),
+    url(r'^api/partPosition/setNewPP$', partPosition_views.set_new_pp),
 )
 
 urlpatterns += (
