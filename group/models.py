@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 
 from django.db import models
 from account.models import Tuser
+from account.models import  TPermission
+from account.models import  TAction
 
 
 class AllGroups(models.Model):
@@ -12,7 +14,7 @@ class AllGroups(models.Model):
     default = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     groupManagers = models.ManyToManyField(Tuser, related_name="allgroups_set")
-    groupManagerAssistants = models.ManyToManyField(Tuser, related_name="allgroups_set_assistants")
+    groupManagerAssistants = models.ManyToManyField(Tuser, through= 'TGroupManagerAssistants', related_name="allgroups_set_assistants")
     groupInstructors = models.ManyToManyField(Tuser, related_name="allgroups_set_instructors")
     groupInstructorAssistants = models.ManyToManyField(Tuser, related_name="allgroups_set_instructor_assistants")
 
@@ -35,3 +37,14 @@ class TGroupChange(models.Model):
 
     def __unicode__(self):
         return self.reason
+
+class TGroupManagerAssistants(models.Model):
+    all_groups = models.ForeignKey(AllGroups, on_delete=models.CASCADE)
+    tuser = models.ForeignKey(Tuser, on_delete=models.CASCADE)
+    actions = models.ManyToManyField(TAction)
+    class Meta:
+        db_table = "t_allGroups_groupManagerAssistants"
+
+    def __unicode__(self):
+        return self.all_groups.name + ':' + self.tuser.name
+

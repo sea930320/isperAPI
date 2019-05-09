@@ -26,14 +26,18 @@ def get_normal_users(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 1:
+        if request.session['login_type'] not in [1, 2, 3]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
         group_id = request.POST.get("group_id", None)
+        company_id = request.POST.get("company_id", None)
+        part_id = request.POST.get("part_id", None)
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
+        except_group_assistant = int(request.POST.get("except_group_assistant"), 0)
+        except_company_assistant = int(request.POST.get("except_company_assistant"), 0)
 
         if search:
             qs = Tuser.objects.filter(Q(roles=5) & Q(username__icontains=search))
@@ -42,6 +46,14 @@ def get_normal_users(request):
 
         if group_id:
             qs = qs.filter(tcompany__group_id=group_id)
+        if company_id:
+            qs = qs.filter(tcompany__id=company_id)
+        if part_id:
+            qs = qs.filter(tposition__parts__id=part_id)
+        if except_group_assistant != 0 and group_id:
+            qs = qs.exclude(Q(roles=6) | Q(allgroups_set_assistants__id=group_id))
+        if except_company_assistant != 0 and company_id:
+            qs = qs.exclude(Q(roles=7) | Q(tcomapny_set_assistants__id=company_id))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -88,14 +100,17 @@ def get_manage_users(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 1:
+        if request.session['login_type'] not in [1, 2, 3]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
         group_id = request.POST.get("group_id", None)
+        company_id = request.POST.get("company_id", None)
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
+        except_group_assistant = int(request.POST.get("except_group_assistant"), 0)
+        except_company_assistant = int(request.POST.get("except_company_assistant"), 0)
 
         if search:
             qs = Tuser.objects.filter(Q(roles__in=[2, 3, 6, 7]) & Q(username__icontains=search)).distinct()
@@ -107,6 +122,12 @@ def get_manage_users(request):
                            Q(allgroups_set_assistants__id=group_id) |
                            Q(tcompanymanagers__tcompany__group_id=group_id) |
                            Q(t_company_set_assistants__group_id=group_id))
+        if company_id:
+            qs = qs.filter(Q(tcomapnymanagers__tcompany__id=company_id) | Q(tcomapny_set_assistants__id=company_id))
+        if except_group_assistant != 0 and group_id:
+            qs = qs.exclude(Q(roles=6) | Q(allgroups_set_assistants__id=group_id))
+        if except_company_assistant != 0 and company_id:
+            qs = qs.exclude(Q(roles=7) | Q(tcomapny_set_assistants__id=company_id))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -116,9 +137,9 @@ def get_manage_users(request):
             paginator = Paginator(qs, size)
 
             try:
-                flows = paginator.page(page)
+                users = paginator.page(page)
             except EmptyPage:
-                flows = paginator.page(1)
+                users = paginator.page(1)
 
             results = [{
                 'id': item.id,
@@ -130,14 +151,18 @@ def get_manage_users(request):
                          item.allgroups_set_assistants.get().name if len(item.allgroups_set_assistants.all()) > 0 else
                          item.tcompanymanagers_set.get().tcompany.group.name if len(item.tcompanymanagers_set.all()) > 0 else
                          item.t_company_set_assistants.get().group.name if len(item.t_company_set_assistants.all()) > 0 else '',
-            } for item in flows]
+                'role': 2 if item.allgroups_set.get().exists() else
+                        6 if item.allgroups_set_assistants.get().exists() else
+                        3 if item.tcompanymanagers_set.get().exists() else
+                        7 if item.t_company_set_assistants.get().exists() else ''
+            } for item in users]
 
             paging = {
                 'count': paginator.count,
-                'has_previous': flows.has_previous(),
-                'has_next': flows.has_next(),
+                'has_previous': users.has_previous(),
+                'has_next': users.has_next(),
                 'num_pages': paginator.num_pages,
-                'cur_page': flows.number,
+                'cur_page': users.number,
             }
 
             resp = code.get_msg(code.SUCCESS)

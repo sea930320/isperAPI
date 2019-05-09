@@ -167,7 +167,7 @@ class TCompany(models.Model):
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     is_default = models.IntegerField(default=0)
     group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE)
-    assistants = models.ManyToManyField('Tuser', related_name="t_company_set_assistants")
+    assistants = models.ManyToManyField('Tuser', related_name="t_company_set_assistants", through='TCompanyManagerAssistants')
 
     class Meta:
         db_table = "t_company"
@@ -189,6 +189,16 @@ class TCompanyManagers(models.Model):
 
     def __unicode__(self):
         return self.tuser.username + "--" + self.tcompany.name
+
+class TCompanyManagerAssistants(models.Model):
+    tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
+    tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
+    actions = models.ManyToManyField('TAction')
+    class Meta:
+        db_table = "t_company_assistants"
+
+    def __unicode__(self):
+        return self.tcompany.name + ':' + self.tuser.name
 
 
 class TParts(models.Model):
@@ -300,3 +310,29 @@ class LoginLog(models.Model):
 
     def __unicode__(self):
         return self.user.name
+
+class TPermission(models.Model):
+    name = models.CharField(max_length=256, verbose_name=u'姓名')
+    codename = models.CharField(max_length=256, verbose_name=u'姓名')
+
+    class Meta:
+        db_table = "t_permission"
+        verbose_name_plural = u"Permissions"
+        verbose_name = u"Permission"
+
+    def __unicode__(self):
+        return self.name
+
+class TAction(models.Model):
+    name = models.CharField(max_length=256, verbose_name=u'姓名')
+    codename = models.CharField(max_length=256, verbose_name=u'姓名')
+    permission = models.ForeignKey(TPermission, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "t_action"
+        verbose_name_plural = u"Permission Actions"
+        verbose_name = u"Permission Action"
+
+    def __unicode__(self):
+        return self.name
+

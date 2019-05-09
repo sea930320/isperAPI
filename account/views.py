@@ -9,6 +9,7 @@ import xlwt
 import uuid
 from course.models import CourseClassStudent, CourseClass
 from group.models import AllGroups
+from group.models import TGroupManagerAssistants
 from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils.http import urlquote
@@ -21,7 +22,7 @@ from account.service import get_client_ip
 from django.contrib import auth
 from django.http import JsonResponse
 from django.http import HttpResponse
-from account.models import Tuser, TCompany, TClass, LoginLog, TRole
+from account.models import Tuser, TCompany, TClass, LoginLog, TRole, TCompanyManagerAssistants, TPermission, TAction
 from experiment.models import Experiment
 from team.models import TeamMember
 from utils import code, const, query, easemob, tools, config
@@ -1549,5 +1550,72 @@ def api_export_loginlogs(request):
 
     except Exception as e:
         logger.exception('api_export_loginlogs Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_get_assistants(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        login_type = request.session['login_type']
+        user = request.user
+        if login_type not in [2, 3]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if login_type == 2:
+            group = user.allgroups_set.all().first()
+            qs = group.groupManagerAssistants.filter(Q(roles=6))
+            assistants = []
+            for assistant in qs:
+                assistant_relation = TGroupManagerAssistants.objects.get(all_groups=group, tuser=assistant)
+                actions = list(assistant_relation.actions.all().values())
+                assistants.append({
+                    'id': assistant.id,
+                    'name': assistant.name,
+                    'username': assistant.username,
+                    'actions': actions
+                })
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'assistants': assistants}
+        else:
+            company = user.tcompanymanagers_set.get().tcompany
+            qs = company.assistants.filter(Q(roles=7))
+            assistants = []
+            for assistant in qs:
+                assistant_relation = TCompanyManagerAssistants.objects.get(tcompany=company, tuser=assistant)
+                actions = list(assistant_relation.actions.all().values())
+                assistants.append({
+                    'id': assistant.id,
+                    'name': assistant.name,
+                    'username': assistant.username,
+                    'actions': actions
+                })
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'assistants': []}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_get_assistants Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_get_permissions(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        qs = TPermission.objects.all()
+        permissions = []
+        for permission in qs:
+            actions = list(permission.taction_set.all().values())
+            permission = model_to_dict(permission)
+            permission['actions'] = actions
+            permissions.append(permission)
+        print permissions
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'permissions': permissions}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_get_permissions Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
