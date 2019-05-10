@@ -223,6 +223,18 @@ class TPositions(models.Model):
         return self.name
 
 
+class TInnerPermission(models.Model):
+    name = models.CharField(max_length=256)
+    comment = models.CharField(max_length=256)
+    ownPositions = models.ManyToManyField(TPositions)
+
+    class Meta:
+        db_table = "t_innerPermission"
+
+    def __unicode__(self):
+        return self.name
+
+
 # 用户
 class Tuser(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=18, db_index=True, unique=True, verbose_name=u'账号')

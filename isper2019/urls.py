@@ -282,6 +282,8 @@ urlpatterns += (
     url(r'^api/partPosition/getPartUsers$', partPosition_views.get_part_users),
     url(r'^api/partPosition/getNonPPUsers$', partPosition_views.get_non_ppUsers),
     url(r'^api/partPosition/setNewPP$', partPosition_views.set_new_pp),
+    url(r'^api/partPosition/getInnerPermissions$', partPosition_views.get_inner_permissions),
+    url(r'^api/partPosition/setInnerPermissions$', partPosition_views.set_inner_permissions),
 )
 
 urlpatterns += (

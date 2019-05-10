@@ -36,8 +36,8 @@ def get_normal_users(request):
         part_id = request.POST.get("part_id", None)
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
-        except_group_assistant = int(request.POST.get("except_group_assistant"), 0)
-        except_company_assistant = int(request.POST.get("except_company_assistant"), 0)
+        except_group_assistant = 0 if request.POST.get("except_group_assistant") is None else int(request.POST.get("except_group_assistant"))
+        except_company_assistant = 0 if request.POST.get("except_company_assistant") is None else int(request.POST.get("except_company_assistant"))
 
         if search:
             qs = Tuser.objects.filter(Q(roles=5) & Q(username__icontains=search))
@@ -109,8 +109,8 @@ def get_manage_users(request):
         company_id = request.POST.get("company_id", None)
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
-        except_group_assistant = int(request.POST.get("except_group_assistant"), 0)
-        except_company_assistant = int(request.POST.get("except_company_assistant"), 0)
+        except_group_assistant = 0 if request.POST.get("except_group_assistant") is None else int(request.POST.get("except_group_assistant"))
+        except_company_assistant = 0 if request.POST.get("except_company_assistant") is None else int(request.POST.get("except_company_assistant"))
 
         if search:
             qs = Tuser.objects.filter(Q(roles__in=[2, 3, 6, 7]) & Q(username__icontains=search)).distinct()
@@ -151,10 +151,10 @@ def get_manage_users(request):
                          item.allgroups_set_assistants.get().name if len(item.allgroups_set_assistants.all()) > 0 else
                          item.tcompanymanagers_set.get().tcompany.group.name if len(item.tcompanymanagers_set.all()) > 0 else
                          item.t_company_set_assistants.get().group.name if len(item.t_company_set_assistants.all()) > 0 else '',
-                'role': 2 if item.allgroups_set.get().exists() else
-                        6 if item.allgroups_set_assistants.get().exists() else
-                        3 if item.tcompanymanagers_set.get().exists() else
-                        7 if item.t_company_set_assistants.get().exists() else ''
+                'role': 2 if len(item.allgroups_set.all()) > 0 else
+                        6 if len(item.allgroups_set_assistants.all()) > 0 else
+                        3 if len(item.tcompanymanagers_set.all()) > 0 else
+                        7 if len(item.t_company_set_assistants.all()) > 0 else ''
             } for item in users]
 
             paging = {
@@ -170,7 +170,7 @@ def get_manage_users(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_manage_users Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -232,7 +232,7 @@ def get_instructor_users(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_instructor_users Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -295,7 +295,7 @@ def get_student_users(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_student_users Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -356,7 +356,7 @@ def get_group_users(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_group_users Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -414,7 +414,7 @@ def get_group_nonCompanyUsers(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_group_nonCompanyUsers Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -483,7 +483,7 @@ def get_group_changes(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_group_changes Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -504,7 +504,7 @@ def set_is_review(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('set_is_review Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -538,7 +538,7 @@ def set_group_change(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('set_group_change Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -610,7 +610,7 @@ def get_company_users(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_company_users Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -660,7 +660,7 @@ def create_company_excelUsers(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('create_company_excelUsers Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -714,7 +714,7 @@ def create_company_newUser(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('create_company_newUser Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -745,7 +745,7 @@ def delete_company_users(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('delete_company_users Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -803,7 +803,7 @@ def get_group_nonReviewUsers(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_group_nonReviewUsers Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -872,7 +872,7 @@ def get_company_changes(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('get_company_changes Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -906,7 +906,7 @@ def set_company_change(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('get_normal_users Exception:{0}'.format(str(e)))
+        logger.exception('set_company_change Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 

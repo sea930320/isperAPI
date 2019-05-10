@@ -38,6 +38,7 @@ class TGroupChange(models.Model):
     def __unicode__(self):
         return self.reason
 
+
 class TGroupManagerAssistants(models.Model):
     all_groups = models.ForeignKey(AllGroups, on_delete=models.CASCADE)
     tuser = models.ForeignKey(Tuser, on_delete=models.CASCADE)
