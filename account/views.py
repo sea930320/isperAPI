@@ -1592,10 +1592,52 @@ def api_get_assistants(request):
                     'actions': actions
                 })
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'assistants': []}
+            resp['d'] = {'assistants': assistants}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_get_assistants Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_set_assistants_actions(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        login_type = request.session['login_type']
+        if login_type not in [2, 3]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        assistants_actions = request.POST.get("assistants_actions", None)
+        if assistants_actions is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        assistants_actions = json.loads(assistants_actions)
+        for assistant_actions in assistants_actions:
+            actions = assistant_actions['actions']
+            userId = assistant_actions['id']
+            if actions is None:
+                continue
+            assistant = Tuser.objects.get(pk=userId)
+            if login_type == 2:
+                assistant_relation = TGroupManagerAssistants.objects.get(tuser=assistant)
+                for action_id, is_enabled in actions.items():
+                    if is_enabled:
+                        assistant_relation.actions.add(TAction.objects.get(pk=action_id))
+                    else:
+                        assistant_relation.actions.remove(TAction.objects.get(pk=action_id))
+            else:
+                assistant_relation = TCompanyManagerAssistants.objects.get(tuser=assistant)
+                for action_id, is_enabled in actions.items():
+                    if is_enabled:
+                        assistant_relation.actions.add(TAction.objects.get(pk=action_id))
+                    else:
+                        assistant_relation.actions.remove(TAction.objects.get(pk=action_id))
+            resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_set_assistants_actions Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
