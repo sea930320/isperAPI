@@ -196,6 +196,7 @@ class TCompanyManagerAssistants(models.Model):
     actions = models.ManyToManyField('TAction')
     class Meta:
         db_table = "t_company_assistants"
+        auto_created = True
 
     def __unicode__(self):
         return self.tcompany.name + ':' + self.tuser.name

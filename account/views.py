@@ -175,7 +175,8 @@ def api_account_login(request):
                     resp = code.get_msg(code.SUCCESS)
                     resp['d'] = user_info(user.id)
                     resp['d']['identity'] = role.id
-                    resp['d']['defaultGroup'] = (Tuser.objects.get(id=user.id).allgroups_set.get().default == 1) if role.id == 2 else False
+                    resp['d']['defaultGroup'] = (
+                    Tuser.objects.get(id=user.id).allgroups_set.get().default == 1) if role.id == 2 else False
                     resp['d']['role'] = role.id
                     resp['d']['role_name'] = role.name
                     resp['d']['manage'] = user.manage
@@ -184,13 +185,33 @@ def api_account_login(request):
                     resp['d']['company_name'] = user.tcompany.name if user.tcompany else ''
                     resp['d']['director'] = user.director
                     resp['d']['last_experiment_id'] = user.last_experiment_id
+                    manager_info = {}
+                    if login_type == 2:
+                        group = user.allgroups_set.get()
+                        manager_info = {
+                            'group_id': group.id
+                        }
+                    elif login_type == 6:
+                        group = user.allgroups_set_assistants.get()
+                        manager_info = {
+                            'group_id': group.id
+                        }
+                    elif login_type == 3:
+                        manager_info = {
+                            'company_id' : user.tcompanymanagers_set.get().tcompany.id
+                        }
+                    elif login_type == 7:
+                        manager_info = {
+                            'company_id' : user.t_company_set_assistants.get().id
+                        }
+                    resp['d']['manager_info'] = manager_info
                     if user.last_experiment_id:
                         last_exp = Experiment.objects.get(pk=user.last_experiment_id)
                     else:
                         last_exp = Experiment()
                     resp['d']['last_experiment_status'] = last_exp.status
                     resp['d']['last_experiment_name'] = last_exp.name
-                    loginLog(loginType=login_type, userID=user.id, ip = get_client_ip(request))
+                    loginLog(loginType=login_type, userID=user.id, ip=get_client_ip(request))
                 except ObjectDoesNotExist:
                     resp = code.get_msg(code.PERMISSION_DENIED)
             else:
@@ -1387,6 +1408,7 @@ def api_account_share(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_get_log_list(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -1415,7 +1437,8 @@ def api_get_log_list(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if search:
-            qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(role__name__icontains=search) | Q(login_ip__icontains=search))
+            qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(
+                role__name__icontains=search) | Q(login_ip__icontains=search))
         if group_id:
             qs = qs.filter(group__pk=int(group_id))
         if company_id:
@@ -1437,7 +1460,8 @@ def api_get_log_list(request):
             company = log.company is not None and model_to_dict(log.company, fields=['id', 'name']) or None
             role = log.role is not None and model_to_dict(log.role, fields=['id', 'name']) or None
             results.append({
-                'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group, 'company': company,
+                'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group,
+                'company': company,
                 'role': role, 'login_time': log.login_time is not None and log.login_time.strftime('%Y-%m-%d') or "",
                 'login_ip': log.login_ip
             })
@@ -1481,6 +1505,7 @@ def api_remove_loginlogs(request):
         logger.exception('api_remove_loginlogs Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_export_loginlogs(request):
     resp = auth_check(request, "GET")
@@ -1553,6 +1578,7 @@ def api_export_loginlogs(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_get_assistants(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -1599,6 +1625,101 @@ def api_get_assistants(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_set_assistants(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        login_type = request.session['login_type']
+        if login_type not in [2, 3]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        candidates = request.POST.get("candidates", None)
+        if candidates is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        candidates = json.loads(candidates)
+        if login_type == 2:
+            group = request.user.allgroups_set.get()
+            if not group:
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            for candidate in candidates:
+                candidateUser = Tuser.objects.get(pk=candidate)
+                if not candidateUser:
+                    continue
+                candidateUser.roles.add(TRole.objects.get(pk=6))
+                candidateUser.allgroups_set_assistants.add(group)
+        else:
+            company = request.user.tcompanymanagers_set.get().tcompany
+            if not company:
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            for candidate in candidates:
+                candidateUser = Tuser.objects.get(pk=candidate)
+                if not candidateUser:
+                    continue
+                candidateUser.roles.add(TRole.objects.get(pk=7))
+                candidateUser.t_company_set_assistants.add(company)
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_set_assistants Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_unset_assistant(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        login_type = request.session['login_type']
+        if login_type not in [2, 3]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        candidates = request.POST.get("candidates", None)
+        if candidates is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        candidates = json.loads(candidates)
+        if login_type == 2:
+            group = request.user.allgroups_set.get()
+            if not group:
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            for candidate in candidates:
+                candidateUser = Tuser.objects.get(pk=candidate)
+                if not candidateUser:
+                    continue
+                candidateUser.roles.remove(TRole.objects.get(pk=6))
+                candidateUser.allgroups_set_assistants.remove(group)
+        else:
+            company = request.user.tcompanymanagers_set.get().tcompany
+            if not company:
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            for candidate in candidates:
+                candidateUser = Tuser.objects.get(pk=candidate)
+                if not candidateUser:
+                    continue
+                candidateUser.roles.remove(TRole.objects.get(pk=7))
+                candidateUser.t_company_set_assistants.remove(company)
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_set_assistants Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
 def api_set_assistants_actions(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -1640,6 +1761,7 @@ def api_set_assistants_actions(request):
         logger.exception('api_set_assistants_actions Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_get_permissions(request):
     resp = auth_check(request, "GET")

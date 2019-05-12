@@ -243,6 +243,48 @@ def group_add_manager(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def group_add_assistant(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        groupID = request.POST.get("group_id", None)
+        name = request.POST.get("name", None)
+        password = request.POST.get("password", None)
+        if all([groupID, name, password]):
+            if Tuser.objects.filter(username=name).count() > 0:
+                resp = code.get_msg(code.USER_EXIST)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            newUser = AllGroups.objects.get(id=groupID).groupManagerAssistants.create(
+                username=name,
+                password=make_password(password),
+                is_superuser=0,
+                gender=1,
+                identity=1,
+                type=1,
+                is_active=1,
+                is_admin=0,
+                director=0,
+                manage=0,
+                update_time='',
+                del_flag=0,
+                is_register=0
+            )
+            newUser.roles.add(TRole.objects.get(id=6))
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'success'}
+
+        else:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('group_add_manager Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def group_update_manager(request):
     resp = auth_check(request, "POST")
@@ -617,6 +659,48 @@ def add_company_manager(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def add_company_assistant(request):
+
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        companyID = request.POST.get("company_id", None)
+        name = request.POST.get("name", None)
+        password = request.POST.get("password", None)
+        if all([companyID, name, password]):
+            if Tuser.objects.filter(username=name).count() > 0:
+                resp = code.get_msg(code.USER_EXIST)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            newUser = TCompany.objects.get(id=companyID).assistants.create(
+                username=name,
+                password=make_password(password),
+                is_superuser=0,
+                gender=1,
+                identity=1,
+                type=1,
+                is_active=1,
+                is_admin=0,
+                director=0,
+                manage=0,
+                update_time='',
+                del_flag=0,
+                is_register=0
+            )
+            newUser.roles.add(TRole.objects.get(id=7))
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'success'}
+
+        else:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('group_add_manager Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def update_company_manager(request):
     resp = auth_check(request, "POST")

@@ -23,11 +23,14 @@ def get_part_positions(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        company_id = request.POST.get("company_id", None)
+
+        if request.session['login_type'] not in [2, 3] or (company_id is None and request.session['login_type'] == 2):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        if not company_id:
+            company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
 
         results = [{
             'id': item.id,

@@ -2235,7 +2235,6 @@ def api_workflow_role_allocation_bulk_update(request):
         flow_id = request.POST.get('flow_id', None)
         if allocations:
             allocations = json.loads(allocations)
-            print allocations
             for allocation in allocations:
                 FlowRoleAllocation.objects.filter(pk=allocation['id']).update(can_take_in=allocation['can_take_in'],
                                                                         can_terminate=allocation['can_terminate'],
