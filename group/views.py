@@ -147,7 +147,10 @@ def delete_selected_group(request):
 
     try:
         selected = eval(request.POST.get("ids", ''))
-        print(selected)
+        newDefault = request.POST.get("newDefault", None)
+
+        if newDefault != u'':
+            AllGroups.objects.filter(id=newDefault).update(default=1)
 
         targets = AllGroups.objects.filter(id__in=selected)
         Tuser.objects.filter(id__in=targets.values_list('groupManagers')).delete()
@@ -176,9 +179,6 @@ def update_group(request):
         publish = int(request.POST.get("publish", 1))
         newDefault = request.POST.get("newDefault", None)
 
-        if newDefault != u'':
-            AllGroups.objects.filter(id=newDefault).update(default=1)
-
         if int(request.POST.get("default")) == 1:
             AllGroups.objects.filter(default=1).update(default=0)
 
@@ -189,6 +189,9 @@ def update_group(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         AllGroups.objects.filter(id=id).update(name=name, comment=comment, default=default, publish=publish)
+
+        if newDefault != u'':
+            AllGroups.objects.filter(id=newDefault).update(default=1)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -210,29 +213,32 @@ def group_add_manager(request):
         name = request.POST.get("data[name]", '')
         description = request.POST.get("data[description]", '')
         password = request.POST.get("data[password]", None)
+        order = int(request.POST.get("order", 0))
 
-        if Tuser.objects.filter(username=request.POST.get("data[name]")).count() > 0:
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': 'managerNameError'}
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-        newUser = AllGroups.objects.get(id=groupID).groupManagers.create(
-            username=name,
-            password=make_password(password),
-            is_superuser=0,
-            gender=1,
-            comment=description,
-            identity=1,
-            type=1,
-            is_active=1,
-            is_admin=0,
-            director=0,
-            manage=0,
-            update_time='',
-            del_flag=0,
-            is_register=0
-        )
-        newUser.roles.add(TRole.objects.get(id=2))
+        if order == 0:
+            newUser = AllGroups.objects.get(id=groupID).groupManagers.create(
+                username=name,
+                password=make_password(password),
+                is_superuser=0,
+                gender=1,
+                comment=description,
+                identity=1,
+                type=1,
+                is_active=1,
+                is_admin=0,
+                director=0,
+                manage=0,
+                update_time='',
+                del_flag=0,
+                is_register=0
+            )
+            newUser.roles.add(TRole.objects.get(id=2))
+        elif order == 1:
+            AllGroups.objects.get(id=groupID).groupManagers.add(Tuser.objects.get(username=name))
+            Tuser.objects.get(username=name).roles.add(TRole.objects.get(id=2))
+        elif order == 2:
+            Tuser.objects.get(username=name).allgroups_set.clear()
+            Tuser.objects.get(username=name).allgroups_set.add(AllGroups.objects.get(id=groupID))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
