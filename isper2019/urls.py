@@ -239,6 +239,7 @@ urlpatterns += (
     url(r'^api/group/saveInstructors$', group_views.set_instructors),
     url(r'^api/group/createInstructors$', group_views.create_instructors),
     url(r'^api/group/all-list$', group_views.get_groups_all_list), #Jonas
+    url(r'^api/group/checkUserGroup$', group_views.check_user_group),
     url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
     url(r'^api/company/createCompany$', group_views.create_new_company),
     url(r'^api/company/deleteCompany$', group_views.delete_selected_company),

@@ -85,11 +85,6 @@ def create_new_group(request):
             resp['d'] = {'results': 'nameError'}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        if Tuser.objects.filter(username=request.POST.get("managerName")).count() > 0:
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': 'managerNameError'}
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
         if int(request.POST.get("default")) == 1:
             AllGroups.objects.filter(default=1).update(default=0)
 
@@ -108,24 +103,32 @@ def create_new_group(request):
             companyType=TCompanyType.objects.get(id=1),
             is_default=1
         ).save()
-        newUser = NewGroup.groupManagers.create(
-            username=request.POST.get("managerName", ''),
-            password=make_password(request.POST.get("managerPass", None)),
-            is_superuser=0,
-            gender=1,
-            name='',
-            comment='',
-            identity=1,
-            type=1,
-            is_active=1,
-            is_admin=0,
-            director=0,
-            manage=0,
-            update_time='',
-            del_flag=0,
-            is_register=0
-        )
-        newUser.roles.add(TRole.objects.get(id=2))
+        order = int(request.POST.get("order", 0))
+        if order == 0:
+            newUser = NewGroup.groupManagers.create(
+                username=request.POST.get("managerName", ''),
+                password=make_password(request.POST.get("managerPass", None)),
+                is_superuser=0,
+                gender=1,
+                name='',
+                comment='',
+                identity=1,
+                type=1,
+                is_active=1,
+                is_admin=0,
+                director=0,
+                manage=0,
+                update_time='',
+                del_flag=0,
+                is_register=0
+            )
+            newUser.roles.add(TRole.objects.get(id=2))
+        elif order == 1:
+            NewGroup.groupManagers.add(Tuser.objects.get(username=request.POST.get("managerName")))
+            Tuser.objects.get(username=request.POST.get("managerName")).roles.add(TRole.objects.get(id=2))
+        elif order == 2:
+            Tuser.objects.get(username=request.POST.get("managerName")).allgroups_set.clear()
+            Tuser.objects.get(username=request.POST.get("managerName")).allgroups_set.add(NewGroup)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -553,7 +556,7 @@ def update_company(request):
         name = request.POST.get("name", '')
         type = request.POST.get("type", '')
 
-        if TCompany.objects.filter(Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(name=name)).count() > 0:
+        if TCompany.objects.filter(Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(name=name) & Q(companyType__name=type)).count() > 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': 'nameError'}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -677,6 +680,36 @@ def get_groups_all_list(request):
         resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    except Exception as e:
+        logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def check_user_group(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 1:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        username = request.POST.get("username", None)
+        before = ''
+
+        if len(Tuser.objects.filter(username=username)) == 0:
+            results = 0
+        elif len(Tuser.objects.filter(Q(username=username) & Q(roles__id__in=[2]))) > 0:
+            results = 2
+            before = Tuser.objects.filter(Q(username=username) & Q(roles__id__in=[2])).get().allgroups_set.get().name
+        elif len(Tuser.objects.filter(Q(username=username) & ~Q(roles__id__in=[2]))) > 0:
+            results = 1
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'before': before}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
