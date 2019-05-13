@@ -22,7 +22,7 @@ from account.service import get_client_ip
 from django.contrib import auth
 from django.http import JsonResponse
 from django.http import HttpResponse
-from account.models import Tuser, TCompany, TClass, LoginLog, TRole, TCompanyManagerAssistants, TPermission, TAction
+from account.models import Tuser, TCompany, TClass, LoginLog, TRole, TCompanyManagerAssistants, TPermission, TAction, TNotifications
 from experiment.models import Experiment
 from team.models import TeamMember
 from utils import code, const, query, easemob, tools, config
@@ -600,6 +600,22 @@ def api_account_user_create(request):
             user.save()
             avatar.close()
             uploadFile.delete()
+
+        newNotification = TNotifications.objects.create(
+            type='registerEvent_' + str(user.id),
+            content=name + ' : 申请注册了，请审核！',
+            link='/manager/user/2',
+            role=TRole.objects.get(id=2) if company_id == company.id else TRole.objects.get(id=3),
+            mode=0
+        )
+        newNotification.save()
+
+        if company_id == company.id:
+            for userItem in defaultGroup.groupManagers.all():
+                newNotification.targets.add(userItem)
+        else:
+            for userItem in TCompany.objects.get(id=company_id).tcompanymanagers_set.all():
+                newNotification.targets.add(userItem.tuser)
 
         resp = code.get_msg(code.SUCCESS)
 
@@ -1387,6 +1403,7 @@ def api_account_share(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_get_log_list(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -1482,6 +1499,7 @@ def api_remove_loginlogs(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_export_loginlogs(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -1553,6 +1571,7 @@ def api_export_loginlogs(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_get_assistants(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -1599,6 +1618,7 @@ def api_get_assistants(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_get_permissions(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -1614,6 +1634,27 @@ def api_get_permissions(request):
         print permissions
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'permissions': permissions}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_get_permissions Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def get_own_messages(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        role = request.session['login_type']
+        uid = request.session['_auth_user_id']
+        results = [{
+            'id': item.id,
+            'content': item.content,
+            'link': item.link
+        } for item in TNotifications.objects.filter(Q(role=role) & Q(targets__in=[uid]))]
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_get_permissions Exception:{0}'.format(str(e)))

@@ -494,10 +494,18 @@ def set_is_review(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
+        role = request.session['login_type']
         selected = eval(request.POST.get("ids", ''))
         set = request.POST.get("set", '')
 
         Tuser.objects.filter(id__in=selected).update(is_review=set)
+
+        for uid in selected:
+            user = TNotifications.objects.get(Q(type='registerEvent_' + str(uid)) & Q(role=role))
+            if user.mode == 0:
+                user.delete()
+            elif user.mode == 1:
+                user.targets.remove(Tuser.objects.get(id=request.session['_auth_user_id']))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -561,7 +569,7 @@ def get_company_users(request):
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
-        qs = Tuser.objects.filter(Q(roles=5) & Q(tcompany=company_id) & Q(is_review=1))
+        qs = Tuser.objects.filter(Q(roles=5) & Q(tcompany=company_id) & Q(is_review=1)).order_by('-id')
 
         if search:
             qs = qs.filter(name__icontains=search)
