@@ -14,7 +14,7 @@ class AllGroups(models.Model):
     default = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     groupManagers = models.ManyToManyField(Tuser, related_name="allgroups_set")
-    groupManagerAssistants = models.ManyToManyField(Tuser, through= 'TGroupManagerAssistants', related_name="allgroups_set_assistants")
+    groupManagerAssistants = models.ManyToManyField(Tuser, through='TGroupManagerAssistants', related_name="allgroups_set_assistants")
     groupInstructors = models.ManyToManyField(Tuser, related_name="allgroups_set_instructors")
     groupInstructorAssistants = models.ManyToManyField(Tuser, related_name="allgroups_set_instructor_assistants")
 

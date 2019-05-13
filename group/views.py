@@ -28,9 +28,9 @@ def get_groups_list(request):
         size = int(request.GET.get("size", const.ROW_SIZE))
 
         if search:
-            qs = AllGroups.objects.filter(Q(name__icontains=search))
+            qs = AllGroups.objects.filter(Q(name__icontains=search)).order_by('-id')
         else:
-            qs = AllGroups.objects.all()
+            qs = AllGroups.objects.all().order_by('-id')
 
         # if request.session['login_type'] == 1:
 
@@ -48,7 +48,7 @@ def get_groups_list(request):
 
             results = []
             for flow in flows:
-                groupManager = [{'id': item.id, 'name': item.username, 'description': item.comment} for item in flow.groupManagers.all()]
+                groupManager = [{'id': item.id, 'name': item.username, 'description': item.comment} for item in flow.groupManagers.all().order_by('-id')]
                 if groupManager is None:
                     groupManager = [{}]
                 results.append({
@@ -345,7 +345,7 @@ def get_own_group(request):
         groupInstructors = [{'id': instructor.id, 'name': instructor.username,
                              'instructorItems': [{'id': item.id, 'text': item.name} for item in
                                                  instructor.instructorItems.all()]} for instructor in
-                            group.groupInstructors.all()]
+                            group.groupInstructors.all().order_by('-id')]
 
         result = [{
             'id': group.id,
@@ -462,7 +462,7 @@ def get_company_list(request):
             data = TCompany.objects.filter(
                 group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id)
 
-        data = data.filter(is_default=0)
+        data = data.filter(is_default=0).order_by('-id')
 
         if len(data) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -486,7 +486,7 @@ def get_company_list(request):
                     'id': user.tuser.id,
                     'name': user.tuser.username,
                     'description': user.tuser.comment
-                } for user in item.tcompanymanagers_set.all()],
+                } for user in item.tcompanymanagers_set.all().order_by('-id')],
             } for item in flows]
 
             paging = {

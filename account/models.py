@@ -190,6 +190,7 @@ class TCompanyManagers(models.Model):
     def __unicode__(self):
         return self.tuser.username + "--" + self.tcompany.name
 
+
 class TCompanyManagerAssistants(models.Model):
     tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
     tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
@@ -305,6 +306,21 @@ class TCompanyChange(models.Model):
 
     def __unicode__(self):
         return self.reason
+
+
+class TNotifications(models.Model):
+    type = models.CharField(max_length=256, default='')
+    content = models.CharField(max_length=256, default='')
+    link = models.CharField(max_length=256, default='')
+    role = models.ForeignKey(TRole)
+    targets = models.ManyToManyField(Tuser)
+    mode = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "t_notification"
+
+    def __unicode__(self):
+        return self.type
 
 
 class LoginLog(models.Model):

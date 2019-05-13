@@ -54,6 +54,7 @@ urlpatterns += (
     url(r'^api/account/unset/assistant', account_views.api_unset_assistant), #Jonas
     url(r'^api/account/get/permissions', account_views.api_get_permissions), #Jonas
     url(r'^api/account/set/assistant/actions', account_views.api_set_assistants_actions), #Jonas
+    url(r'^api/account/get/getMessageData', account_views.get_own_messages),
 )
 
 urlpatterns += (
