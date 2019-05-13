@@ -38,6 +38,7 @@ from random import randint
 from datetime import datetime, timedelta
 from system.models import UploadFile
 from django.core.paginator import Paginator, EmptyPage
+from itertools import groupby
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,7 @@ def api_account_login(request):
                     resp['d'] = user_info(user.id)
                     resp['d']['identity'] = role.id
                     resp['d']['defaultGroup'] = (
-                    Tuser.objects.get(id=user.id).allgroups_set.get().default == 1) if role.id == 2 else False
+                        Tuser.objects.get(id=user.id).allgroups_set.get().default == 1) if role.id == 2 else False
                     resp['d']['role'] = role.id
                     resp['d']['role_name'] = role.name
                     resp['d']['manage'] = user.manage
@@ -186,6 +187,7 @@ def api_account_login(request):
                     resp['d']['director'] = user.director
                     resp['d']['last_experiment_id'] = user.last_experiment_id
                     manager_info = {}
+                    allowedPermissions = []
                     if login_type == 2:
                         group = user.allgroups_set.get()
                         manager_info = {
@@ -193,18 +195,28 @@ def api_account_login(request):
                         }
                     elif login_type == 6:
                         group = user.allgroups_set_assistants.get()
+                        assistant_relation = TGroupManagerAssistants.objects.get(all_groups=group, tuser=user)
+                        allowedActions = list(assistant_relation.actions.all().values())
+                        allowedPermissions = {TPermission.objects.get(pk=k).codename: [x for x in v] for k, v in
+                                              groupby(allowedActions, key=lambda x: x['permission_id'])}
                         manager_info = {
                             'group_id': group.id
                         }
                     elif login_type == 3:
                         manager_info = {
-                            'company_id' : user.tcompanymanagers_set.get().tcompany.id
+                            'company_id': user.tcompanymanagers_set.get().tcompany.id
                         }
                     elif login_type == 7:
+                        company = user.t_company_set_assistants.get()
+                        assistant_relation = TCompanyManagerAssistants.objects.get(tcompany=company, tuser=user)
+                        allowedActions = list(assistant_relation.actions.all().values())
+                        allowedPermissions = [{TPermission.objects.get(pk=k).codename: [x for x in v]} for k, v in
+                                              groupby(allowedActions, key=lambda x: x['permission_id'])]
                         manager_info = {
-                            'company_id' : user.t_company_set_assistants.get().id
+                            'company_id': user.t_company_set_assistants.get().id
                         }
                     resp['d']['manager_info'] = manager_info
+                    resp['d']['allowed_permissions'] = allowedPermissions
                     if user.last_experiment_id:
                         last_exp = Experiment.objects.get(pk=user.last_experiment_id)
                     else:
@@ -1625,6 +1637,7 @@ def api_get_assistants(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_set_assistants(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -1671,6 +1684,7 @@ def api_set_assistants(request):
         logger.exception('api_set_assistants Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_unset_assistant(request):
     resp = auth_check(request, "POST")
@@ -1768,9 +1782,14 @@ def api_get_permissions(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+        login_type = request.session['login_type']
         qs = TPermission.objects.all()
         permissions = []
         for permission in qs:
+            if login_type != 3 and permission.codename == 'code_company_management':
+                continue
+            if login_type == 3 and permission.codename in ['code_business_management', 'code_group_company_management']:
+                continue
             actions = list(permission.taction_set.all().values())
             permission = model_to_dict(permission)
             permission['actions'] = actions
