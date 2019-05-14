@@ -239,7 +239,7 @@ def get_inner_permissions(request):
                         'text': pos.name
                     }for pos in item.ownPositions.filter(parts__company_id=company_id)],
                 } for item in flows],
-                'items': [{'id': position.id, 'text': position.name} for position in TPositions.objects.filter(parts__company_id=6)]
+                'items': [{'id': position.id, 'text': position.name} for position in TPositions.objects.filter(parts__company_id=company_id)]
             }
 
             paging = {
