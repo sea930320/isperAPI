@@ -3,8 +3,8 @@ from __future__ import unicode_literals
 
 from django.db import models
 from account.models import Tuser
-from account.models import  TPermission
-from account.models import  TAction
+from account.models import TPermission
+from account.models import TAction
 
 
 class AllGroups(models.Model):
@@ -43,9 +43,10 @@ class TGroupManagerAssistants(models.Model):
     all_groups = models.ForeignKey(AllGroups, on_delete=models.CASCADE)
     tuser = models.ForeignKey(Tuser, on_delete=models.CASCADE)
     actions = models.ManyToManyField(TAction)
+
     class Meta:
         db_table = "t_allGroups_groupManagerAssistants"
-        auto_created = True
+
     def __unicode__(self):
         return self.all_groups.name + ':' + self.tuser.name
 

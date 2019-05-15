@@ -178,6 +178,18 @@ class TCompany(models.Model):
         return self.name
 
 
+class TCompanyManagerAssistants(models.Model):
+    tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
+    tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
+    actions = models.ManyToManyField('TAction')
+
+    class Meta:
+        db_table = "t_company_assistants"
+
+    def __unicode__(self):
+        return self.tcompany.name + ':' + self.tuser.name
+
+
 class TCompanyManagers(models.Model):
     tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
     tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
@@ -189,18 +201,6 @@ class TCompanyManagers(models.Model):
 
     def __unicode__(self):
         return self.tuser.username + "--" + self.tcompany.name
-
-
-class TCompanyManagerAssistants(models.Model):
-    tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
-    tuser = models.ForeignKey('Tuser', on_delete=models.CASCADE)
-    actions = models.ManyToManyField('TAction')
-    class Meta:
-        db_table = "t_company_assistants"
-        auto_created = True
-
-    def __unicode__(self):
-        return self.tcompany.name + ':' + self.tuser.name
 
 
 class TParts(models.Model):
@@ -331,6 +331,7 @@ class LoginLog(models.Model):
     login_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     login_ip = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
     class Meta:
         db_table = "t_login_logs"
         ordering = ['-login_time']
@@ -339,6 +340,7 @@ class LoginLog(models.Model):
 
     def __unicode__(self):
         return self.user.name
+
 
 class TPermission(models.Model):
     name = models.CharField(max_length=256, verbose_name=u'姓名')
@@ -352,6 +354,7 @@ class TPermission(models.Model):
     def __unicode__(self):
         return self.name
 
+
 class TAction(models.Model):
     name = models.CharField(max_length=256, verbose_name=u'姓名')
     codename = models.CharField(max_length=256, verbose_name=u'姓名')
@@ -364,4 +367,3 @@ class TAction(models.Model):
 
     def __unicode__(self):
         return self.name
-

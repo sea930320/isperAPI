@@ -90,7 +90,7 @@ def api_account_users(request):
 
         # 三期 - 如果存在课堂id，则根据课堂删选用户
         if course_id:
-            inner_join_sql = ''' inner join ( select distinct course_class_id, student_id 
+            inner_join_sql = ''' inner join ( select distinct course_class_id, student_id
             from t_course_class_student ) r on t.id = r.student_id'''
             sql += inner_join_sql
             count_sql += inner_join_sql
@@ -281,11 +281,11 @@ def api_account_users_v3(request):
 
         sql = '''SELECT t.id,t.username,t.name,c.name class_name,d.name company_name,t.gender,t.qq,t.nickname,t.phone,t.email,
                     t.director,t.manage,e.name assigned_by, t.is_share
-                    from t_user t 
+                    from t_user t
                     LEFT JOIN t_class c ON t.tclass_id=c.id
                     LEFT JOIN t_company d ON t.tcompany_id=d.id
                     LEFT JOIN t_user e on t.assigned_by = e.id'''
-        count_sql = '''SELECT count(1) from t_user t 
+        count_sql = '''SELECT count(1) from t_user t
                     LEFT JOIN t_class c ON t.tclass_id=c.id
                     LEFT JOIN t_company d ON t.tcompany_id=d.id
                     LEFT JOIN t_user e on t.assigned_by = e.id'''
