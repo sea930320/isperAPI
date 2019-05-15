@@ -20,6 +20,7 @@ from project.models import Project, ProjectRole
 from system.views import file_info
 from team.models import Team
 from utils import code, const, public_fun, tools
+from utils.permission import permission_check
 from utils.request_auth import auth_check
 from project.models import ProjectJump
 from workflow.models import Flow, FlowNode, FlowTrans, FlowProcess, FlowDocs, FlowRole, FlowRoleAllocation, \
@@ -567,8 +568,11 @@ def api_workflow_flow_copy(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_clone_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+
         flow_id = request.POST.get("flow_id")  # 流程ID
         name = request.POST.get("name")  # 名称
 
@@ -894,7 +898,9 @@ def api_workflow_roles_allocate(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         flow_id = request.POST.get('flow_id', None)
         node_id = request.POST.get('node_id', None)
@@ -977,26 +983,31 @@ def api_workflow_roles_update(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         role_id = request.POST.get('id', None)
+        type = request.POST.get("type", None)
         name = request.POST.get("name", None)  # 角色名称
         image_id = request.POST.get("image_id", None)  # 形象
         capacity = request.POST.get("capacity", None)  # capacity
         job_type_id = request.POST.get("job_type_id", None)  # job_type id
 
         # 参数验证
-        if all([role_id, name, capacity]):
+        if all([role_id, name, type, capacity]):
             role = FlowRole.objects.filter(pk=role_id).first()
             if role:
                 role.name = name
                 role.capacity = capacity
+                role.type = type
                 role.job_type = job_type_id and TJobType.objects.get(pk=job_type_id) or None
                 if image_id:
                     role.image_id = image_id
                 role.save()
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
-                    'id': role.id, 'name': role.name, 'capacity': role.capacity,
+                    'id': role.id, 'name': role.name, 'capacity': role.capacity, 'type': role.type,
                     'job_type': role.job_type and model_to_dict(role.job_type, fields=['id', 'name', 'content']) or {
                         'id': None}
                 }
@@ -1022,6 +1033,9 @@ def api_workflow_roles_delete(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         flow_id = request.POST.get("flow_id")
         ids = request.POST.get("ids")  # 角色id列表
@@ -1060,6 +1074,9 @@ def api_workflow_docs_update(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         docs = request.POST.get("docs")  # 素材数据
         doc_list = json.loads(docs)
@@ -1116,6 +1133,9 @@ def api_workflow_docs_delete(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         doc_id = request.POST.get("doc_id", None)  # 素材ID
 
@@ -1154,10 +1174,13 @@ def api_workflow_roles_create(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         flow_id = request.POST.get("flow_id", None)  # 流程ID
         name = request.POST.get("name", None)  # 角色名称
-        # role_type = request.POST.get("type", None)  # 角色类型
+        role_type = request.POST.get("type", None)  # 角色类型
         # minimum = request.POST.get("min", None)  # 最小人数
         # maximum = request.POST.get("max", None)  # 最大人数
         # category = request.POST.get("category", None)  # 类别
@@ -1169,7 +1192,8 @@ def api_workflow_roles_create(request):
         if all([flow_id, name, capacity]):
             flow = Flow.objects.get(pk=flow_id)
             jobType = job_type_id and TJobType.objects.get(pk=job_type_id) or None
-            role = FlowRole.objects.create(name=name, flow_id=flow_id, capacity=capacity, job_type=jobType)
+            role = FlowRole.objects.create(name=name, type=role_type, flow_id=flow_id, capacity=capacity,
+                                           job_type=jobType)
             # obj = RoleImage.objects.get(pk=role.image_id)
             # img = {'id': obj.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None}
             if flow.step < const.FLOW_STEP_2:
@@ -1177,7 +1201,7 @@ def api_workflow_roles_create(request):
                 flow.save()
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {
-                'id': role.id, 'name': role.name, 'capacity': role.capacity,
+                'id': role.id, 'name': role.name, 'capacity': role.capacity, 'type': role.type,
                 'job_type': role.job_type and model_to_dict(role.job_type, fields=['id', 'name', 'content']) or {
                     'id': None},
                 'step': flow.step
@@ -1196,6 +1220,10 @@ def api_workflow_roles_create(request):
 def api_workflow_docs_create(request):
     resp = auth_check(request, "POST")
     if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
@@ -1250,7 +1278,9 @@ def api_workflow_nodes_update(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         flow_id = request.POST.get("flow_id", None)  # 流程ID
         nodes = request.POST.get("nodes", None)  # 环节
@@ -1363,6 +1393,9 @@ def api_workflow_publish(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_publish_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         ids = request.POST.get("ids", None)  # 流程ID列表
 
@@ -1475,6 +1508,10 @@ def api_workflow_delete(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_delete_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
     try:
         flow_id = request.POST.get('flow_id', None)
         # 参数验证
@@ -1514,7 +1551,9 @@ def api_workflow_update(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_edit_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         flow_id = request.POST.get('flow_id', None)
         name = request.POST.get('name', None)  # 名称
@@ -1565,6 +1604,9 @@ def api_workflow_create(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_create_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         name = request.POST.get("name", None)  # 名称
         animation1 = request.POST.get("animation1", None)  # 渲染动画1
@@ -1614,40 +1656,51 @@ def api_workflow_list(request):
         size = int(request.GET.get("size", const.ROW_SIZE))
 
         user = request.user
-        if request.session['login_type'] == 2:
+        login_type = request.session['login_type']
+        if login_type in [2, 6]:
             try:
-                group = user.allgroups_set.all().first()  # get group that this user belongs to
+                group = user.allgroups_set.all().first() if login_type == 2 else user.allgroups_set_assistants.all().first()  # get group that this user belongs to
                 groupManagers = group.groupManagers.all()  # get all group managers
+                groupAssistants = group.groupManagerAssistants.all()  # get all group manager assistants
             except AttributeError as ae:
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            createdBys = [groupManager.id for groupManager in groupManagers]
+            createdBys = [manager.id for manager in groupManagers | groupAssistants]
             companies = group.tcompany_set.all()  # get all companies
             for company in companies:
                 companyManagers = company.tcompanymanagers_set.all()  # get all company managers
+                companyAssistants = company.assistants.all()  # get all company manager assistants
                 for companyManager in companyManagers:
                     createdBys.append(companyManager.tuser.id)
+                for companyAssistant in companyAssistants:
+                    createdBys.append(companyAssistant.id)
             qs = Flow.objects.filter(
                 Q(created_by=request.user.id, del_flag=0) | Q(status=2, is_public=1, created_by__in=createdBys,
                                                               del_flag=0)
                 | Q(status=2, is_share=1, del_flag=0))
-        elif request.session['login_type'] == 3:
+        elif login_type in [3, 7]:
             try:
-                company = user.tcompanymanagers_set.all().first().tcompany  # get company info
+                company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()  # get company info
                 companyId = company.id  # company ID
                 group = company.group  # get group info
             except AttributeError as ae:
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             groupManagers = group.groupManagers.all()  # get all group managers
-            groupMembers = [groupManager.id for groupManager in groupManagers]
+            groupAssistants = group.groupManagerAssistants.all()  # get all group manager assistants
+            groupMembers = [manager.id for manager in groupManagers | groupAssistants]
             companies = group.tcompany_set.all()  # get all companies
             for company in companies:
                 companyManagers = company.tcompanymanagers_set.all()  # get all company managers
+                companyAssistants = company.assistants.all()  # get all company manager assistants
                 for companyManager in companyManagers:
                     groupMembers.append(companyManager.tuser.id)
+                for companyAssistant in companyAssistants:
+                    groupMembers.append(companyAssistant.id)
                 if company.id == companyId:
                     createdBys = [companyManager.tuser.id for companyManager in companyManagers]
+                    for companyAssistant in companyAssistants:
+                        createdBys.append(companyAssistant.id)
             qs = Flow.objects.filter(
                 Q(created_by=request.user.id, del_flag=0) | Q(status=2, is_public=1, created_by__in=createdBys,
                                                               del_flag=0)
@@ -1945,7 +1998,7 @@ def api_workflow_protected(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     if request.session['login_type'] != 1:
-        resp = code.get_msg(code.METHOD_NOT_ALLOW)
+        resp = code.get_msg(code.PERMISSION_DENIED)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
@@ -1974,7 +2027,9 @@ def api_workflow_share(request):
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_share_unshare_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         data = request.GET.get("data", None)  # id列表json:[1,2,3]
         if data is None:
@@ -1999,6 +2054,9 @@ def api_workflow_unshare(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_share_unshare_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         data = request.GET.get("data", None)  # id列表json:[1,2,3]
         if data is None:
@@ -2022,7 +2080,9 @@ def api_workflow_public(request):
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_public_unpublic_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         data = request.GET.get("data", None)  # id列表json:[1,2,3]
         if data is None:
@@ -2046,7 +2106,9 @@ def api_workflow_unpublic(request):
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_public_unpublic_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         data = request.GET.get("data", None)  # id列表json:[1,2,3]
         if data is None:
@@ -2070,6 +2132,9 @@ def api_workflow_job_type_candidate(request):
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     resp = code.get_msg(code.SUCCESS)
     resp['d'] = {'job_type': None}
@@ -2089,6 +2154,9 @@ def api_workflow_job_type_candidate(request):
 def api_workflow_role_allocation_create(request):
     resp = auth_check(request, "POST")
     if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         flow_id = request.POST.get('flow_id', None)
@@ -2151,20 +2219,22 @@ def api_workflow_role_allocation_list(request):
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         flow_id = int(request.GET.get('flow_id', 0))
         node_id = int(request.GET.get('node_id', 0))
         if flow_id and node_id:
             node = FlowNode.objects.get(pk=node_id)
             if node.flow_id != flow_id:
-                print "PARAM_ERROR"
                 resp = code.get_msg(code.PARAMETER_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             flow = model_to_dict(Flow.objects.get(pk=flow_id))
             node = model_to_dict(node)
 
             roles = FlowRole.objects.filter(flow_id=flow_id).order_by('-create_time')
-            roleAllocations = []
+            roleGroupAllocations = []
             for role in roles:
                 qs = FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id,
                                                        role_id=role.id).order_by('no')
@@ -2176,12 +2246,22 @@ def api_workflow_role_allocation_list(request):
                         'can_terminate': allocation.can_terminate, 'can_brought': allocation.can_brought,
                         'can_take_in': allocation.can_take_in
                     })
-                roleAllocations.append({
-                    'role_id': role['id'],
-                    'allocations': allocations
-                })
+                key = next((k for k, x in enumerate(roleGroupAllocations) if x['role_type'] == role['type']), None)
+                if key is None:
+                    roleGroupAllocations.append({
+                        'role_type': role['type'],
+                        'role_allocations': [{
+                            'role_id': role['id'],
+                            'allocations': allocations
+                        }]
+                    })
+                else:
+                    roleGroupAllocations[key]['role_allocations'].append({
+                        'role_id': role['id'],
+                        'allocations': allocations
+                    })
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'role_allocations': roleAllocations}
+            resp['d'] = {'role_group_allocations': roleGroupAllocations}
         else:
             resp = code.get_msg(code.PARAMETER_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2195,6 +2275,9 @@ def api_workflow_role_allocation_list(request):
 def api_workflow_role_allocation_remove(request):
     resp = auth_check(request, "POST")
     if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         id = int(request.POST.get('id', 0))
@@ -2230,6 +2313,9 @@ def api_workflow_role_allocation_bulk_update(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         allocations = request.POST.get('allocations', None)
         flow_id = request.POST.get('flow_id', None)
@@ -2237,8 +2323,8 @@ def api_workflow_role_allocation_bulk_update(request):
             allocations = json.loads(allocations)
             for allocation in allocations:
                 FlowRoleAllocation.objects.filter(pk=allocation['id']).update(can_take_in=allocation['can_take_in'],
-                                                                        can_terminate=allocation['can_terminate'],
-                                                                        can_brought=allocation['can_brought'])
+                                                                              can_terminate=allocation['can_terminate'],
+                                                                              can_brought=allocation['can_brought'])
             resp = code.get_msg(code.SUCCESS)
 
             if flow_id:

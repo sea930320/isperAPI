@@ -39,6 +39,7 @@ from datetime import datetime, timedelta
 from system.models import UploadFile
 from django.core.paginator import Paginator, EmptyPage
 from itertools import groupby
+from utils.permission import permission_check
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +188,6 @@ def api_account_login(request):
                     resp['d']['director'] = user.director
                     resp['d']['last_experiment_id'] = user.last_experiment_id
                     manager_info = {}
-                    allowedPermissions = []
                     if login_type == 2:
                         group = user.allgroups_set.get()
                         manager_info = {
@@ -195,10 +195,6 @@ def api_account_login(request):
                         }
                     elif login_type == 6:
                         group = user.allgroups_set_assistants.get()
-                        assistant_relation = TGroupManagerAssistants.objects.get(all_groups=group, tuser=user)
-                        allowedActions = list(assistant_relation.actions.all().values())
-                        allowedPermissions = {TPermission.objects.get(pk=k).codename: [x for x in v] for k, v in
-                                              groupby(allowedActions, key=lambda x: x['permission_id'])}
                         manager_info = {
                             'group_id': group.id
                         }
@@ -207,16 +203,10 @@ def api_account_login(request):
                             'company_id': user.tcompanymanagers_set.get().tcompany.id
                         }
                     elif login_type == 7:
-                        company = user.t_company_set_assistants.get()
-                        assistant_relation = TCompanyManagerAssistants.objects.get(tcompany=company, tuser=user)
-                        allowedActions = list(assistant_relation.actions.all().values())
-                        allowedPermissions = [{TPermission.objects.get(pk=k).codename: [x for x in v]} for k, v in
-                                              groupby(allowedActions, key=lambda x: x['permission_id'])]
                         manager_info = {
                             'company_id': user.t_company_set_assistants.get().id
                         }
                     resp['d']['manager_info'] = manager_info
-                    resp['d']['allowed_permissions'] = allowedPermissions
                     if user.last_experiment_id:
                         last_exp = Experiment.objects.get(pk=user.last_experiment_id)
                     else:
@@ -233,6 +223,45 @@ def api_account_login(request):
 
     except Exception as e:
         logger.exception('api_account_login Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_account_permission(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        user = request.user
+        login_type = request.session['login_type']
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = None
+        if login_type == 6:
+            group = user.allgroups_set_assistants.get()
+            assistant_relation = TGroupManagerAssistants.objects.get(all_groups=group, tuser=user)
+            allowedActions = list(assistant_relation.actions.all().values())
+            allowedPermissions = {}
+            for k, v in groupby(allowedActions, key=lambda x: x['permission_id']):
+                codename = TPermission.objects.get(pk=k).codename
+                allowedPermissions[codename] = allowedPermissions[codename] if codename in allowedPermissions else []
+                for x in v:
+                    allowedPermissions[codename].append(x)
+
+            resp['d'] = allowedPermissions
+        elif login_type == 7:
+            company = user.t_company_set_assistants.get()
+            assistant_relation = TCompanyManagerAssistants.objects.get(tcompany=company, tuser=user)
+            allowedActions = list(assistant_relation.actions.all().values())
+            allowedPermissions = {}
+            for k, v in groupby(allowedActions, key=lambda x: x['permission_id']):
+                codename = TPermission.objects.get(pk=k).codename
+                allowedPermissions[codename] = allowedPermissions[codename] if codename in allowedPermissions else []
+                for x in v:
+                    allowedPermissions[codename].append(x)
+            resp['d'] = allowedPermissions
+
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_account_permission Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -1450,14 +1479,21 @@ def api_get_log_list(request):
         start_date = request.GET.get("start_date", None)
         end_date = request.GET.get("end_date", None)
         user = request.user
-        if request.session['login_type'] == 1:
+        login_type = request.session['login_type']
+        if login_type == 1:
             qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
-        elif request.session['login_type'] == 2:
-            group_id = user.allgroups_set.all().first().id
+        elif login_type in [2, 6]:
+            if not permission_check(request, 'code_login_log_system_set'):
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
             qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
-        elif request.session['login_type'] == 3:
-            company_id = user.tcompanymanagers_set.get().tcompany.id
-            company = TCompany.objects.get(pk=company_id)
+        elif login_type in [3,7]:
+            if not permission_check(request, 'code_login_log_system_set'):
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+            company_id = company.id
             group_id = company.group.id
             qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
         else:

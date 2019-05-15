@@ -13,6 +13,7 @@ from django.forms.models import model_to_dict
 import json
 from django.conf import settings
 from account.models import *
+from utils.permission import permission_check
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +25,15 @@ def get_part_positions(request):
 
     try:
         company_id = request.POST.get("company_id", None)
-
-        if request.session['login_type'] not in [2, 3] or (company_id is None and request.session['login_type'] == 2):
+        login_type = request.session['login_type']
+        user = request.user
+        if not permission_check(request, 'code_part_position_management_company') or (company_id is None and request.session['login_type'] == 2):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if not company_id:
-            company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+            company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+            company_id = company.id
 
         results = [{
             'id': item.id,
@@ -53,11 +56,14 @@ def new_part_position(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if not permission_check(request, 'code_part_position_management_company'):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        login_type = request.session['login_type']
+        user = request.user
+        company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+        company_id = company.id
 
         id = request.POST.get("id", None)
         target = int(request.POST.get("target", None))
@@ -90,7 +96,7 @@ def delete_part_position(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if not permission_check(request, 'code_part_position_management_company'):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -118,7 +124,7 @@ def get_part_users(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if not permission_check(request, 'code_part_position_management_company'):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -151,11 +157,13 @@ def get_non_ppUsers(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if not permission_check(request, 'code_part_position_management_company'):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        login_type = request.session['login_type']
+        user = request.user
+        company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+        company_id = company.id
 
         results = [{
             'id': item.id,
@@ -181,7 +189,7 @@ def set_new_pp(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if not permission_check(request, 'code_part_position_management_company'):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -206,12 +214,14 @@ def get_inner_permissions(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if not permission_check(request, 'code_inner_permission_company'):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+        login_type = request.session['login_type']
+        user = request.user
         search = request.POST.get("search", None)
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+        company_id = company.id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
@@ -242,7 +252,7 @@ def get_inner_permissions(request):
                         'text': pos.name
                     }for pos in item.ownPositions.filter(parts__company_id=company_id)],
                 } for item in flows],
-                'items': [{'id': position.id, 'text': position.name} for position in TPositions.objects.filter(parts__company_id=6)]
+                'items': [{'id': position.id, 'text': position.name} for position in TPositions.objects.filter(parts__company_id=company_id)]
             }
 
             paging = {
@@ -269,12 +279,15 @@ def set_inner_permissions(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        login_type = request.session['login_type']
+        user = request.user
+        if not permission_check(request, 'code_part_position_management_company'):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         id = request.POST.get("id", None)
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+        company_id = company.id
         items = eval(request.POST.get("items", '[]'))
 
         TInnerPermission.objects.get(id=id).ownPositions.remove(*TPositions.objects.filter(parts__company_id=company_id))

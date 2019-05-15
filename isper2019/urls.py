@@ -29,6 +29,7 @@ urlpatterns += (
     url(r'^api/account/users/$', account_views.api_account_users),
     url(r'^api/account/logout$', account_views.api_account_logout),
     url(r'^api/account/login$', account_views.api_account_login), #Jonas
+    url(r'^api/account/permission', account_views.api_account_permission), #Jonas
     url(r'^api/account/send/code', account_views.api_account_send_verify_code), #Jonas
     url(r'^api/account/users/v3/$', account_views.api_account_users_v3),
     url(r'^api/account/companys/$', account_views.api_account_companys),
@@ -182,6 +183,7 @@ urlpatterns += (
 )
 
 urlpatterns += (
+    url(r'^api/workflow/list$', workflow_views.api_workflow_list), #Jonas
     url(r'^api/workflow/process/positions$', workflow_views.api_workflow_process_positions),
     url(r'^api/workflow/role/action$', workflow_views.api_workflow_role_action),
     url(r'^api/workflow/role/process/actions$', workflow_views.api_workflow_role_process_action),
@@ -192,7 +194,8 @@ urlpatterns += (
     url(r'^api/workflow/role/list$', workflow_views.api_workflow_role_list),
     url(r'^api/workflow/node/list$', workflow_views.api_workflow_node_list),
     url(r'^api/workflow/role/image/list$', workflow_views.api_workflow_role_image_list),
-    url(r'^api/workflow/flow/copy$', workflow_views.api_workflow_flow_copy),
+    url(r'^api/workflow/flow/copy$', workflow_views.api_workflow_flow_copy), #Jonas
+    url(r'^api/workflow/roles/create$', workflow_views.api_workflow_roles_create), #Jonas
     url(r'^api/workflow/roles/position/setup$', workflow_views.api_workflow_roles_position_setup),
     url(r'^api/workflow/roles/position$', workflow_views.api_workflow_roles_position),
     url(r'^api/workflow/roles/action$', workflow_views.api_workflow_roles_action), #Jonas
@@ -202,7 +205,6 @@ urlpatterns += (
     url(r'^api/workflow/roles/delete$', workflow_views.api_workflow_roles_delete), #Jonas
     url(r'^api/workflow/docs/update$', workflow_views.api_workflow_docs_update),
     url(r'^api/workflow/docs/delete$', workflow_views.api_workflow_docs_delete), #Jonas
-    url(r'^api/workflow/roles/create$', workflow_views.api_workflow_roles_create), #Jonas
     url(r'^api/workflow/docs/create$', workflow_views.api_workflow_docs_create), #Jonas
     url(r'^api/workflow/nodes/update$', workflow_views.api_workflow_nodes_update), #Jonas
     url(r'^api/workflow/processes$', workflow_views.api_workflow_processes),
@@ -211,7 +213,6 @@ urlpatterns += (
     url(r'^api/workflow/delete$', workflow_views.api_workflow_delete), #Jonas
     url(r'^api/workflow/update$', workflow_views.api_workflow_update), #Jonas
     url(r'^api/workflow/create$', workflow_views.api_workflow_create), #Jonas
-    url(r'^api/workflow/list$', workflow_views.api_workflow_list),
     url(r'^api/workflow/related$', workflow_views.api_workflow_related),
     url(r'^api/workflow/role/assign/info$', workflow_views.api_workflow_role_assign_info),
     url(r'^api/workflow/trans/query$', workflow_views.api_workflow_trans_query),

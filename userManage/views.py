@@ -14,6 +14,7 @@ import json
 from django.conf import settings
 from account.models import *
 from group.models import *
+from utils.permission import permission_check
 
 logger = logging.getLogger(__name__)
 
@@ -330,12 +331,14 @@ def get_group_users(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 2:
+        login_type = request.session['login_type']
+        user = request.user
+        if login_type not in [2, 6]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
-        group_id = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id
+        group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
@@ -388,12 +391,14 @@ def get_group_nonCompanyUsers(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 2:
+        login_type = request.session['login_type']
+        user = request.user
+        if login_type not in [2, 6]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
-        group_id = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id
+        group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
@@ -446,13 +451,15 @@ def get_group_changes(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 2:
+        login_type = request.session['login_type']
+        user = request.user
+        if login_type not in [2, 6]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
         status = int(request.POST.get("status", None))
-        group_id = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id
+        group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
@@ -513,16 +520,22 @@ def set_is_review(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_user_review_user'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         role = request.session['login_type']
+        role = 2 if role == 6 else 3 if role == 7 else role
         selected = eval(request.POST.get("ids", ''))
         set = request.POST.get("set", '')
 
         Tuser.objects.filter(id__in=selected).update(is_review=set)
 
         for uid in selected:
-            user = TNotifications.objects.get(Q(type='registerEvent_' + str(uid)) & Q(role=role))
+            try:
+                user = TNotifications.objects.get(Q(type='registerEvent_' + str(uid)) & Q(role=role))
+            except Exception as e:
+                continue
             if user.mode == 0:
                 user.delete()
             elif user.mode == 1:
@@ -542,16 +555,20 @@ def set_group_change(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_change_group_company_user'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         selected = eval(request.POST.get("ids", ''))
         set = int(request.POST.get("set", None))
-        group_id = Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id
+        login_type = request.session['login_type']
+        user = request.user
 
-        if request.session['login_type'] != 2 | set is None:
+        if login_type not in [2, 6] or set is None:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+        group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id if login_type == 6 else None
         if set == 0:
             TGroupChange.objects.filter(id__in=selected).delete()
         else:
@@ -583,12 +600,15 @@ def get_company_users(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        login_type = request.session['login_type']
+        user = request.user
+        if login_type not in [3, 7]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+        company_id = company.id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
@@ -789,12 +809,15 @@ def get_group_nonReviewUsers(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        login_type = request.session['login_type']
+        user = request.user
+        if login_type not in [3, 7]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+        company_id = company.id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
@@ -847,13 +870,16 @@ def get_company_changes(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        login_type = request.session['login_type']
+        user =  request.user
+        if login_type not in [3, 7]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         search = request.POST.get("search", None)
         status = int(request.POST.get("status", None))
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+        company_id = company.id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
@@ -914,13 +940,15 @@ def set_company_change(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
     try:
         selected = eval(request.POST.get("ids", ''))
         set = int(request.POST.get("set", None))
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+        login_type = request.session['login_type']
+        user = request.user
+        company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+        company_id = company.id
 
-        if request.session['login_type'] != 3 | set is None:
+        if not permission_check(request, 'code_change_group_company_user') or set is None:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -951,7 +979,9 @@ def reset_user_password(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_reset_password_user'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         uid = request.POST.get("id", None)
         password = request.POST.get("password", None)

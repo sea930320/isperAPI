@@ -12,6 +12,7 @@ from django.contrib.auth.hashers import (
 from group.models import AllGroups
 from account.models import Tuser, TRole, OfficeItems, TCompany, TCompanyType
 from django.forms.models import model_to_dict
+from utils.permission import permission_check
 
 logger = logging.getLogger(__name__)
 
@@ -340,8 +341,13 @@ def get_own_group(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        id = request.POST.get("id", None)
-        group = AllGroups.objects.get(groupManagers=id)
+        login_type = request.session['login_type']
+        if login_type not in [2, 6]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        id = request.user.id
+        group = AllGroups.objects.get(groupManagers=id) if login_type == 2 else request.user.allgroups_set_assistants.get()
         groupInstructors = [{'id': instructor.id, 'name': instructor.username,
                              'instructorItems': [{'id': item.id, 'text': item.name} for item in
                                                  instructor.instructorItems.all()]} for instructor in
@@ -386,7 +392,9 @@ def set_instructors(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_configure_instructor_group_company'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         id = request.POST.get("id", None)
         items = eval(request.POST.get("items", '[]'))
@@ -407,6 +415,9 @@ def set_instructors(request):
 def create_instructors(request):
     resp = auth_check(request, "POST")
     if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_configure_instructor_group_company'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
@@ -454,13 +465,18 @@ def get_company_list(request):
         search = request.POST.get("search", None)
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [2, 6]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if search:
             data = TCompany.objects.filter(Q(name__icontains=search) & Q(
-                group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id))
+                group=user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id))
         else:
             data = TCompany.objects.filter(
-                group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id)
+                group=user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id)
 
         data = data.filter(is_default=0).order_by('-id')
 
@@ -514,15 +530,19 @@ def create_new_company(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_create_delete_company_group_company'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         name = request.POST.get("name", None)
         ctype = request.POST.get("type", None)
         comment = request.POST.get("comment", None)
         cManagerName = request.POST.get("cManagerName", None)
         cManagerPass = request.POST.get("cManagerPass", None)
-
+        login_type = request.session['login_type']
+        user = request.user
         if TCompany.objects.filter(
-                Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(
+                Q(group=user.allgroups_set.get() if login_type == 2 else user.allgroups_set_assistants.get()) & Q(
                     name=request.POST.get("name"))).count() > 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': 'nameError'}
@@ -536,8 +556,8 @@ def create_new_company(request):
         newCompany = TCompany(
             name=name,
             comment=comment,
-            group=Tuser.objects.get(id=request.session['']).allgroups_set.get(),
-            created_by=Tuser.objects.get(id=request.session['_auth_user_id']),
+            group=user.allgroups_set.get() if login_type == 2 else user.allgroups_set_assistants.get(),
+            created_by=user,
             companyType=TCompanyType.objects.get(name=ctype)
         )
         newCompany.save()
@@ -575,11 +595,11 @@ def delete_selected_company(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_create_delete_company_group_company'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         selected = eval(request.POST.get("ids", ''))
-        print(selected)
-
         targets = TCompany.objects.filter(id__in=selected)
         Tuser.objects.filter(id__in=targets.values_list('tuser')).delete()
         targets.delete()
@@ -599,12 +619,18 @@ def update_company(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+    if not permission_check(request, 'code_company_edit_group_company'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
     try:
         id = request.POST.get("id", '')
         name = request.POST.get("name", '')
         type = request.POST.get("type", '')
+        login_type = request.session['login_type']
+        user = request.user
 
-        if TCompany.objects.filter(Q(group=Tuser.objects.get(id=request.session['_auth_user_id']).allgroups_set.get().id) & Q(name=name) & Q(companyType__name=type)).count() > 0:
+        if TCompany.objects.filter(Q(group=user.allgroups_set.get() if login_type == 2 else user.allgroups_set_assistants.get()) & Q(name=name) & Q(companyType__name=type)).count() > 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': 'nameError'}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -625,7 +651,9 @@ def add_company_manager(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_company_edit_group_company'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         companyID = request.POST.get("companyID", '')
         name = request.POST.get("data[name]", '')
@@ -712,7 +740,9 @@ def update_company_manager(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_company_edit_group_company'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         id = request.POST.get("id", None)
         description = request.POST.get("description", '')
@@ -733,7 +763,9 @@ def reset_company_manager(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+    if not permission_check(request, 'code_company_edit_group_company'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         id = request.POST.get("id", None)
         password = request.POST.get("password", None)
