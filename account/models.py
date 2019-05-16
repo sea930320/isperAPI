@@ -64,6 +64,7 @@ class UserManager(BaseUserManager):
 # 角色
 class TRole(models.Model):
     name = models.CharField(max_length=32, verbose_name=u'名称')
+    actions = models.ManyToManyField('TAction')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
 
@@ -184,6 +185,7 @@ class TCompanyManagerAssistants(models.Model):
     actions = models.ManyToManyField('TAction')
 
     class Meta:
+        # auto_created = True
         db_table = "t_company_assistants"
 
     def __unicode__(self):

@@ -29,6 +29,7 @@ urlpatterns += (
     url(r'^api/account/users/$', account_views.api_account_users),
     url(r'^api/account/logout$', account_views.api_account_logout),
     url(r'^api/account/login$', account_views.api_account_login), #Jonas
+    url(r'^api/account/roles', account_views.api_account_roles), #Jonas
     url(r'^api/account/permission', account_views.api_account_permission), #Jonas
     url(r'^api/account/send/code', account_views.api_account_send_verify_code), #Jonas
     url(r'^api/account/users/v3/$', account_views.api_account_users_v3),

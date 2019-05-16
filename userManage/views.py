@@ -148,6 +148,8 @@ def get_manage_users(request):
                 users = paginator.page(1)
         results = []
         for item in users:
+            company = None
+            role = None
             if group_id:
                 role = u'集群管理员' if (item.allgroups_set.filter(Q(id=group_id))) else u'集群管理员助理' if (
                     item.allgroups_set_assistants.filter(Q(id=group_id))) else u'单位管理员' if (
@@ -164,6 +166,15 @@ def get_manage_users(request):
                     Q(
                         tcompany__id=company_id)) else item.t_company_set_assistants.get().name if item.t_company_set_assistants.filter(
                     Q(id=company_id)) else ''
+            if company is None:
+                company = item.tcompanymanagers_set.get().tcompany.name if len(
+                    item.tcompanymanagers_set.all()) > 0 else item.t_company_set_assistants.get().name if len(
+                    item.t_company_set_assistants.all()) > 0 else ''
+            if role is None:
+                role = u'集群管理员' if len(item.allgroups_set.all())>0 else u'集群管理员助理' if len(
+                    item.allgroups_set_assistants.filter())>0 else u'单位管理员' if len(
+                    item.tcompanymanagers_set.all())>0 else '单位管理员助理' if len(
+                    item.t_company_set_assistants.all())>0 else ''
             result = {
                 'id': item.id,
                 'name': item.username,
@@ -871,7 +882,7 @@ def get_company_changes(request):
 
     try:
         login_type = request.session['login_type']
-        user =  request.user
+        user = request.user
         if login_type not in [3, 7]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

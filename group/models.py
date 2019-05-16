@@ -45,6 +45,7 @@ class TGroupManagerAssistants(models.Model):
     actions = models.ManyToManyField(TAction)
 
     class Meta:
+        # auto_created = True
         db_table = "t_allGroups_groupManagerAssistants"
 
     def __unicode__(self):
