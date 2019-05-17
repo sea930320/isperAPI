@@ -22,7 +22,8 @@ from account.service import get_client_ip
 from django.contrib import auth
 from django.http import JsonResponse
 from django.http import HttpResponse
-from account.models import Tuser, TCompany, TClass, LoginLog, TRole, TCompanyManagerAssistants, TPermission, TAction, TNotifications
+from account.models import Tuser, TCompany, TClass, LoginLog, TRole, TCompanyManagerAssistants, TPermission, TAction, \
+    TNotifications
 from experiment.models import Experiment
 from team.models import TeamMember
 from utils import code, const, query, easemob, tools, config
@@ -225,6 +226,8 @@ def api_account_login(request):
         logger.exception('api_account_login Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
 def api_account_roles(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -252,6 +255,41 @@ def api_account_roles(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
+def api_set_roles_actions(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        login_type = request.session['login_type']
+        if login_type not in [1]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        roles_actions = request.POST.get("roles_actions", None)
+        if roles_actions is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        roles_actions = json.loads(roles_actions)
+        for role_actions in roles_actions:
+            actions = role_actions['actions']
+            roleId = role_actions['id']
+            if actions is None:
+                continue
+            role = TRole.objects.get(pk=roleId)
+            for action_id, is_enabled in actions.items():
+                if is_enabled:
+                    role.actions.add(TAction.objects.get(pk=action_id))
+                else:
+                    role.actions.remove(TAction.objects.get(pk=action_id))
+            resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_set_roles_actions Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
 def api_account_permission(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -261,22 +299,35 @@ def api_account_permission(request):
         login_type = request.session['login_type']
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = None
-        if login_type == 6:
-            group = user.allgroups_set_assistants.get()
-            assistant_relation = TGroupManagerAssistants.objects.get(all_groups=group, tuser=user)
-            allowedActions = list(assistant_relation.actions.all().values())
+        if login_type in [2, 3]:
+            role = TRole.objects.get(pk=login_type)
+            allowedActions = list(role.actions.all().values())
             allowedPermissions = {}
             for k, v in groupby(allowedActions, key=lambda x: x['permission_id']):
                 codename = TPermission.objects.get(pk=k).codename
                 allowedPermissions[codename] = allowedPermissions[codename] if codename in allowedPermissions else []
                 for x in v:
                     allowedPermissions[codename].append(x)
-
+            resp['d'] = allowedPermissions
+        if login_type == 6:
+            role = TRole.objects.get(pk=2)
+            allowedRoleActionIds = [action['id'] for action in list(role.actions.all().values('id'))]
+            group = user.allgroups_set_assistants.get()
+            assistant_relation = TGroupManagerAssistants.objects.get(all_groups=group, tuser=user)
+            allowedActions = list(assistant_relation.actions.filter(pk__in=allowedRoleActionIds).values())
+            allowedPermissions = {}
+            for k, v in groupby(allowedActions, key=lambda x: x['permission_id']):
+                codename = TPermission.objects.get(pk=k).codename
+                allowedPermissions[codename] = allowedPermissions[codename] if codename in allowedPermissions else []
+                for x in v:
+                    allowedPermissions[codename].append(x)
             resp['d'] = allowedPermissions
         elif login_type == 7:
+            role = TRole.objects.get(pk=3)
+            allowedRoleActionIds = [action['id'] for action in list(role.actions.all().values('id'))]
             company = user.t_company_set_assistants.get()
             assistant_relation = TCompanyManagerAssistants.objects.get(tcompany=company, tuser=user)
-            allowedActions = list(assistant_relation.actions.all().values())
+            allowedActions = list(assistant_relation.actions.filter(pk__in=allowedRoleActionIds).values())
             allowedPermissions = {}
             for k, v in groupby(allowedActions, key=lambda x: x['permission_id']):
                 codename = TPermission.objects.get(pk=k).codename
@@ -1514,7 +1565,7 @@ def api_get_log_list(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
             qs = LoginLog.objects.filter(del_flag=0).order_by("-login_time")
-        elif login_type in [3,7]:
+        elif login_type in [3, 7]:
             if not permission_check(request, 'code_login_log_system_set'):
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1679,13 +1730,15 @@ def api_get_assistants(request):
         if login_type not in [2, 3]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        role = TRole.objects.get(pk=login_type)
+        allowedRoleActionIds = [action['id'] for action in list(role.actions.all().values('id'))]
         if login_type == 2:
             group = user.allgroups_set.all().first()
             qs = group.groupManagerAssistants.filter(Q(roles=6))
             assistants = []
             for assistant in qs:
                 assistant_relation = TGroupManagerAssistants.objects.get(all_groups=group, tuser=assistant)
-                actions = list(assistant_relation.actions.all().values())
+                actions = list(assistant_relation.actions.filter(Q(pk__in=allowedRoleActionIds)).values())
                 assistants.append({
                     'id': assistant.id,
                     'name': assistant.name,
@@ -1700,7 +1753,7 @@ def api_get_assistants(request):
             assistants = []
             for assistant in qs:
                 assistant_relation = TCompanyManagerAssistants.objects.get(tcompany=company, tuser=assistant)
-                actions = list(assistant_relation.actions.all().values())
+                actions = list(assistant_relation.actions.filter(Q(pk__in=allowedRoleActionIds)).values())
                 assistants.append({
                     'id': assistant.id,
                     'name': assistant.name,
@@ -1867,9 +1920,17 @@ def api_get_permissions(request):
             if login_type != 1:
                 if login_type != 3 and permission.codename == 'code_company_management':
                     continue
-                if login_type == 3 and permission.codename in ['code_business_management', 'code_group_company_management']:
+                if login_type == 3 and permission.codename in ['code_business_management',
+                                                               'code_group_company_management']:
                     continue
-            actions = list(permission.taction_set.all().values())
+            if login_type in [2, 3]:
+                role = TRole.objects.get(pk=login_type)
+                allowedRoleActionIds = [action['id'] for action in list(role.actions.all().values('id'))]
+                actions = list(permission.taction_set.filter(pk__in=allowedRoleActionIds).values())
+            else:
+                actions = list(permission.taction_set.all().values())
+            if (len(actions) == 0):
+                continue
             permission = model_to_dict(permission)
             permission['actions'] = actions
             permissions.append(permission)
