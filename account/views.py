@@ -231,6 +231,22 @@ def api_account_roles(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [1]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        qs = TRole.objects.all()
+        roles = []
+        for role in qs:
+            actions = list(role.actions.all().values())
+            roles.append({
+                'id': role.id,
+                'name': role.name,
+                'actions': actions
+            })
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'roles': roles}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_account_roles Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -1848,10 +1864,11 @@ def api_get_permissions(request):
         qs = TPermission.objects.all()
         permissions = []
         for permission in qs:
-            if login_type != 3 and permission.codename == 'code_company_management':
-                continue
-            if login_type == 3 and permission.codename in ['code_business_management', 'code_group_company_management']:
-                continue
+            if login_type != 1:
+                if login_type != 3 and permission.codename == 'code_company_management':
+                    continue
+                if login_type == 3 and permission.codename in ['code_business_management', 'code_group_company_management']:
+                    continue
             actions = list(permission.taction_set.all().values())
             permission = model_to_dict(permission)
             permission['actions'] = actions
