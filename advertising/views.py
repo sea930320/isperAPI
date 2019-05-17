@@ -14,10 +14,14 @@ from utils import code
 from django.core.cache import cache
 import pypandoc
 from datetime import datetime
+from system.views import api_file_upload
+from system.models import UploadFile
 import os
+import shutil
+from system.views import file_info
+import codecs
 
 logger = logging.getLogger(__name__)
-
 
 # 公告列表
 def api_advertising_list(request):
@@ -35,8 +39,6 @@ def api_advertising_list(request):
             if search:
                 qs = qs.filter(name=search)
 
-            user = request.user
-
             paginator = Paginator(qs, size)
 
             try:
@@ -47,13 +49,14 @@ def api_advertising_list(request):
             results = []
 
             for advertising in advertisings:
+                path_html_file = UploadFile.objects.get(id=advertising.path_html)
+                path_docx_file = UploadFile.objects.get(id=advertising.path_docx)
+
                 results.append({
                     'id': advertising.id,
-                    'name': advertising.name, 'path': advertising.path, 'file_type': advertising.file_type,
+                    'name': advertising.name, 'path_html': file_info(advertising.path_html)['url'], 'path_docx': file_info(advertising.path_docx)['url'], 'file_type': advertising.file_type,
                     'created_by': user_simple_info(advertising.created_by.id),
-                    # 'public_time': advertising.public_time,
                     'create_time': advertising.create_time is not None and advertising.create_time.strftime('%Y-%m-%d') or ''
-                    # 'update_time': advertising.update_time is not None and advertising.update_time.strftime('%Y-%m-%d') or '',
                 })
             # 信息
             paging = {
@@ -72,7 +75,7 @@ def api_advertising_list(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_project_list Exception:{0}'.format(str(e)))
+        logger.exception('api_advertising_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -93,14 +96,13 @@ def api_advertising_delete(request):
                 cache.clear()
                 with transaction.atomic():
                     obj = Advertising.objects.filter(id=advertising_id).delete()
-                    # obj.save()
                     resp = code.get_msg(code.SUCCESS)
             else:
-                resp = code.get_msg(code.PROJECT_NOT_EXIST)
+                resp = code.get_msg(code.SYSTEM_ERROR)
         else:
             resp = code.get_msg(code.SYSTEM_ERROR)
     except Exception as e:
-        logger.exception('api_project_delete Exception:{0}'.format(str(e)))
+        logger.exception('api_advertising_delete Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -126,44 +128,46 @@ def api_advertising_create(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             with transaction.atomic():
-                # obj = Advertising.objects.create(name=name, path=path, file_type=file_type, created_by=Tuser.objects.get(id=request.user.pk))
                 if (public_time):
                     obj = Advertising.objects.create(name=ad_name, created_by=Tuser.objects.get(id=request.user.pk),
                                                  public_time=public_time)
                 else:
                     obj = Advertising.objects.create(name=ad_name, created_by=Tuser.objects.get(id=request.user.pk))
                 saved_data_id = obj.id
-                tmp_filename = os.path.join('/advertising_documents', str(saved_data_id) + '.html')
-                # docx_file_name = os.path.join('/advertising_documents',
-                #                               str(saved_data_id) + '_' + ad_name + '.docx')
-                docx_file_name = os.path.join('/advertising_documents',
-                                              str(saved_data_id) + '.docx')
+                tmp_filename = str(saved_data_id)+'.html'
+                docx_file_name = str(saved_data_id)+'.docx'
+                
+                # saved_data_name = obj.name
+                # tmp_filename = str(saved_data_name).encode('utf-8')+'.html'
+                # docx_file_name = str(saved_data_name).encode('utf-8')+'.docx'
+                # tmp_filename = str(saved_data_name)+'.html'
+                # docx_file_name = str(saved_data_name)+'.docx'
 
-
-                f = open(tmp_filename, "a+")
+                f=codecs.open(tmp_filename, "a+", "utf-8")
                 f.write(ad_content)
                 f.close()
-                pypandoc.convert_file(tmp_filename, 'docx', outputfile=docx_file_name)
 
-                # must be updated
-                docx_file_name_path = docx_file_name
+                # f = open(tmp_filename, "a+")
+                # f.write(ad_content)
+                # f.close()
+                
+                pypandoc.convert_file(tmp_filename, 'docx', outputfile=docx_file_name)
+                print docx_file_name
+                shutil.move(docx_file_name, 'media/files/advertising/' + docx_file_name)
+                shutil.move(tmp_filename, 'media/files/advertising/' + tmp_filename)
+                obj = UploadFile.objects.create(filename=docx_file_name, file='files/advertising/' + docx_file_name, created_by=request.user.id)
+                pathDocx = obj.id
+                print pathDocx
+                obj1 = UploadFile.objects.create(filename=tmp_filename, file='files/advertising/' + tmp_filename, created_by=request.user.id)
+                pathHtml = obj1.id
+                print pathHtml
+
                 with transaction.atomic():
-                    Advertising.objects.filter(id=saved_data_id).update(path=docx_file_name_path)
-                    # obj = Advertising.objects.filter(id=saved_data_id)
+                    Advertising.objects.filter(id=saved_data_id).update(path_docx=pathDocx,path_html=pathHtml)
                     resp = code.get_msg(code.SUCCESS)
-                    # resp['d'] = {
-                    #     'name': obj.name, 'path': obj.path, 'file_type': obj.file_type,
-                    #     'created_by': obj.created_by, 'public_time': obj.public_time
-                    # }
-            # else:
-            #     resp = code.get_msg(code.PARAMETER_ERROR)
-            #     print '1'
         else:
             resp = code.get_msg(code.SYSTEM_ERROR)
     except Exception as e:
-        logger.exception('api_project_create Exception:{0}'.format(str(e)))
+        logger.exception('api_advertising_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-
