@@ -1927,6 +1927,7 @@ def api_workflow_opt_import(request):
     try:
         flow_id = request.POST.get("flow_id", None)  # 环节ID
         upload_file = request.FILES.get("file", None)  # 文件
+        print upload_file
 
         if flow_id is None or upload_file is None:
             resp = code.get_msg(code.PARAMETER_ERROR)

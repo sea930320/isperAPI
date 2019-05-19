@@ -10,7 +10,7 @@ from account.models import Tuser
 # 实验项目
 class Project(models.Model):
     flow_id = models.IntegerField(verbose_name=u'流程')
-    name = models.CharField(max_length=64, verbose_name=u'名称')
+    name = models.CharField(max_length=64, verbose_name=u'名称')#
     all_role = models.PositiveIntegerField(default=1, choices=const.PROJECT_ALL_ROLE, verbose_name=u'允许一人扮演所有角色')
     course = models.CharField(max_length=48, verbose_name=u'课程')
     reference = models.PositiveIntegerField(default=1, choices=const.PROJECT_REFERENCE, verbose_name=u'成果参考释放方式')
