@@ -369,3 +369,23 @@ class TAction(models.Model):
 
     def __unicode__(self):
         return self.name
+
+class WorkLog(models.Model):
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, null=True)
+    role = models.ForeignKey(TRole, on_delete=models.CASCADE, null=True)
+    group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE, null=True)
+    company = models.ForeignKey(TCompany, on_delete=models.CASCADE, null=True)
+    log_at = models.DateTimeField(auto_now_add=True, verbose_name=u'log at')
+    ip = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
+    targets = models.CharField(max_length=256, verbose_name=u'targets', blank=True, null=True,)
+    action = models.CharField(max_length=256, verbose_name=u'action Name')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
+    class Meta:
+        db_table = "t_work_logs"
+        ordering = ['-log_at']
+        verbose_name_plural = u"操作日志"
+        verbose_name = u"操作日志"
+
+    def __unicode__(self):
+        return self.user.name

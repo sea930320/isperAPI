@@ -49,12 +49,15 @@ urlpatterns += (
     url(r'^api/account/user/delete', account_views.api_course_user_delete),
     url(r'^api/account/share', account_views.api_account_share), #Jonas
     url(r'^api/account/default-group', account_views.api_get_default_group), #Jonas
-    url(r'^api/account/get/loginlogs', account_views.api_get_log_list), #Jonas
+    url(r'^api/account/get/loginlogs', account_views.api_get_loginlog_list), #Jonas
     url(r'^api/account/remove/loginlogs', account_views.api_remove_loginlogs), #Jonas
     url(r'^api/account/export/loginlogs', account_views.api_export_loginlogs), #Jonas
+    url(r'^api/account/get/worklogs', account_views.api_get_worklog_list), #Jonas
+    url(r'^api/account/remove/worklogs', account_views.api_remove_worklogs), #Jonas
+    url(r'^api/account/export/worklogs', account_views.api_export_worklogs), #Jonas
     url(r'^api/account/get/assistants', account_views.api_get_assistants), #Jonas
-    url(r'^api/account/set/assistants', account_views.api_set_assistants), #Jonas
-    url(r'^api/account/unset/assistant', account_views.api_unset_assistant), #Jonas
+    url(r'^api/account/set/assistants', account_views.api_set_assistants), #Jonas worklog added
+    url(r'^api/account/unset/assistant', account_views.api_unset_assistant), #Jonas worklog added
     url(r'^api/account/get/permissions', account_views.api_get_permissions), #Jonas
     url(r'^api/account/set/assistant/actions', account_views.api_set_assistants_actions), #Jonas
     url(r'^api/account/get/getMessageData', account_views.get_own_messages),
@@ -211,20 +214,20 @@ urlpatterns += (
     url(r'^api/workflow/nodes/update$', workflow_views.api_workflow_nodes_update), #Jonas
     url(r'^api/workflow/processes$', workflow_views.api_workflow_processes),
     url(r'^api/workflow/detail$', workflow_views.api_workflow_detail), #Jonas
-    url(r'^api/workflow/publish$', workflow_views.api_workflow_publish), #Jonas
-    url(r'^api/workflow/delete$', workflow_views.api_workflow_delete), #Jonas
-    url(r'^api/workflow/update$', workflow_views.api_workflow_update), #Jonas
-    url(r'^api/workflow/create$', workflow_views.api_workflow_create), #Jonas
+    url(r'^api/workflow/publish$', workflow_views.api_workflow_publish), #Jonas worklog added
+    url(r'^api/workflow/delete$', workflow_views.api_workflow_delete), #Jonas worklog added
+    url(r'^api/workflow/update$', workflow_views.api_workflow_update), #Jonas worklog added
+    url(r'^api/workflow/create$', workflow_views.api_workflow_create), #Jonas worklog added
     url(r'^api/workflow/related$', workflow_views.api_workflow_related),
     url(r'^api/workflow/role/assign/info$', workflow_views.api_workflow_role_assign_info),
     url(r'^api/workflow/trans/query$', workflow_views.api_workflow_trans_query),
     url(r'^api/workflow/opt/import$', workflow_views.api_workflow_opt_import),
     url(r'^api/workflow/opt/export$', workflow_views.workflow_opt_export),
     url(r'^api/workflow/protected$', workflow_views.api_workflow_protected), #Jonas
-    url(r'^api/workflow/public$', workflow_views.api_workflow_public), #Jonas
-    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic), #Jonas
-    url(r'^api/workflow/share$', workflow_views.api_workflow_share), #Jonas
-    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare), #Jonas
+    url(r'^api/workflow/public$', workflow_views.api_workflow_public), #Jonas worklog added
+    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic), #Jonas worklog added
+    url(r'^api/workflow/share$', workflow_views.api_workflow_share), #Jonas worklog added
+    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare), #Jonas worklog added
     url(r'^api/workflow/job_type/candidate', workflow_views.api_workflow_job_type_candidate), #Jonas
     url(r'^api/workflow/role/allocation/list', workflow_views.api_workflow_role_allocation_list), #Jonas
     url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create), #Jonas

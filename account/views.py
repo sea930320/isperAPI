@@ -22,7 +22,7 @@ from account.service import get_client_ip
 from django.contrib import auth
 from django.http import JsonResponse
 from django.http import HttpResponse
-from account.models import Tuser, TCompany, TClass, LoginLog, TRole, TCompanyManagerAssistants, TPermission, TAction, \
+from account.models import Tuser, TCompany, TClass, LoginLog, WorkLog, TRole, TCompanyManagerAssistants, TPermission, TAction, \
     TNotifications
 from experiment.models import Experiment
 from team.models import TeamMember
@@ -1543,7 +1543,7 @@ def api_account_share(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
-def api_get_log_list(request):
+def api_get_loginlog_list(request):
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1719,6 +1719,180 @@ def api_export_loginlogs(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_get_worklog_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        search = request.GET.get("search", None)  # 搜索关键字
+        page = int(request.GET.get("page", 1))
+        size = int(request.GET.get("size", const.ROW_SIZE))
+        group_id = request.GET.get("group_id", None)
+        company_id = request.GET.get("company_id", None)
+        start_date = request.GET.get("start_date", None)
+        end_date = request.GET.get("end_date", None)
+        user = request.user
+        login_type = request.session['login_type']
+        if not permission_check(request, 'code_work_log_system_set'):
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if login_type == 1:
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif login_type in [2, 6]:
+            group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif login_type in [3, 7]:
+            company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+            company_id = company.id
+            group_id = company.group.id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        else:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if search:
+            qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(
+                role__name__icontains=search) | Q(ip__icontains=search) | Q(action__icontains=search))
+        if group_id:
+            qs = qs.filter(group__pk=int(group_id))
+        if company_id:
+            qs = qs.filter(company__pk=int(company_id))
+        if start_date:
+            qs = qs.filter(log_at__gt=datetime.strptime(start_date, '%Y-%m-%d'))
+        if end_date:
+            qs = qs.filter(log_at__lte=datetime.strptime(end_date, '%Y-%m-%d'))
+        # 分页
+        paginator = Paginator(qs, size)
+        try:
+            logs = paginator.page(page)
+        except EmptyPage:
+            logs = paginator.page(1)
+
+        results = []
+        for log in logs:
+            group = log.group is not None and model_to_dict(log.group, fields=['id', 'name']) or None
+            company = log.company is not None and model_to_dict(log.company, fields=['id', 'name']) or None
+            role = log.role is not None and model_to_dict(log.role, fields=['id', 'name']) or None
+            results.append({
+                'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group,
+                'company': company,
+                'role': role, 'log_at': log.log_at is not None and log.log_at.strftime('%Y-%m-%d') or "",
+                'ip': log.ip, 'action': log.action, 'targets': log.targets
+            })
+        paging = {
+            'count': paginator.count,
+            'has_previous': logs.has_previous(),
+            'has_next': logs.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': logs.number,
+        }
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'paging': paging}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_get_worklog_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_remove_worklogs(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        if request.session['login_type'] != 1:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        data = request.GET.get("data", None)  # id列表json:[1,2,3]
+        if data is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        data = json.loads(data)
+        ids_set = set(data)
+        ids = [i for i in ids_set]
+        WorkLog.objects.filter(id__in=ids).update(del_flag=1)
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_remove_worklogs Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_export_worklogs(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] not in [1, 2, 3]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        search = request.GET.get("search", None)  # 搜索关键字
+        group_id = request.GET.get("group_id", None)
+        company_id = request.GET.get("company_id", None)
+        start_date = request.GET.get("start_date", None)
+        end_date = request.GET.get("end_date", None)
+
+        user = request.user
+        if request.session['login_type'] == 1:
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif request.session['login_type'] == 2:
+            group_id = user.allgroups_set.all().first().id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif request.session['login_type'] == 3:
+            company_id = user.tcompanymanagers_set.get().tcompany.id
+            company = TCompany.objects.get(pk=company_id)
+            group_id = company.group.id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        else:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if search:
+            qs = qs.filter(Q(user__username__icontains=search) | Q(user__name__icontains=search) | Q(
+                role__name__icontains=search) | Q(ip__icontains=search))
+        if group_id:
+            qs = qs.filter(group__pk=int(group_id))
+        if company_id:
+            qs = qs.filter(company__pk=int(company_id))
+        if start_date:
+            qs = qs.filter(log_at__gt=datetime.strptime(start_date, '%Y-%m-%d'))
+        if end_date:
+            qs = qs.filter(log_at__lte=datetime.strptime(end_date, '%Y-%m-%d'))
+
+        report = xlwt.Workbook(encoding='utf8')
+        sheet = report.add_sheet(u'日志列表')
+        row = 1
+        title = [u'用户名', u'姓名', u'集群', u'单位', u'角色', u'时间', u'IP', u'Action Name', u'Target Name']
+        for log in qs:
+            sheet.write(row, 0, log.user.username)
+            sheet.write(row, 1, log.user.name)
+            sheet.write(row, 2, log.group.name if log.group else '')
+            sheet.write(row, 3, log.company.name if log.company else '')
+            sheet.write(row, 4, log.role.name if log.role else '')
+            sheet.write(row, 5, log.log_at is not None and log.log_at.strftime('%Y-%m-%d') or "")
+            sheet.write(row, 6, log.ip)
+            sheet.write(row, 7, log.action)
+            sheet.write(row, 8, log.targets)
+            row += 1
+        # 设置样式
+        for i in range(0, len(title)):
+            sheet.write(0, i, title[i], set_style(220, True))
+
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        filename = urlquote(u'操作列表')
+        response['Content-Disposition'] = u'attachment;filename=%s.xls' % filename
+        report.save(response)
+        return response
+
+    except Exception as e:
+        logger.exception('api_export_worklogs Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def api_get_assistants(request):
     resp = auth_check(request, "GET")
@@ -1796,7 +1970,8 @@ def api_set_assistants(request):
                 if not candidateUser:
                     continue
                 candidateUser.roles.add(TRole.objects.get(pk=6))
-                candidateUser.allgroups_set_assistants.add(group)
+                # candidateUser.allgroups_set_assistants.add(group)
+                TGroupManagerAssistants.objects.create(all_groups=group, tuser=candidateUser)
         else:
             company = request.user.tcompanymanagers_set.get().tcompany
             if not company:
@@ -1807,7 +1982,8 @@ def api_set_assistants(request):
                 if not candidateUser:
                     continue
                 candidateUser.roles.add(TRole.objects.get(pk=7))
-                candidateUser.t_company_set_assistants.add(company)
+                # candidateUser.t_company_set_assistants.add(company)
+                TCompanyManagerAssistants.objects.create(tcompany=company, tuser=candidateUser)
 
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
