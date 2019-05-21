@@ -69,9 +69,9 @@ SUIT_CONFIG = {
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_WHITELIST = (
-    'localhost:83',
-    '127.0.0.1:83',
-    '39.107.122.234:8080'
+    # 'localhost:83',
+    # '127.0.0.1:83',
+    # '39.107.122.234:8080'
 )
 
 ROOT_URLCONF = 'lets2017.urls'
