@@ -117,7 +117,6 @@ def api_project_docs_detail(request):
             resp = code.get_msg(code.SUCCESS)
             # 流程
             flow = Flow.objects.filter(pk=obj.flow_id, del_flag=0).first()
-            print flow
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -695,7 +694,7 @@ def api_project_create(request):
                 for item in roles:
                     project_roles.append(ProjectRole(project_id=obj.pk, image_id=item.image_id, name=item.name,
                                                      type=item.type, min=item.min, max=item.max, flow_role_id=item.id,
-                                                     category=item.category))
+                                                     category=item.category, capacity=item.capacity, job_type=item.job_type))
                 ProjectRole.objects.bulk_create(project_roles)
                 logger.info('-----bulk_create project_roles:%s done----' % len(project_roles))
 
@@ -709,27 +708,28 @@ def api_project_create(request):
                         project_allocations.append(ProjectRoleAllocation(project_id=obj.pk, node_id=item.node_id,
                                                                          role_id=role.id,
                                                                          can_terminate=item.can_terminate,
-                                                                         can_brought=item.can_brought))
+                                                                         can_brought=item.can_brought,
+                                                                         no=item.no))
                 ProjectRoleAllocation.objects.bulk_create(project_allocations)
                 logger.info('-----bulk_create project_allocations:%s----' % len(project_allocations))
 
-                # roles = ProjectRole.objects.filter(project_id=obj.pk)
                 # # 复制流程素材设置
-                # docs_allocations = []
-                # docs = FlowDocs.objects.filter(flow_id=flow_id, del_flag=0)
-                # for item in docs:
-                #     flow_docs = FlowNodeDocs.objects.filter(flow_id=flow_id, doc_id=item.id, del_flag=0)
-                #     if flow_docs.exists():
-                #         new = ProjectDoc.objects.create(project_id=obj.pk, name=item.name, type=item.type,
-                #                                         usage=item.usage, file=item.file, content=item.content,
-                #                                         file_type=item.file_type, is_flow=True)
-                #         for n in flow_docs:
-                #             for r in roles:
-                #                 docs_allocations.append(
-                #                     ProjectDocRole(project_id=obj.pk, node_id=n.node_id, doc_id=new.pk,
-                #                                    role_id=r.pk))
-                # ProjectDocRole.objects.bulk_create(docs_allocations)
-                # logger.info('-----bulk_create docs_allocations:%s----' % len(docs_allocations))
+                docs_allocations = []
+                docs = FlowDocs.objects.filter(flow_id=flow_id, del_flag=0)
+                for item in docs:
+                    flow_node_docs = FlowNodeDocs.objects.filter(flow_id=flow_id, doc_id=item.id, del_flag=0)
+                    if flow_node_docs.exists():
+                        new = ProjectDoc.objects.create(project_id=obj.pk, name=item.name, type=item.type,
+                                                        usage=item.usage, file=item.file, content=item.content,
+                                                        file_type=item.file_type, is_flow=True)
+                        for n in flow_node_docs:
+                            projectRoleAllocations = ProjectRoleAllocation.objects.filter(project_id=obj.pk, node_id=n.node_id)
+                            for r in projectRoleAllocations:
+                                docs_allocations.append(
+                                    ProjectDocRole(project_id=obj.pk, node_id=n.node_id, doc_id=new.pk,
+                                                   role_id=r.role_id, no=r.no))
+                ProjectDocRole.objects.bulk_create(docs_allocations)
+                logger.info('-----bulk_create docs_allocations:%s----' % len(docs_allocations))
 
                 resp = code.get_msg(code.SUCCESS)
                 start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''

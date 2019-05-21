@@ -4,7 +4,7 @@
 from django.db import models
 from utils.storage import *
 from utils import const
-from account.models import Tuser
+from account.models import Tuser, TJobType
 
 
 # 实验项目
@@ -54,7 +54,8 @@ class ProjectRole(models.Model):
     min = models.IntegerField(default=1, verbose_name=u'最小人数')
     max = models.IntegerField(default=100, verbose_name=u'最大人数')
     category = models.PositiveIntegerField(verbose_name=u'类别')
-
+    capacity = models.IntegerField(verbose_name=u'人数', default=1)
+    job_type = models.ForeignKey(TJobType, on_delete=models.SET_NULL, null=True, blank=True)
     class Meta:
         db_table = "t_project_role"
         verbose_name_plural = verbose_name = u"项目角色"
@@ -72,7 +73,7 @@ class ProjectRoleAllocation(models.Model):
     can_brought = models.BooleanField(verbose_name=u'是否被带入')
     num = models.PositiveIntegerField(default=0, verbose_name=u'奖励数量')
     score = models.PositiveIntegerField(default=0, verbose_name=u'奖励分数')
-
+    no = models.IntegerField(default=1, verbose_name=u'Number')
     class Meta:
         db_table = "t_project_role_allocation"
         verbose_name_plural = verbose_name = u"项目角色分配"
@@ -112,6 +113,7 @@ class ProjectDocRole(models.Model):
     node_id = models.IntegerField(verbose_name=u'环节')
     doc_id = models.IntegerField(verbose_name=u'素材')
     role_id = models.IntegerField(verbose_name=u'角色')
+    no = models.IntegerField(default=1, verbose_name=u'Number')
 
     class Meta:
         db_table = "t_project_doc_role"
