@@ -11,15 +11,13 @@ from account.service import user_simple_info
 from workflow.models import *
 from utils.request_auth import auth_check
 from utils import code
-from django.core.cache import cache
 import pypandoc
 from datetime import datetime
-from system.views import api_file_upload
 from system.models import UploadFile
-import os
 import shutil
 from system.views import file_info
 import codecs
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +35,7 @@ def api_advertising_list(request):
             qs = Advertising.objects.filter()
 
             if search:
-                qs = qs.filter(name=search)
+                qs = qs.filter(Q(name__icontains=search))
 
             paginator = Paginator(qs, size)
 
@@ -49,8 +47,6 @@ def api_advertising_list(request):
             results = []
 
             for advertising in advertisings:
-                path_html_file = UploadFile.objects.get(id=advertising.path_html)
-                path_docx_file = UploadFile.objects.get(id=advertising.path_docx)
 
                 results.append({
                     'id': advertising.id,
@@ -80,11 +76,62 @@ def api_advertising_list(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+def api_advertising_list_home(request):
+    try:
+        search = request.GET.get("search", None)  # 搜索关键字
+        page = int(request.GET.get("page", 1))  # 页码
+        size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
+        html_id = int(request.GET.get("html_id", -1))
+
+        qs = Advertising.objects.filter()
+
+        if search:
+            qs = qs.filter(Q(name__icontains=search))
+        if html_id != -1:
+            qs = qs.filter(id=html_id)
+
+        paginator = Paginator(qs, size)
+
+        try:
+            advertisings = paginator.page(page)
+        except EmptyPage:
+            advertisings = paginator.page(1)
+
+        results = []
+
+        for advertising in advertisings:
+
+            results.append({
+                'id': advertising.id,
+                'name': advertising.name, 'path_html': file_info(advertising.path_html)['url'],
+                'path_docx': file_info(advertising.path_docx)['url'], 'file_type': advertising.file_type,
+                'created_by': user_simple_info(advertising.created_by.id),
+                'create_time': advertising.create_time is not None and advertising.create_time.strftime(
+                    '%Y-%m-%d') or ''
+            })
+        # 信息
+        paging = {
+            'count': paginator.count,
+            'has_previous': advertisings.has_previous(),
+            'has_next': advertisings.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': advertisings.number,
+            'page_size': size
+        }
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'paging': paging}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_advertising_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
 def api_advertising_delete(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
     try:
         if request.session['login_type'] == 1:
             advertising_id = request.POST.get("advertising_id", None)  # 项目ID
@@ -93,7 +140,6 @@ def api_advertising_delete(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             obj = Advertising.objects.filter(pk=advertising_id).first()
             if obj:
-                cache.clear()
                 with transaction.atomic():
                     obj = Advertising.objects.filter(id=advertising_id).delete()
                     resp = code.get_msg(code.SUCCESS)
@@ -120,9 +166,15 @@ def api_advertising_create(request):
             ad_content = request.POST.get("ad_content", None)
             # if all([ad_name]):
             name = ad_name.strip()
+            ad_content = ad_content.strip()
             if len(name) == 0 or len(name) > 32:
                 resp = code.get_msg(code.PARAMETER_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            if len(ad_content) == 0:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
             if (len(Advertising.objects.filter(name=ad_name)) > 0):
                 resp = code.get_msg(code.ADVERTISING_NAME_ALREADY_EXISTS)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

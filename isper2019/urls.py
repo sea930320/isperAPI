@@ -306,6 +306,7 @@ urlpatterns += (
 )
 
 urlpatterns += (
+    url(r'^api/advertising/list_home$', advertising_views.api_advertising_list_home),
     url(r'^api/advertising/list$', advertising_views.api_advertising_list),
     url(r'^api/advertising/delete$', advertising_views.api_advertising_delete),
     url(r'^api/advertising/create$', advertising_views.api_advertising_create),

@@ -7,7 +7,9 @@ from account.models import Tuser
 
 class Advertising(models.Model):
     name = models.CharField(max_length=64, verbose_name=u'名称')
-    path = models.CharField(max_length=255, verbose_name=u'文件路径')
+    # path = models.CharField(max_length=255, verbose_name=u'文件路径')
+    path_docx = models.IntegerField(blank=True, null=True, verbose_name=u'文件路径1')
+    path_html = models.IntegerField(blank=True, null=True, verbose_name=u'文件路径2')
     file_type = models.CharField(max_length=10, verbose_name=u'文件类型')
     created_by = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'创建者')
     public_time = models.DateTimeField(blank=True, null=True, verbose_name=u'时间')
