@@ -145,26 +145,23 @@ def api_project_docs_detail(request):
                         process_name = process.name
 
                 # 项目角色
-                role_ids = set(ProjectRoleAllocation.objects.filter(project_id=obj.id,
-                                                                    node_id=item.id).values_list('role_id', flat=True))
-                project_roles = []
-                roles = ProjectRole.objects.filter(pk__in=list(role_ids), project_id=obj.id)
-                for r in roles:
-                    # 优化
-                    doc_ids = ProjectDocRole.objects.filter(project_id=project_id, role_id=r.id,
+                pras = ProjectRoleAllocation.objects.filter(project_id=obj.id,
+                                                            node_id=item.id)
+                project_role_allocs = []
+                for ra in pras:
+                    doc_ids = ProjectDocRole.objects.filter(project_id=project_id, role_id=ra.role_id, no=ra.no,
                                                             node_id=item.id).values_list('doc_id', flat=True)
-                    # role_docs = ProjectDocRoleNew.objects.filter(project_id=project_id, role_id=r.id,
-                    #                                              node_id=item.id).first()
-                    # doc_ids = []
-                    # if role_docs:
-                    #     doc_ids = json.loads(role_docs.docs)
-                    project_roles.append({'id': r.id, 'name': r.name, 'type': r.type, 'doc_ids': list(doc_ids)})
-                project_nodes.append({'id': item.pk, 'name': item.name, 'process_id': pid, 'roles': project_roles,
-                                      'process_name': process_name})
+                    role = ProjectRole.objects.get(pk=ra.role_id)
+                    project_role_allocs.append(
+                        {'id': ra.id, 'role_id': role.id, 'no': ra.no, 'name': role.name, 'type': role.type,
+                         'doc_ids': list(doc_ids)})
+                project_nodes.append(
+                    {'id': item.pk, 'name': item.name, 'process_id': pid, 'project_role_allocs': project_role_allocs,
+                     'process_name': process_name})
             project_role_type = ProjectRole.objects.filter(project_id=project_id
                                                            ).values_list('type', flat=True).distinct()
             # 项目素材
-            project_docs = ProjectDoc.objects.filter(project_id=project_id, is_flow=False)
+            project_docs = ProjectDoc.objects.filter(project_id=project_id)
             doc_list = []
             for item in project_docs:
                 doc = {
@@ -694,7 +691,8 @@ def api_project_create(request):
                 for item in roles:
                     project_roles.append(ProjectRole(project_id=obj.pk, image_id=item.image_id, name=item.name,
                                                      type=item.type, min=item.min, max=item.max, flow_role_id=item.id,
-                                                     category=item.category, capacity=item.capacity, job_type=item.job_type))
+                                                     category=item.category, capacity=item.capacity,
+                                                     job_type=item.job_type))
                 ProjectRole.objects.bulk_create(project_roles)
                 logger.info('-----bulk_create project_roles:%s done----' % len(project_roles))
 
@@ -723,7 +721,8 @@ def api_project_create(request):
                                                         usage=item.usage, file=item.file, content=item.content,
                                                         file_type=item.file_type, is_flow=True)
                         for n in flow_node_docs:
-                            projectRoleAllocations = ProjectRoleAllocation.objects.filter(project_id=obj.pk, node_id=n.node_id)
+                            projectRoleAllocations = ProjectRoleAllocation.objects.filter(project_id=obj.pk,
+                                                                                          node_id=n.node_id)
                             for r in projectRoleAllocations:
                                 docs_allocations.append(
                                     ProjectDocRole(project_id=obj.pk, node_id=n.node_id, doc_id=new.pk,
@@ -790,13 +789,16 @@ def api_project_list(request):
             if request.session['login_type'] == 2:
                 groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
-                qs = qs.filter( Q(is_group_share=1)|(Q(created_by__tcompany__group_id=groupID)|Q(created_by__allgroups_set__in=[groupID])))
+                qs = qs.filter(Q(is_group_share=1) | (
+                    Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID])))
 
             # If User Is Company Manager
             if request.session['login_type'] == 3:
-                groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
+                groupInfo = json.loads(
+                    public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
                 groupID = groupInfo['group_id']
-                qs = qs.filter(Q(created_by=user.id)|(Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
+                qs = qs.filter(
+                    Q(created_by=user.id) | (Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
         paginator = Paginator(qs, size)
 
@@ -843,9 +845,11 @@ def api_project_list(request):
                 'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target,
                 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id),
                 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
-                'flow': flow_data,'intro':project.intro,'purpose':project.purpose,'requirement':project.requirement,
-                'protected': project.protected, 'is_group_share': project.is_group_share,'is_company_share': project.is_company_share,
-                'share_able':shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share':currentShare
+                'flow': flow_data, 'intro': project.intro, 'purpose': project.purpose,
+                'requirement': project.requirement,
+                'protected': project.protected, 'is_group_share': project.is_group_share,
+                'is_company_share': project.is_company_share,
+                'share_able': shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share': currentShare
             })
 
         # 分页信息
@@ -1240,4 +1244,3 @@ def api_project_unshare(request):
         logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
