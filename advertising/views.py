@@ -77,10 +77,8 @@ def api_advertising_list(request):
 
 
 def api_advertising_list_home(request):
-    print 2
     try:
         search = request.GET.get("search", None)  # 搜索关键字
-        print search
         page = int(request.GET.get("page", 1))  # 页码
         size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
         html_id = int(request.GET.get("html_id", -1))
