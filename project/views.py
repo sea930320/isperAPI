@@ -93,7 +93,6 @@ def api_project_docs_delete(request):
                 if project.step < const.PRO_STEP_3:
                     project.step = const.PRO_STEP_3
                     project.save()
-
                 resp = code.get_msg(code.SUCCESS)
             else:
                 resp = code.get_msg(code.FLOW_DOC_NOT_EXIST)
@@ -711,19 +710,19 @@ def api_project_create(request):
                 ProjectRoleAllocation.objects.bulk_create(project_allocations)
                 logger.info('-----bulk_create project_allocations:%s----' % len(project_allocations))
 
-                # # 复制流程素材设置
+                # 复制流程素材设置
                 docs_allocations = []
                 docs = FlowDocs.objects.filter(flow_id=flow_id, del_flag=0)
                 for item in docs:
                     flow_node_docs = FlowNodeDocs.objects.filter(flow_id=flow_id, doc_id=item.id, del_flag=0)
-                    if flow_node_docs.exists():
+                    if flow_node_docs.exists(): # doc에 해당하는 flow_node가 존재
                         new = ProjectDoc.objects.create(project_id=obj.pk, name=item.name, type=item.type,
                                                         usage=item.usage, file=item.file, content=item.content,
-                                                        file_type=item.file_type, is_flow=True)
-                        for n in flow_node_docs:
+                                                        file_type=item.file_type, is_flow=True) # flowDoc를 projectDoc에 복사
+                        for n in flow_node_docs: # doc에 해당하는 flow_node들을 돌려주면서
                             projectRoleAllocations = ProjectRoleAllocation.objects.filter(project_id=obj.pk,
-                                                                                          node_id=n.node_id)
-                            for r in projectRoleAllocations:
+                                                                                          node_id=n.node_id) # 해당한 node에 참가하는 role들을 얻기
+                            for r in projectRoleAllocations: # 해당한 node에 참가하는 role들을 no함께 돌려준다
                                 docs_allocations.append(
                                     ProjectDocRole(project_id=obj.pk, node_id=n.node_id, doc_id=new.pk,
                                                    role_id=r.role_id, no=r.no))
