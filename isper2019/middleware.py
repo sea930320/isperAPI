@@ -59,7 +59,11 @@ class LogMiddleware(MiddlewareMixin):
         '/api/partPosition/newPPSave':'添加部门和职务',
         '/api/partPosition/deletePPSave':'删除部门和职务',
         '/api/partPosition/setNewPP':'变更部门和职务',
-        '/api/partPosition/setInnerPermissions':'内部权限管理'
+        '/api/partPosition/setInnerPermissions':'内部权限管理',
+        # project
+        '/api/project/create':'创建项目',
+        '/api/project/docs/create': '创建素材',
+        '/api/project/docs/delete': '删除素材',
     }
 
     def process_request(self, request):
@@ -95,7 +99,7 @@ class LogMiddleware(MiddlewareMixin):
                     if company is not None:
                         group = company.group
                 work_log = WorkLog(user=user, role=role, group=group, company=company, ip=get_client_ip(request),
-                                   action=self.workLogMatch[request.path], targets=targets)
+                                   action=self.workLogMatch[request.path], targets=targets, request_url=request.path)
                 work_log.save()
         except Exception as e:
             logger.exception('middleware Request Exception:{0}'.format(str(e)))

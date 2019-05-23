@@ -18,6 +18,7 @@ from course.models import Course, CourseClass
 from utils.request_auth import auth_check
 from utils import query, code, public_fun, tools
 from django.core.cache import cache
+from utils.permission import permission_check
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +217,7 @@ def api_project_docs_allocate(request):
                 for item in data['project_docs_roles']:
                     # 更新优化
                     docs_role_list.append(ProjectDocRole(project_id=project_id, node_id=item['node_id'],
-                                                         doc_id=item['doc_id'], role_id=item['role_id']))
+                                                         doc_id=item['doc_id'], role_id=item['role_id'], no=item['no']))
                 ProjectDocRole.objects.bulk_create(docs_role_list)
                 # ProjectDocRoleNew.objects.bulk_create(docs_role_list)
                 if obj.step < const.PRO_STEP_3:
@@ -225,7 +226,7 @@ def api_project_docs_allocate(request):
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
 
-        cache.clear()
+        # cache.clear()
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
@@ -607,6 +608,9 @@ def api_project_create(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
+        if not permission_check(request, 'code_create_project'):
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         flow_id = request.POST.get("flow_id", None)  # 流程ID
         name = request.POST.get("name", None)  # 名称
         all_role = request.POST.get("all_role", None)  # 允许一人扮演所有角色
