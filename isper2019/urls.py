@@ -145,9 +145,11 @@ urlpatterns += (
 )
 
 urlpatterns += (
+    url(r'^api/project/create$', project_views.api_project_create), # Jonas
+    url(r'^api/project/detail$', project_views.api_project_detail),
+    url(r'^api/project/docs/detail$', project_views.api_project_docs_detail), # Jonas
     url(r'^api/project/docs/allocate$', project_views.api_project_docs_allocate),
-    url(r'^api/project/docs/delete$', project_views.api_project_docs_delete),
-    url(r'^api/project/docs/detail$', project_views.api_project_docs_detail),
+    url(r'^api/project/docs/delete$', project_views.api_project_docs_delete), # Jonas
     url(r'^api/project/docs/create$', project_views.api_project_docs_create),
     url(r'^api/project/roles/detail$', project_views.api_project_roles_detail),
     url(r'^api/project/roles/configurate$', project_views.api_project_roles_configurate),
@@ -157,8 +159,6 @@ urlpatterns += (
     url(r'^api/project/update$', project_views.api_project_update),
     url(r'^api/project/has_experiment$', project_views.api_project_has_experiment),
     url(r'^api/project/delete$', project_views.api_project_delete),
-    url(r'^api/project/detail$', project_views.api_project_detail),
-    url(r'^api/project/create$', project_views.api_project_create),
     url(r'^api/project/copy$', project_views.api_project_copy),
     url(r'^api/project/list$', project_views.api_project_list),
     url(r'^api/project/related$', project_views.api_project_related),
