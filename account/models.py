@@ -377,9 +377,10 @@ class WorkLog(models.Model):
     company = models.ForeignKey(TCompany, on_delete=models.CASCADE, null=True)
     log_at = models.DateTimeField(auto_now_add=True, verbose_name=u'log at')
     ip = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
-    targets = models.CharField(max_length=256, verbose_name=u'targets', blank=True, null=True,)
+    targets = models.CharField(max_length=256, verbose_name=u'targets', blank=True, null=True)
     action = models.CharField(max_length=256, verbose_name=u'action Name')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    request_url = models.CharField(max_length=256, verbose_name=u'Request Url', blank=True, null=True)
 
     class Meta:
         db_table = "t_work_logs"

@@ -148,7 +148,7 @@ urlpatterns += (
     url(r'^api/project/create$', project_views.api_project_create), # Jonas
     url(r'^api/project/detail$', project_views.api_project_detail),
     url(r'^api/project/docs/detail$', project_views.api_project_docs_detail), # Jonas
-    url(r'^api/project/docs/allocate$', project_views.api_project_docs_allocate),
+    url(r'^api/project/docs/allocate$', project_views.api_project_docs_allocate), # Jonas
     url(r'^api/project/docs/delete$', project_views.api_project_docs_delete), # Jonas
     url(r'^api/project/docs/create$', project_views.api_project_docs_create),
     url(r'^api/project/roles/detail$', project_views.api_project_roles_detail),
