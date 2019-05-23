@@ -52,7 +52,7 @@ def api_advertising_list(request):
                     'id': advertising.id,
                     'name': advertising.name, 'path_html': file_info(advertising.path_html)['url'], 'path_docx': file_info(advertising.path_docx)['url'], 'file_type': advertising.file_type,
                     'created_by': user_simple_info(advertising.created_by.id),
-                    'create_time': advertising.create_time is not None and advertising.create_time.strftime('%Y-%m-%d') or ''
+                    'create_time': advertising.create_time is not None and advertising.create_time.strftime('%Y-%m-%d %H:%M:%S') or ''
                 })
             # 信息
             paging = {
@@ -107,7 +107,7 @@ def api_advertising_list_home(request):
                 'path_docx': file_info(advertising.path_docx)['url'], 'file_type': advertising.file_type,
                 'created_by': user_simple_info(advertising.created_by.id),
                 'create_time': advertising.create_time is not None and advertising.create_time.strftime(
-                    '%Y-%m-%d') or ''
+                    '%Y-%m-%d %H:%M:%S') or ''
             })
         # 信息
         paging = {
