@@ -216,7 +216,7 @@ def api_project_docs_allocate(request):
                 for item in data['project_docs_roles']:
                     # 更新优化
                     docs_role_list.append(ProjectDocRole(project_id=project_id, node_id=item['node_id'],
-                                                         doc_id=item['doc_id'], role_id=item['role_id']))
+                                                         doc_id=item['doc_id'], role_id=item['role_id'], no=item['no']))
                 ProjectDocRole.objects.bulk_create(docs_role_list)
                 # ProjectDocRoleNew.objects.bulk_create(docs_role_list)
                 if obj.step < const.PRO_STEP_3:
@@ -225,7 +225,7 @@ def api_project_docs_allocate(request):
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
 
-        cache.clear()
+        # cache.clear()
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
