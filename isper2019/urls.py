@@ -161,6 +161,7 @@ urlpatterns += (
     url(r'^api/project/protected', project_views.api_project_protected),
     url(r'^api/project/share', project_views.api_project_share),
     url(r'^api/project/unshare', project_views.api_project_unshare),
+    url(r'^api/project/getAllUsers_AllParts', project_views.get_allusers_allparts),
 )
 
 urlpatterns += (
@@ -246,6 +247,8 @@ urlpatterns += (
     url(r'^api/group/createInstructors$', group_views.create_instructors),
     url(r'^api/group/all-list$', group_views.get_groups_all_list), #Jonas
     url(r'^api/group/checkUserGroup$', group_views.check_user_group),
+    url(r'^api/group/deleteGroupManager$', group_views.delete_group_manager),
+    url(r'^api/group/deleteGroupInstructor$', group_views.delete_group_instructor),
     url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
     url(r'^api/company/createCompany$', group_views.create_new_company),
     url(r'^api/company/deleteCompany$', group_views.delete_selected_company),
@@ -254,10 +257,12 @@ urlpatterns += (
     url(r'^api/company/addCAssistant$', group_views.add_company_assistant), #Jonas
     url(r'^api/company/updateCManager$', group_views.update_company_manager),
     url(r'^api/company/pCResetManager$', group_views.reset_company_manager),
+    url(r'^api/company/deleteCompanyManager$', group_views.delete_company_manager),
 )
 
 urlpatterns += (
     url(r'^api/dic/getDicData$', dictionary_views.get_dic_data),
+    url(r'^api/dic/getPPData$', dictionary_views.get_pp_data),
     url(r'^api/dic/newItemSave$', dictionary_views.new_item_save),
     url(r'^api/dic/editItemSave$', dictionary_views.edit_item_save),
     url(r'^api/dic/deleteItemSave$', dictionary_views.delete_item_save),

@@ -29,7 +29,7 @@ def get_groups_list(request):
         size = int(request.GET.get("size", const.ROW_SIZE))
 
         if search:
-            qs = AllGroups.objects.filter(Q(name__icontains=search)).order_by('-id')
+            qs = AllGroups.objects.filter(Q(name__icontains=search) | Q(comment__icontains=search)).order_by('-id')
         else:
             qs = AllGroups.objects.all().order_by('-id')
 
@@ -154,7 +154,8 @@ def delete_selected_group(request):
             AllGroups.objects.filter(id=newDefault).update(default=1)
 
         targets = AllGroups.objects.filter(id__in=selected)
-        Tuser.objects.filter(id__in=targets.values_list('groupManagers')).delete()
+        for item in Tuser.objects.filter(id__in=targets.values_list('groupManagers')):
+            item.allgroups_set.clear()
         targets.delete()
 
         resp = code.get_msg(code.SUCCESS)
@@ -601,7 +602,8 @@ def delete_selected_company(request):
     try:
         selected = eval(request.POST.get("ids", ''))
         targets = TCompany.objects.filter(id__in=selected)
-        Tuser.objects.filter(id__in=targets.values_list('tuser')).delete()
+        for item in Tuser.objects.filter(id__in=targets.values_list('tuser')):
+            item.tcompanymanagers_set.all().delete()
         targets.delete()
 
         resp = code.get_msg(code.SUCCESS)
@@ -821,16 +823,92 @@ def check_user_group(request):
         username = request.POST.get("username", None)
         before = ''
 
+        results = None
         if len(Tuser.objects.filter(username=username)) == 0:
             results = 0
         elif len(Tuser.objects.filter(Q(username=username) & Q(roles__id__in=[2]))) > 0:
             results = 2
-            before = Tuser.objects.filter(Q(username=username) & Q(roles__id__in=[2])).get().allgroups_set.get().name
+            try:
+                before = Tuser.objects.filter(Q(username=username) & Q(roles__id__in=[2])).get().allgroups_set.get().name
+            except:
+                before = ''
         elif len(Tuser.objects.filter(Q(username=username) & ~Q(roles__id__in=[2]))) > 0:
             results = 1
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': results, 'before': before}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def delete_group_manager(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 1:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        gid = request.POST.get("gid", None)
+        mid = request.POST.get("mid", None)
+
+        AllGroups.objects.get(id=gid).groupManagers.remove(Tuser.objects.get(id=mid))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def delete_company_manager(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 2:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        cid = request.POST.get("cid", None)
+        mid = request.POST.get("mid", None)
+
+        TCompany.objects.get(id=cid).tcompanymanagers_set.get(tuser=Tuser.objects.get(id=mid)).delete()
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def delete_group_instructor(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 2:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        gid = request.POST.get("gid", None)
+        iid = request.POST.get("iid", None)
+
+        AllGroups.objects.get(id=gid).groupInstructors.remove(Tuser.objects.get(id=iid))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
