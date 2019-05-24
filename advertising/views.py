@@ -189,20 +189,10 @@ def api_advertising_create(request):
                 tmp_filename = str(saved_data_id)+'.html'
                 docx_file_name = str(saved_data_id)+'.docx'
                 
-                # saved_data_name = obj.name
-                # tmp_filename = str(saved_data_name).encode('utf-8')+'.html'
-                # docx_file_name = str(saved_data_name).encode('utf-8')+'.docx'
-                # tmp_filename = str(saved_data_name)+'.html'
-                # docx_file_name = str(saved_data_name)+'.docx'
-
                 f=codecs.open(tmp_filename, "a+", "utf-8")
                 f.write(ad_content)
                 f.close()
 
-                # f = open(tmp_filename, "a+")
-                # f.write(ad_content)
-                # f.close()
-                
                 pypandoc.convert_file(tmp_filename, 'docx', outputfile=docx_file_name)
                 print docx_file_name
                 shutil.move(docx_file_name, 'media/files/advertising/' + docx_file_name)
