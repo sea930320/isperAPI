@@ -26,6 +26,7 @@ class LogMiddleware(MiddlewareMixin):
         '/api/account/unset/assistants': '取消绑定',
         '/api/account/password/update': '重置密码',
         '/api/account/user/create': '注册用户',
+        '/api/account/set/roles/actions': '设置角色',
         # userManager
         '/api/userManager/excelDataSave':'导入用户',
         '/api/userManager/newUserSet':'增加用户',
