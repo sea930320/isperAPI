@@ -550,7 +550,6 @@ def api_project_detail(request):
         project_id = request.GET.get("project_id", None)  # 项目ID
 
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
-        print project_id
         if obj:
             flow = Flow.objects.get(pk=obj.flow_id)
             # 项目角色
@@ -627,9 +626,10 @@ def api_project_create(request):
         intro = request.POST.get("intro", None)  # 项目简介
         purpose = request.POST.get("purpose", None)  # 实验目的
         requirement = request.POST.get("requirement", None)  # 实验要求
+        officeItem = request.POST.get("officeItem", None)
         logger.info('-----api_project_create----')
         if all([flow_id, name, all_role, course, reference, public_status, level, entire_graph, can_redo,
-                is_open, ability_target, intro, purpose, requirement]):
+                is_open, ability_target, intro, purpose, requirement, officeItem]):
             name = name.strip()
             if len(name) == 0 or len(name) > 32:
                 resp = code.get_msg(code.PARAMETER_ERROR)
@@ -639,8 +639,12 @@ def api_project_create(request):
                 resp = code.get_msg(code.PARAMETER_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-            # 开始模式是自由的话，不需要传start_time和end_time
-            if is_open == '1' or is_open == '3':
+            if is_open == '3' and (start_time is None or start_time is None):
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            # 开始模式是自由的话，不需要传 start_time 和 end_time
+            if is_open == '3':
                 if start_time is None or start_time == '':
                     start_time = None
                 else:
@@ -649,20 +653,15 @@ def api_project_create(request):
                     end_time = None
                 else:
                     end_time = datetime.strptime(end_time, '%Y-%m-%d')
-
-            if is_open == '2':
-                if None in (start_time, end_time) or '' in (start_time, end_time):
-                    resp = code.get_msg(code.PARAMETER_ERROR)
-                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-                start_time = datetime.strptime(start_time, '%Y-%m-%d')
-                end_time = datetime.strptime(end_time, '%Y-%m-%d')
+            else:
+                start_time = None
+                end_time = None
 
             if start_time and end_time:
                 if end_time < start_time:
                     resp = code.get_msg(code.PARAMETER_ERROR)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-            # logger.info('start_time:%s,end_time:%s' % (start_time, end_time))
             flow = Flow.objects.filter(pk=flow_id).first()
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
@@ -683,12 +682,21 @@ def api_project_create(request):
             # 课程没有就保存
             # Course.objects.get_or_create(name=course)
             with transaction.atomic():
-                obj = Project.objects.create(flow_id=flow_id, name=name, all_role=all_role, course=course,
-                                             reference=reference, public_status=public_status, level=level,
-                                             entire_graph=entire_graph, can_redo=can_redo, is_open=is_open,
-                                             ability_target=ability_target, start_time=start_time, end_time=end_time,
-                                             intro=intro, purpose=purpose, requirement=requirement,
-                                             type=flow.type_label, created_by=Tuser.objects.get(id=request.user.pk))
+                obj = Project.objects.create(
+                    flow_id=flow_id, name=name, all_role=all_role, course=TCourse.objects.get(id=course),
+                    reference=reference, public_status=public_status, level=level, officeItem_id=officeItem,
+                    entire_graph=entire_graph, can_redo=can_redo, is_open=is_open,
+                    ability_target=ability_target, start_time=start_time, end_time=end_time,
+                    intro=intro, purpose=purpose, requirement=requirement,
+                    type=flow.type_label, created_by=Tuser.objects.get(id=request.user.pk), created_role_id=request.session['login_type'])
+
+                if is_open == '4':
+                    target_users = eval(request.POST.get("target_users", ''))
+                    obj.target_users.add(*Tuser.objects.filter(id__in=target_users))
+                if is_open == '5':
+                    target_parts = request.POST.get("target_parts", None)
+                    Project.objects.filter(pk=obj.pk).update(target_parts_id=target_parts)
+
                 # 复制流程角
                 project_roles = []
                 for item in roles:
@@ -737,7 +745,7 @@ def api_project_create(request):
                 start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
                 end_time = obj.end_time.strftime('%Y-%m-%d') if obj.end_time else ''
                 resp['d'] = {
-                    'flow_id': obj.flow_id, 'name': obj.name, 'all_role': obj.all_role, 'course': obj.course,
+                    'flow_id': obj.flow_id, 'name': obj.name, 'all_role': obj.all_role, 'course': obj.course.name,
                     'reference': obj.reference, 'public_status': obj.public_status, 'level': obj.level,
                     'entire_graph': obj.entire_graph, 'type': obj.type, 'can_redo': obj.can_redo,
                     'is_open': obj.is_open, 'ability_target': obj.ability_target, 'start_time': start_time,
@@ -762,46 +770,26 @@ def api_project_list(request):
         search = request.GET.get("search", None)  # 搜索关键字
         page = int(request.GET.get("page", 1))  # 页码
         size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
-        course = request.GET.get("course", None)  # 课程
-        type = request.GET.get("type", None)  # 类型
 
         qs = Project.objects.filter(del_flag=0)
 
         if search:
             qs = qs.filter(name__icontains=search)
-            # qs = qs.filter(name='test')
             print search
 
-        if course:
-            qs = qs.filter(course=course)
-
-        if type:
-            qs = qs.filter(type=type)
-
         user = request.user
-        # if request.session['login_type'] != 4:
-        #     users = Tuser.objects.filter(del_flag=0, manage=True, tcompany_id=user.tcompany_id)
-        #     ids = [item.id for item in users]
-        #     qs = qs.filter(Q(is_group_share=1) | Q(created_by__in=ids))
 
-        # filter by using userid
-
-
-        # If User Is Group Manager
         if request.session['login_type'] != 1:
             if request.session['login_type'] == 2:
                 groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
-                qs = qs.filter(Q(is_group_share=1) | (
-                    Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID])))
+                qs = qs.filter(Q(is_group_share=1) | (Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID])))
 
-            # If User Is Company Manager
             if request.session['login_type'] == 3:
                 groupInfo = json.loads(
                     public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
                 groupID = groupInfo['group_id']
-                qs = qs.filter(
-                    Q(created_by=user.id) | (Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
+                qs = qs.filter(Q(created_by=user.id) | (Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
         paginator = Paginator(qs, size)
 
@@ -823,37 +811,29 @@ def api_project_list(request):
             if flow:
                 flow_data = {'name': flow.name, 'xml': flow.xml}
 
-            if (request.session['login_type'] == 1):
+            if request.session['login_type'] == 1:
                 shareAble = 1
                 editAble = 1
                 deleteAble = 1
             else:
-                if (project.created_by.id == user.id):
+                if project.created_by.id == user.id:
                     shareAble = 1
                     editAble = 1
                     deleteAble = 1
-                if (project.created_by.id == user.id):
-                    if (request.session['login_type'] == 2):
-                        if (project.is_group_share == 1):
+                if project.created_by.id == user.id:
+                    if request.session['login_type'] == 2:
+                        if project.is_group_share == 1:
                             currentShare = 1
-                if (project.created_by.id == user.id):
-                    if (request.session['login_type'] == 3):
-                        if (project.is_company_share == 1):
+                if project.created_by.id == user.id:
+                    if request.session['login_type'] == 3:
+                        if project.is_company_share == 1:
                             currentShare = 1
 
-            results.append({
-                'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
-                'course': project.course, 'reference': project.reference, 'public_status': project.public_status,
-                'level': project.level, 'entire_graph': project.entire_graph, 'type': project.type,
-                'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target,
-                'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id),
-                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
-                'flow': flow_data, 'intro': project.intro, 'purpose': project.purpose,
-                'requirement': project.requirement,
-                'protected': project.protected, 'is_group_share': project.is_group_share,
-                'is_company_share': project.is_company_share,
-                'share_able': shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share': currentShare
-            })
+            projectItem = {'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role, 'officeItem': project.officeItem_id, 'course': project.course_id, 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()], 'course_name': project.course.name, 'reference': project.reference, 'public_status': project.public_status, 'level': project.level, 'entire_graph': project.entire_graph, 'type': project.type,
+                           'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id), 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '', 'flow': flow_data, 'intro': project.intro, 'purpose': project.purpose, 'requirement': project.requirement, 'protected': project.protected,
+                           'is_group_share': project.is_group_share, 'is_company_share': project.is_company_share, 'share_able': shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share': currentShare, 'target_parts': {'value': project.target_parts.id, 'text': project.target_parts.name} if project.target_parts_id else {}}
+
+            results.append(projectItem)
 
         # 分页信息
         paging = {
@@ -1245,5 +1225,24 @@ def api_project_unshare(request):
 
     except Exception as e:
         logger.exception('api_workflow_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def get_allusers_allparts(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        users = [{'id': item.id, 'text': item.username} for item in Tuser.objects.filter(roles=5)]
+        parts = [{'value': item.id, 'text': item.company.name + ' : ' + item.name} for item in TParts.objects.all()]
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'users': users, 'parts': parts}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_allusers_allparts Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
