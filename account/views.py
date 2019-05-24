@@ -2139,3 +2139,58 @@ def get_own_messages(request):
         logger.exception('api_get_permissions Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_get_worklog_statistic(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        group_id = request.GET.get("group_id", None)
+        company_id = request.GET.get("company_id", None)
+        start_date = request.GET.get("start_date", None)
+        end_date = request.GET.get("end_date", None)
+        user = request.user
+        login_type = request.session['login_type']
+        if not permission_check(request, 'code_log_statistics_system_set'):
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if login_type == 1:
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif login_type in [2, 6]:
+            group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif login_type in [3, 7]:
+            company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+            company_id = company.id
+            group_id = company.group.id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        else:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if group_id:
+            qs = qs.filter(group__pk=int(group_id))
+        if company_id:
+            qs = qs.filter(company__pk=int(company_id))
+        if start_date:
+            qs = qs.filter(log_at__gt=datetime.strptime(start_date, '%Y-%m-%d'))
+        if end_date:
+            qs = qs.filter(log_at__lte=datetime.strptime(end_date, '%Y-%m-%d'))
+
+        flowLogQs = qs.filter(request_url__icontains="workflow")
+        projectLogQs = qs.filter(request_url__icontains="project")
+        businessLogQs = qs.filter(request_url__icontains="experiment")
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': {
+            'workflow': flowLogQs.count(),
+            'project': projectLogQs.count(),
+            'system': 22,
+            'business': businessLogQs.count()
+        }}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_get_worklog_statistic Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
