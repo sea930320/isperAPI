@@ -146,7 +146,7 @@ def api_project_docs_detail(request):
 
                 # 项目角色
                 pras = ProjectRoleAllocation.objects.filter(project_id=obj.id,
-                                                            node_id=item.id)
+                                                            node_id=item.id, can_take_in=True)
                 project_role_allocs = []
                 for ra in pras:
                     doc_ids = ProjectDocRole.objects.filter(project_id=project_id, role_id=ra.role_id, no=ra.no,
@@ -276,22 +276,28 @@ def api_project_roles_detail(request):
                     }
                 else:
                     prc = None
-                project_nodes.append({'id': item.pk, 'name': item.name, 'process': prc})
+
+                pras = ProjectRoleAllocation.objects.filter(project_id=project_id, node_id=item.id).values()
+                project_nodes.append(
+                    {'id': item.pk, 'name': item.name, 'process': prc, 'project_role_allocs': list(pras)})
             # 项目角色，按类型分类
-            sql = '''SELECT t.id,t.type,t.`name` role_name,t.max,t.min,t.category,t.image_id,i.`name` image_name,i.gender
+            sql = '''SELECT t.id,t.type,t.`name` role_name,t.max,t.min,t.category,t.image_id,t.capacity, t.job_type_id,i.`name` image_name,i.gender
             from t_project_role t LEFT JOIN t_role_image i ON t.image_id=i.id
             WHERE t.type != \'{0}\' and t.project_id={1}'''.format(const.ROLE_TYPE_OBSERVER, project_id)
             logger.info(sql)
-            project_roles = query.select(sql, ['id', 'type', 'role_name', 'max', 'min', 'category', 'image_id',
-                                               'image_name', 'gender'])
-            for i in range(0, len(project_roles)):
-                role_id = project_roles[i]['id']
-                node_ids = []
-                if role_id:
-                    node_ids = set(ProjectRoleAllocation.objects.filter(project_id=project_id,
-                                                                        role_id=role_id).values_list('node_id',
-                                                                                                     flat=True))
-                project_roles[i]['node_ids'] = list(node_ids)
+            project_roles = query.select(sql,
+                                         ['id', 'type', 'role_name', 'max', 'min', 'category', 'image_id', 'capacity',
+                                          'job_type_id',
+                                          'image_name', 'gender'])
+
+            # for i in range(0, len(project_roles)):
+            #     role_id = project_roles[i]['id']
+            #     node_ids = []
+            #     if role_id:
+            #         node_ids = set(ProjectRoleAllocation.objects.filter(project_id=project_id,
+            #                                                             role_id=role_id).values_list('node_id',
+            #                                                                                          flat=True))
+            #     project_roles[i]['node_ids'] = list(node_ids)
             project_role_type = ProjectRole.objects.filter(project_id=project_id) \
                 .exclude(type=const.ROLE_TYPE_OBSERVER).values_list('type', flat=True).distinct()
             logger.info(project_role_type.query)
@@ -688,7 +694,8 @@ def api_project_create(request):
                     entire_graph=entire_graph, can_redo=can_redo, is_open=is_open,
                     ability_target=ability_target, start_time=start_time, end_time=end_time,
                     intro=intro, purpose=purpose, requirement=requirement,
-                    type=flow.type_label, created_by=Tuser.objects.get(id=request.user.pk), created_role_id=request.session['login_type'])
+                    type=flow.type_label, created_by=Tuser.objects.get(id=request.user.pk),
+                    created_role_id=request.session['login_type'])
 
                 if is_open == '4':
                     target_users = eval(request.POST.get("target_users", ''))
@@ -718,6 +725,7 @@ def api_project_create(request):
                                                                          role_id=role.id,
                                                                          can_terminate=item.can_terminate,
                                                                          can_brought=item.can_brought,
+                                                                         can_take_in=item.can_take_in,
                                                                          no=item.no))
                 ProjectRoleAllocation.objects.bulk_create(project_allocations)
                 logger.info('-----bulk_create project_allocations:%s----' % len(project_allocations))
@@ -727,14 +735,16 @@ def api_project_create(request):
                 docs = FlowDocs.objects.filter(flow_id=flow_id, del_flag=0)
                 for item in docs:
                     flow_node_docs = FlowNodeDocs.objects.filter(flow_id=flow_id, doc_id=item.id, del_flag=0)
-                    if flow_node_docs.exists(): # doc에 해당하는 flow_node가 존재
+                    if flow_node_docs.exists():  # doc에 해당하는 flow_node가 존재
                         new = ProjectDoc.objects.create(project_id=obj.pk, name=item.name, type=item.type,
                                                         usage=item.usage, file=item.file, content=item.content,
-                                                        file_type=item.file_type, is_flow=True) # flowDoc를 projectDoc에 복사
-                        for n in flow_node_docs: # doc에 해당하는 flow_node들을 돌려주면서
+                                                        file_type=item.file_type,
+                                                        is_flow=True)  # flowDoc를 projectDoc에 복사
+                        for n in flow_node_docs:  # doc에 해당하는 flow_node들을 돌려주면서
                             projectRoleAllocations = ProjectRoleAllocation.objects.filter(project_id=obj.pk,
-                                                                                          node_id=n.node_id) # 해당한 node에 참가하는 role들을 얻기
-                            for r in projectRoleAllocations: # 해당한 node에 참가하는 role들을 no함께 돌려준다
+                                                                                          node_id=n.node_id,
+                                                                                          can_take_in=True)  # 해당한 node에 참가하는 role들을 얻기
+                            for r in projectRoleAllocations:  # 해당한 node에 참가하는 role들을 no함께 돌려준다
                                 docs_allocations.append(
                                     ProjectDocRole(project_id=obj.pk, node_id=n.node_id, doc_id=new.pk,
                                                    role_id=r.role_id, no=r.no))
@@ -783,13 +793,15 @@ def api_project_list(request):
             if request.session['login_type'] == 2:
                 groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
-                qs = qs.filter(Q(is_group_share=1) | (Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID])))
+                qs = qs.filter(Q(is_group_share=1) | (
+                    Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID])))
 
             if request.session['login_type'] == 3:
                 groupInfo = json.loads(
                     public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
                 groupID = groupInfo['group_id']
-                qs = qs.filter(Q(created_by=user.id) | (Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
+                qs = qs.filter(
+                    Q(created_by=user.id) | (Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
         paginator = Paginator(qs, size)
 
@@ -830,15 +842,24 @@ def api_project_list(request):
                             currentShare = 1
 
             results.append({
-                'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role, 'officeItem': project.officeItem_id,
-                'course': project.course_id, 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
-                'course_name': project.course.name, 'reference': project.reference, 'public_status': project.public_status, 'level': project.level,
-                'entire_graph': project.entire_graph, 'type': project.type, 'can_redo': project.can_redo, 'is_open': project.is_open,
-                'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id),
-                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '', 'flow': flow_data, 'intro': project.intro,
-                'purpose': project.purpose, 'requirement': project.requirement, 'protected': project.protected, 'is_group_share': project.is_group_share,
-                'is_company_share': project.is_company_share, 'share_able': shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share': currentShare,
-                'target_parts': {'value': project.target_parts.id, 'text': project.target_parts.name} if project.target_parts_id else {}
+                'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
+                'officeItem': project.officeItem_id,
+                'course': project.course_id,
+                'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
+                'course_name': project.course.name, 'reference': project.reference,
+                'public_status': project.public_status, 'level': project.level,
+                'entire_graph': project.entire_graph, 'type': project.type, 'can_redo': project.can_redo,
+                'is_open': project.is_open,
+                'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time,
+                'created_by': user_simple_info(project.created_by.id),
+                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
+                'flow': flow_data, 'intro': project.intro,
+                'purpose': project.purpose, 'requirement': project.requirement, 'protected': project.protected,
+                'is_group_share': project.is_group_share,
+                'is_company_share': project.is_company_share, 'share_able': shareAble, 'edit_able': editAble,
+                'delete_able': deleteAble, 'current_share': currentShare,
+                'target_parts': {'value': project.target_parts.id,
+                                 'text': project.target_parts.name} if project.target_parts_id else {}
             })
 
         # 分页信息
