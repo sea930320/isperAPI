@@ -1654,6 +1654,7 @@ def api_workflow_list(request):
         search = request.GET.get("search", None)  # 搜索关键字
         page = int(request.GET.get("page", 1))
         size = int(request.GET.get("size", const.ROW_SIZE))
+        flow_id = request.GET.get("flow_id", None)
 
         user = request.user
         login_type = request.session['login_type']
@@ -1731,10 +1732,15 @@ def api_workflow_list(request):
         # 分页
         paginator = Paginator(qs, size)
 
-        try:
-            flows = paginator.page(page)
-        except EmptyPage:
-            flows = paginator.page(1)
+        if flow_id:
+            flowSequence = list(qs).index(Flow.objects.get(id=flow_id)) + 1
+            pageIndex = (flowSequence / size) if flowSequence % size == 0 else (flowSequence / size + 1)
+            flows = paginator.page(pageIndex)
+        else:
+            try:
+                flows = paginator.page(page)
+            except EmptyPage:
+                flows = paginator.page(1)
 
         results = []
         for flow in flows:
