@@ -262,7 +262,7 @@ urlpatterns += (
 
 urlpatterns += (
     url(r'^api/dic/getDicData$', dictionary_views.get_dic_data),
-    url(r'^api/dic/getPPData$', dictionary_views.get_pp_data),
+    url(r'^api/dic/getOfficeItemData$', dictionary_views.get_officeItem_data),
     url(r'^api/dic/newItemSave$', dictionary_views.new_item_save),
     url(r'^api/dic/editItemSave$', dictionary_views.edit_item_save),
     url(r'^api/dic/deleteItemSave$', dictionary_views.delete_item_save),

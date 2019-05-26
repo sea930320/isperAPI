@@ -18,6 +18,7 @@ from course.models import Course, CourseClass
 from utils.request_auth import auth_check
 from utils import query, code, public_fun, tools
 from django.core.cache import cache
+from utils.permission import permission_check
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,6 @@ def api_project_docs_detail(request):
             resp = code.get_msg(code.SUCCESS)
             # 流程
             flow = Flow.objects.filter(pk=obj.flow_id, del_flag=0).first()
-            print flow
             if flow is None:
                 resp = code.get_msg(code.FLOW_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -404,6 +404,7 @@ def api_project_update(request):
         start_time = request.POST.get("start_time", None)  # 开放开始时间
         end_time = request.POST.get("end_time", None)  # 开放结束时间
         intro = request.POST.get("intro", None)  # 项目简介
+        officeItem = request.POST.get("officeItem", None)
         purpose = request.POST.get("purpose", None)  # 实验目的
         requirement = request.POST.get("requirement", None)  # 实验要求
 
@@ -421,26 +422,26 @@ def api_project_update(request):
                     resp = code.get_msg(code.PARAMETER_ERROR)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-                if is_open == '1' or is_open == '3':
-                    if start_time is None or start_time == '':
-                        start_time = None
-                    else:
-                        start_time = datetime.strptime(start_time, '%Y-%m-%d')
-                    if end_time is None or end_time == '':
-                        end_time = None
-                    else:
-                        end_time = datetime.strptime(end_time, '%Y-%m-%d')
-
-                if is_open == '2':
+                if is_open == '3':
                     if start_time is None or start_time == '' or end_time is None or end_time == '':
                         resp = code.get_msg(code.PARAMETER_ERROR)
                         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
                     start_time = datetime.strptime(start_time, '%Y-%m-%d')
                     end_time = datetime.strptime(end_time, '%Y-%m-%d')
+                else:
+                    start_time = None
+                    end_time = None
+
+                if is_open == '4':
+                    target_users = eval(request.POST.get("target_users", ''))
+                    obj.target_users = Tuser.objects.filter(id__in=target_users)
+                if is_open == '5':
+                    target_parts = request.POST.get("target_parts", None)
+                    obj.target_parts_id = target_parts
 
                 obj.name = name
                 obj.all_role = all_role
-                obj.course = course
+                obj.course = TCourse.objects.get(id=course)
                 obj.reference = reference
                 obj.public_status = public_status
                 obj.level = level
@@ -451,22 +452,14 @@ def api_project_update(request):
                 obj.start_time = start_time
                 obj.end_time = end_time
                 obj.intro = intro
+                obj.officeItem_id = officeItem
                 obj.purpose = purpose
                 obj.requirement = requirement
                 if obj.step < const.PRO_STEP_1:
                     obj.step = const.PRO_STEP_1
                 obj.save()
                 resp = code.get_msg(code.SUCCESS)
-                start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
-                end_time = obj.end_time.strftime('%Y-%m-%d') if obj.end_time else ''
-                resp['d'] = {
-                    'flow_id': obj.flow_id, 'name': obj.name, 'all_role': obj.all_role, 'course': obj.course,
-                    'reference': obj.reference, 'public_status': obj.public_status, 'level': obj.level,
-                    'entire_graph': obj.entire_graph, 'can_redo': obj.can_redo, 'is_open': obj.is_open,
-                    'ability_target': obj.ability_target, 'start_time': start_time,
-                    'end_time': end_time, 'intro': obj.intro, 'purpose': obj.purpose,
-                    'requirement': obj.requirement, 'id': obj.id
-                }
+                resp['d'] = {'results': 'success'}
                 cache.clear()
 
             else:
@@ -554,7 +547,6 @@ def api_project_detail(request):
         project_id = request.GET.get("project_id", None)  # 项目ID
 
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
-        print project_id
         if obj:
             flow = Flow.objects.get(pk=obj.flow_id)
             # 项目角色
@@ -720,6 +712,7 @@ def api_project_create(request):
                                                                          role_id=role.id,
                                                                          can_terminate=item.can_terminate,
                                                                          can_brought=item.can_brought,
+                                                                         can_take_in=item.can_take_in,
                                                                          no=item.no))
                 ProjectRoleAllocation.objects.bulk_create(project_allocations)
                 logger.info('-----bulk_create project_allocations:%s----' % len(project_allocations))
@@ -729,14 +722,16 @@ def api_project_create(request):
                 docs = FlowDocs.objects.filter(flow_id=flow_id, del_flag=0)
                 for item in docs:
                     flow_node_docs = FlowNodeDocs.objects.filter(flow_id=flow_id, doc_id=item.id, del_flag=0)
-                    if flow_node_docs.exists(): # doc에 해당하는 flow_node가 존재
+                    if flow_node_docs.exists():  # doc에 해당하는 flow_node가 존재
                         new = ProjectDoc.objects.create(project_id=obj.pk, name=item.name, type=item.type,
                                                         usage=item.usage, file=item.file, content=item.content,
-                                                        file_type=item.file_type, is_flow=True) # flowDoc를 projectDoc에 복사
-                        for n in flow_node_docs: # doc에 해당하는 flow_node들을 돌려주면서
+                                                        file_type=item.file_type,
+                                                        is_flow=True)  # flowDoc를 projectDoc에 복사
+                        for n in flow_node_docs:  # doc에 해당하는 flow_node들을 돌려주면서
                             projectRoleAllocations = ProjectRoleAllocation.objects.filter(project_id=obj.pk,
-                                                                                          node_id=n.node_id) # 해당한 node에 참가하는 role들을 얻기
-                            for r in projectRoleAllocations: # 해당한 node에 참가하는 role들을 no함께 돌려준다
+                                                                                          node_id=n.node_id,
+                                                                                          can_take_in=True)  # 해당한 node에 참가하는 role들을 얻기
+                            for r in projectRoleAllocations:  # 해당한 node에 참가하는 role들을 no함께 돌려준다
                                 docs_allocations.append(
                                     ProjectDocRole(project_id=obj.pk, node_id=n.node_id, doc_id=new.pk,
                                                    role_id=r.role_id, no=r.no))
@@ -744,16 +739,7 @@ def api_project_create(request):
                 logger.info('-----bulk_create docs_allocations:%s----' % len(docs_allocations))
 
                 resp = code.get_msg(code.SUCCESS)
-                start_time = obj.start_time.strftime('%Y-%m-%d') if obj.start_time else ''
-                end_time = obj.end_time.strftime('%Y-%m-%d') if obj.end_time else ''
-                resp['d'] = {
-                    'flow_id': obj.flow_id, 'name': obj.name, 'all_role': obj.all_role, 'course': obj.course.name,
-                    'reference': obj.reference, 'public_status': obj.public_status, 'level': obj.level,
-                    'entire_graph': obj.entire_graph, 'type': obj.type, 'can_redo': obj.can_redo,
-                    'is_open': obj.is_open, 'ability_target': obj.ability_target, 'start_time': start_time,
-                    'end_time': end_time, 'intro': obj.intro, 'purpose': obj.purpose,
-                    'requirement': obj.requirement, 'id': obj.id
-                }
+                resp['d'] = {'id': obj.id}
         else:
             resp = code.get_msg(code.PARAMETER_ERROR)
     except Exception as e:
@@ -777,7 +763,6 @@ def api_project_list(request):
 
         if search:
             qs = qs.filter(name__icontains=search)
-            print search
 
         user = request.user
 
@@ -788,7 +773,7 @@ def api_project_list(request):
                 qs = qs.filter(Q(is_group_share=1) | (Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID])))
 
             if request.session['login_type'] == 3:
-                groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id)['group_id'])
+                groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
                 qs = qs.filter(Q(created_by=user.id) | (Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
 
