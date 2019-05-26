@@ -829,11 +829,17 @@ def api_project_list(request):
                         if project.is_company_share == 1:
                             currentShare = 1
 
-            projectItem = {'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role, 'officeItem': project.officeItem_id, 'course': project.course_id, 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()], 'course_name': project.course.name, 'reference': project.reference, 'public_status': project.public_status, 'level': project.level, 'entire_graph': project.entire_graph, 'type': project.type,
-                           'can_redo': project.can_redo, 'is_open': project.is_open, 'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id), 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '', 'flow': flow_data, 'intro': project.intro, 'purpose': project.purpose, 'requirement': project.requirement, 'protected': project.protected,
-                           'is_group_share': project.is_group_share, 'is_company_share': project.is_company_share, 'share_able': shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share': currentShare, 'target_parts': {'value': project.target_parts.id, 'text': project.target_parts.name} if project.target_parts_id else {}}
-
-            results.append(projectItem)
+            results.append({
+                'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role, 'officeItem': project.officeItem_id,
+                'course': project.course_id, 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
+                'course_name': project.course.name, 'reference': project.reference, 'public_status': project.public_status, 'level': project.level,
+                'entire_graph': project.entire_graph, 'type': project.type, 'can_redo': project.can_redo, 'is_open': project.is_open,
+                'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time, 'created_by': user_simple_info(project.created_by.id),
+                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '', 'flow': flow_data, 'intro': project.intro,
+                'purpose': project.purpose, 'requirement': project.requirement, 'protected': project.protected, 'is_group_share': project.is_group_share,
+                'is_company_share': project.is_company_share, 'share_able': shareAble, 'edit_able': editAble, 'delete_able': deleteAble, 'current_share': currentShare,
+                'target_parts': {'value': project.target_parts.id, 'text': project.target_parts.name} if project.target_parts_id else {}
+            })
 
         # 分页信息
         paging = {
