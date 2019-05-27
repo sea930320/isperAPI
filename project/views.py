@@ -278,8 +278,15 @@ def api_project_roles_detail(request):
                     prc = None
 
                 pras = ProjectRoleAllocation.objects.filter(project_id=project_id, node_id=item.id).values()
+                look_on = False
+                try:
+                    projectNodeInfo = item.projectnodeinfo_set.get(project_id=obj.id)
+                    look_on = projectNodeInfo.look_on
+                except:
+                    look_on = False
                 project_nodes.append(
-                    {'id': item.pk, 'name': item.name, 'process': prc, 'project_role_allocs': list(pras)})
+                    {'id': item.pk, 'name': item.name, 'process': prc, 'project_role_allocs': list(pras),
+                     'look_on': look_on})
             # 项目角色，按类型分类
             sql = '''SELECT t.id,t.type,t.`name` role_name,t.max,t.min,t.category,t.image_id,t.capacity, t.job_type_id,i.`name` image_name,i.gender
             from t_project_role t LEFT JOIN t_role_image i ON t.image_id=i.id
@@ -354,28 +361,38 @@ def api_project_roles_configurate(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
         if obj:
-            cache.clear()
-
-            resp = code.get_msg(code.SUCCESS)
-            data = json.loads(data)
+            projectNodes = json.loads(data)
             with transaction.atomic():
+                for key, node in enumerate(projectNodes):
+                    projectRoleAllocs = node['project_role_allocs']
+                    flowNode = FlowNode.objects.get(pk=node['id'])
+                    for key1, pra in enumerate(projectRoleAllocs):
+                        ProjectRoleAllocation.objects.filter(pk=pra['id']).update(can_take_in=pra['can_take_in'],
+                                                                              can_terminate=pra['can_terminate'],
+                                                                              can_brought=pra['can_brought'])
+                    projectNodeInfo = ProjectNodeInfo.objects.filter(project=obj, node=flowNode)
+                    if projectNodeInfo.count() > 0:
+                        projectNodeInfo.update(look_on=node['look_on'])
+                    else:
+                        ProjectNodeInfo.objects.create(project=obj, node=flowNode, look_on=node['look_on'])
                 # 角色形象
                 # for item in data['project_roles']:
                 #     ProjectRole.objects.filter(pk=item['id']).update(image_id=item['image_id'])
 
-                # 角色分配，清除原分配，保存新分配
-                ProjectRoleAllocation.objects.filter(project_id=project_id).delete()
-                role_node_list = []
-                for item in data['project_node_roles']:
-                    role_node_list.append(ProjectRoleAllocation(project_id=project_id, node_id=item['node_id'],
-                                                                role_id=item['role_id'],
-                                                                can_terminate=item['can_terminate'],
-                                                                can_brought=item['can_brought'],
-                                                                num=item['num'], score=item['score']))
-                ProjectRoleAllocation.objects.bulk_create(role_node_list)
+                # # 角色分配，清除原分配，保存新分配
+                # ProjectRoleAllocation.objects.filter(project_id=project_id).delete()
+                # role_node_list = []
+                # for item in data['project_node_roles']:
+                #     role_node_list.append(ProjectRoleAllocation(project_id=project_id, node_id=item['node_id'],
+                #                                                 role_id=item['role_id'],
+                #                                                 can_terminate=item['can_terminate'],
+                #                                                 can_brought=item['can_brought'],
+                #                                                 num=item['num'], score=item['score']))
+                # ProjectRoleAllocation.objects.bulk_create(role_node_list)
                 if obj.step < const.PRO_STEP_2:
                     obj.step = const.PRO_STEP_2
                     obj.save()
+            resp = code.get_msg(code.SUCCESS)
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

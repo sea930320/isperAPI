@@ -5,6 +5,7 @@ from django.db import models
 from utils.storage import *
 from utils import const
 from account.models import Tuser, TJobType, TParts, TCourse, TRole, OfficeItems
+from workflow.models import FlowNode
 
 
 # 实验项目
@@ -46,6 +47,16 @@ class Project(models.Model):
 
     def __unicode__(self):
         return self.name
+
+class ProjectNodeInfo(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
+    look_on = models.BooleanField(verbose_name=u'Look On')
+    class Meta:
+        db_table = "t_project_node_info"
+
+    def __unicode__(self):
+        return self.project.name + self.node.name
 
 
 # 项目角色

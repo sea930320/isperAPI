@@ -154,7 +154,7 @@ urlpatterns += (
     url(r'^api/project/docs/delete$', project_views.api_project_docs_delete), # Jonas
     url(r'^api/project/docs/create$', project_views.api_project_docs_create),
     url(r'^api/project/roles/detail$', project_views.api_project_roles_detail), # Jonas
-    url(r'^api/project/roles/configurate$', project_views.api_project_roles_configurate),
+    url(r'^api/project/roles/configurate$', project_views.api_project_roles_configurate), # Jonas
     url(r'^api/project/role/image/update$', project_views.api_project_role_image_update),
     url(r'^api/project/jump/detail$', project_views.api_project_jump_detail),
     url(r'^api/project/jump/setup$', project_views.api_project_jump_setup),
