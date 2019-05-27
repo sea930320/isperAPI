@@ -22,7 +22,8 @@ from account.service import get_client_ip
 from django.contrib import auth
 from django.http import JsonResponse
 from django.http import HttpResponse
-from account.models import Tuser, TCompany, TClass, LoginLog, WorkLog, TRole, TCompanyManagerAssistants, TPermission, TAction, \
+from account.models import Tuser, TCompany, TClass, LoginLog, WorkLog, TRole, TCompanyManagerAssistants, TPermission, \
+    TAction, \
     TNotifications
 from experiment.models import Experiment
 from team.models import TeamMember
@@ -1719,6 +1720,7 @@ def api_export_loginlogs(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_get_worklog_list(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -1774,7 +1776,8 @@ def api_get_worklog_list(request):
             company = log.company is not None and model_to_dict(log.company, fields=['id', 'name']) or None
             role = log.role is not None and model_to_dict(log.role, fields=['id', 'name']) or None
             results.append({
-                'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group,
+                'id': log.id, 'user_id': log.user.username if log.user else '',
+                'user_name': log.user.name if log.user else '', 'group': group,
                 'company': company,
                 'role': role, 'log_at': log.log_at is not None and log.log_at.strftime('%Y-%m-%d') or "",
                 'ip': log.ip, 'action': log.action, 'targets': log.targets
@@ -1893,6 +1896,7 @@ def api_export_worklogs(request):
         logger.exception('api_export_worklogs Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_get_assistants(request):
     resp = auth_check(request, "GET")
@@ -2137,5 +2141,121 @@ def get_own_messages(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_get_permissions Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_get_worklog_statistic(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        group_id = request.GET.get("group_id", None)
+        company_id = request.GET.get("company_id", None)
+        start_date = request.GET.get("start_date", None)
+        end_date = request.GET.get("end_date", None)
+        user = request.user
+        login_type = request.session['login_type']
+        if not permission_check(request, 'code_log_statistics_system_set'):
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if login_type == 1:
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif login_type in [2, 6]:
+            group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif login_type in [3, 7]:
+            company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+            company_id = company.id
+            group_id = company.group.id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        else:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if group_id:
+            qs = qs.filter(group__pk=int(group_id))
+        if company_id:
+            qs = qs.filter(company__pk=int(company_id))
+        if start_date:
+            qs = qs.filter(log_at__gt=datetime.strptime(start_date, '%Y-%m-%d'))
+        if end_date:
+            qs = qs.filter(log_at__lte=datetime.strptime(end_date, '%Y-%m-%d'))
+
+        flowLogQs = qs.filter(request_url__icontains="workflow")
+        projectLogQs = qs.filter(request_url__icontains="project")
+        businessLogQs = qs.filter(request_url__icontains="experiment")
+        systemLogQs = qs.filter(
+            Q(request_url__icontains="dic") | Q(request_url__icontains="api/account/set/roles/actions"))
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': {
+            'workflow': flowLogQs.count(),
+            'project': projectLogQs.count(),
+            'system': systemLogQs.count(),
+            'business': businessLogQs.count()
+        }}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_get_worklog_statistic Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_get_user_statistic(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        group_id = request.GET.get("group_id", None)
+        company_id = request.GET.get("company_id", None)
+        start_date = request.GET.get("start_date", None)
+        end_date = request.GET.get("end_date", None)
+        if start_date is None or end_date is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        user = request.user
+        login_type = request.session['login_type']
+        if not permission_check(request, 'code_log_statistics_system_set'):
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if login_type == 1:
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif login_type in [2, 6]:
+            group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        elif login_type in [3, 7]:
+            company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
+            company_id = company.id
+            group_id = company.group.id
+            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+        else:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if group_id:
+            qs = qs.filter(group__pk=int(group_id))
+        if company_id:
+            qs = qs.filter(company__pk=int(company_id))
+
+        reviewedQs = qs.filter(request_url__icontains="set_Review")
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+        results = []
+        for n in range(int((end_date - start_date).days)):
+            iterDate = start_date + timedelta(n)
+            curReviewedQs = reviewedQs.filter(log_at__date=iterDate.date())
+            results.append({
+                'x': int((iterDate - datetime(1970, 1, 1)).total_seconds()) * 1000,
+                'y': curReviewedQs.count()
+            })
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_get_user_statistic Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

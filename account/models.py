@@ -256,8 +256,8 @@ class Tuser(AbstractBaseUser, PermissionsMixin):
     is_admin = models.BooleanField(default=False, verbose_name=u'超级管理员')
     class_name = models.CharField(max_length=256, null=True, blank=True)
     student_id = models.IntegerField(null=True, blank=True)
-    tclass = models.ForeignKey(TClass, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'班级')
-    tcompany = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.PROTECT, verbose_name=u'所在单位')
+    tclass = models.ForeignKey(TClass, blank=True, null=True, on_delete=models.SET_NULL, verbose_name=u'班级')
+    tcompany = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.SET_NULL, verbose_name=u'所在单位')
     tposition = models.ForeignKey(TPositions, blank=True, null=True, on_delete=models.SET_NULL)
     director = models.BooleanField(default=False, verbose_name=u'是否具有指导权限')
     manage = models.BooleanField(default=False, verbose_name=u'是否具有管理权限')
@@ -308,6 +308,16 @@ class TCompanyChange(models.Model):
 
     def __unicode__(self):
         return self.reason
+
+
+class TCourse(models.Model):
+    name = models.CharField(max_length=48, default='')
+
+    class Meta:
+        db_table = "t_course"
+
+    def __unicode__(self):
+        return self.name
 
 
 class TNotifications(models.Model):

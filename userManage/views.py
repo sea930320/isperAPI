@@ -410,10 +410,11 @@ def get_group_nonCompanyUsers(request):
 
         search = request.POST.get("search", None)
         group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
+        default_company_id = TCompany.objects.get(Q(group_id=group_id)&Q(is_default=1)).id
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
-        qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(tcompany__group_id=group_id))
+        qs = Tuser.objects.filter(Q(roles=5) & Q(is_review=0) & Q(tcompany_id=default_company_id))
 
         if search:
             qs = qs.filter(username__icontains=search)

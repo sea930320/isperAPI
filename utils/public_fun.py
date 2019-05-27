@@ -42,7 +42,7 @@ def get_map(data, id):
 def getGroupByGroupManagerID(loginType, userID):
     res = {}
     # Group Manager
-    if (loginType == 2):
+    if loginType == 2:
         # Group Manager
         try:
             res['login_type'] = 'G'
@@ -64,10 +64,11 @@ def getGroupByGroupManagerID(loginType, userID):
             resp = code.get_msg(code.PERMISSION_DENIED)
         return json.dumps(res)
 
+
 def getGroupByCompanyManagerID(loginType, userID):
     res = {}
     # Company Manager
-    if (loginType == 3):
+    if loginType == 3:
         # Company Manager
         res['login_type'] = 'C'
         user = Tuser.objects.get(id=userID)
@@ -81,6 +82,7 @@ def getGroupByCompanyManagerID(loginType, userID):
         res['companies'] = companies
         res['group_id'] = groupID
     return json.dumps(res)
+
 
 def loginLog(loginType, userID, ip):
     user = Tuser.objects.get(id=userID)

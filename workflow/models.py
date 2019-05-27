@@ -154,7 +154,7 @@ class FlowRoleAllocation(models.Model):
     role = models.ForeignKey(FlowRole, verbose_name=u'角色')
     can_terminate = models.BooleanField(verbose_name=u'结束环节权限')
     can_brought = models.BooleanField(verbose_name=u'是否被带入')
-    can_take_in = models.BooleanField(verbose_name=u'Take Part in this guy', default=False)
+    can_take_in = models.BooleanField(verbose_name=u'This guy will be taken in this step ', default=False)
     no = models.IntegerField(default=1, verbose_name=u'Number')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
 

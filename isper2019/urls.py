@@ -61,6 +61,8 @@ urlpatterns += (
     url(r'^api/account/get/permissions', account_views.api_get_permissions), #Jonas
     url(r'^api/account/set/assistant/actions', account_views.api_set_assistants_actions), #Jonas
     url(r'^api/account/get/getMessageData', account_views.get_own_messages),
+    url(r'^api/account/get/worklog-statistic', account_views.api_get_worklog_statistic), #Jonas
+    url(r'^api/account/get/user-statistic', account_views.api_get_user_statistic), #Jonas
 )
 
 urlpatterns += (
@@ -151,8 +153,8 @@ urlpatterns += (
     url(r'^api/project/docs/allocate$', project_views.api_project_docs_allocate), # Jonas
     url(r'^api/project/docs/delete$', project_views.api_project_docs_delete), # Jonas
     url(r'^api/project/docs/create$', project_views.api_project_docs_create),
-    url(r'^api/project/roles/detail$', project_views.api_project_roles_detail),
-    url(r'^api/project/roles/configurate$', project_views.api_project_roles_configurate),
+    url(r'^api/project/roles/detail$', project_views.api_project_roles_detail), # Jonas
+    url(r'^api/project/roles/configurate$', project_views.api_project_roles_configurate), # Jonas
     url(r'^api/project/role/image/update$', project_views.api_project_role_image_update),
     url(r'^api/project/jump/detail$', project_views.api_project_jump_detail),
     url(r'^api/project/jump/setup$', project_views.api_project_jump_setup),
@@ -165,6 +167,7 @@ urlpatterns += (
     url(r'^api/project/protected', project_views.api_project_protected),
     url(r'^api/project/share', project_views.api_project_share),
     url(r'^api/project/unshare', project_views.api_project_unshare),
+    url(r'^api/project/getAllUsers_AllParts', project_views.get_allusers_allparts),
 )
 
 urlpatterns += (
@@ -250,6 +253,8 @@ urlpatterns += (
     url(r'^api/group/createInstructors$', group_views.create_instructors),
     url(r'^api/group/all-list$', group_views.get_groups_all_list), #Jonas
     url(r'^api/group/checkUserGroup$', group_views.check_user_group),
+    url(r'^api/group/deleteGroupManager$', group_views.delete_group_manager),
+    url(r'^api/group/deleteGroupInstructor$', group_views.delete_group_instructor),
     url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
     url(r'^api/company/createCompany$', group_views.create_new_company),
     url(r'^api/company/deleteCompany$', group_views.delete_selected_company),
@@ -258,10 +263,12 @@ urlpatterns += (
     url(r'^api/company/addCAssistant$', group_views.add_company_assistant), #Jonas
     url(r'^api/company/updateCManager$', group_views.update_company_manager),
     url(r'^api/company/pCResetManager$', group_views.reset_company_manager),
+    url(r'^api/company/deleteCompanyManager$', group_views.delete_company_manager),
 )
 
 urlpatterns += (
     url(r'^api/dic/getDicData$', dictionary_views.get_dic_data),
+    url(r'^api/dic/getOfficeItemData$', dictionary_views.get_officeItem_data),
     url(r'^api/dic/newItemSave$', dictionary_views.new_item_save),
     url(r'^api/dic/editItemSave$', dictionary_views.edit_item_save),
     url(r'^api/dic/deleteItemSave$', dictionary_views.delete_item_save),

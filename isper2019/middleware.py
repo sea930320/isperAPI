@@ -26,6 +26,7 @@ class LogMiddleware(MiddlewareMixin):
         '/api/account/unset/assistants': '取消绑定',
         '/api/account/password/update': '重置密码',
         '/api/account/user/create': '注册用户',
+        '/api/account/set/roles/actions': '设置角色',
         # userManager
         '/api/userManager/excelDataSave':'导入用户',
         '/api/userManager/newUserSet':'增加用户',
@@ -69,8 +70,8 @@ class LogMiddleware(MiddlewareMixin):
     def process_request(self, request):
         try:
             if request.path in self.workLogMatch.keys():
-                user = request.user if request.user else None
-                loginType = request.session['login_type']
+                user = None if request.user.is_anonymous else request.user if request.user else None
+                loginType = request.session['login_type'] if 'login_type' in request.session else None
                 targets = request.GET.get("targets", None) if request.method == 'GET'.upper() else request.POST.get(
                     "targets", None)
                 role = user.roles.get(pk=loginType) if loginType else None
@@ -94,7 +95,7 @@ class LogMiddleware(MiddlewareMixin):
                     group = user.allgroups_set_instructors.all().first()
                 elif loginType == 8:
                     group = user.allgroups_set_instructor_assistants.all().first()
-                else:
+                elif loginType is not None and user is not None:
                     company = user.tcompany
                     if company is not None:
                         group = company.group

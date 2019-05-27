@@ -4,7 +4,8 @@
 from django.db import models
 from utils.storage import *
 from utils import const
-from account.models import Tuser, TJobType
+from account.models import Tuser, TJobType, TParts, TCourse, TRole, OfficeItems
+from workflow.models import FlowNode
 
 
 # 实验项目
@@ -12,7 +13,7 @@ class Project(models.Model):
     flow_id = models.IntegerField(verbose_name=u'流程')
     name = models.CharField(max_length=64, verbose_name=u'名称')#
     all_role = models.PositiveIntegerField(default=1, choices=const.PROJECT_ALL_ROLE, verbose_name=u'允许一人扮演所有角色')
-    course = models.CharField(max_length=48, verbose_name=u'课程')
+    course = models.ForeignKey(TCourse, verbose_name=u'课程')
     reference = models.PositiveIntegerField(default=1, choices=const.PROJECT_REFERENCE, verbose_name=u'成果参考释放方式')
     public_status = models.PositiveIntegerField(default=1, choices=const.PROJECT_PUBLIC, verbose_name=u'申请为公共项目状态')
     level = models.PositiveIntegerField(default=1, choices=const.PROJECT_LEVEL, verbose_name=u'实验层次')
@@ -20,6 +21,9 @@ class Project(models.Model):
     type = models.PositiveIntegerField(default=1, choices=const.EXPERIMENT_TYPE, verbose_name=u'实验类型')
     can_redo = models.PositiveIntegerField(default=1, choices=const.PROJECT_CAN_REDO, verbose_name=u'是否允许重做')
     is_open = models.PositiveIntegerField(default=1, choices=const.PROJECT_IS_OPEN, verbose_name=u'开放模式')
+    target_users = models.ManyToManyField(Tuser, related_name='projectOpenTargeted_users')
+    target_parts = models.ForeignKey(TParts, blank=True, null=True, on_delete=models.CASCADE)
+    officeItem = models.ForeignKey(OfficeItems, blank=True, null=True, on_delete=models.CASCADE)
     ability_target = models.PositiveIntegerField(default=1, choices=const.PROJECT_ABILITY_TARGET, verbose_name=u'能力目标')
     start_time = models.DateField(blank=True, null=True, verbose_name=u'开放开始时间')
     end_time = models.DateField(blank=True, null=True, verbose_name=u'开放结束时间')
@@ -27,7 +31,8 @@ class Project(models.Model):
     purpose = models.TextField(verbose_name=u'实验目的')
     requirement = models.TextField(verbose_name=u'实验要求')
     step = models.IntegerField(default=const.PRO_STEP_0, verbose_name=u'设置步骤')
-    created_by = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'创建者')
+    created_by = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'创建者', related_name='projectCreator_set')
+    created_role = models.ForeignKey(TRole, models.CASCADE, verbose_name=u'创建者_ROLE')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
@@ -43,17 +48,27 @@ class Project(models.Model):
     def __unicode__(self):
         return self.name
 
+class ProjectNodeInfo(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
+    look_on = models.BooleanField(verbose_name=u'Look On')
+    class Meta:
+        db_table = "t_project_node_info"
+
+    def __unicode__(self):
+        return self.project.name + self.node.name
+
 
 # 项目角色
 class ProjectRole(models.Model):
     project_id = models.IntegerField(verbose_name=u'项目')
     flow_role_id = models.IntegerField(verbose_name=u'流程角色id')
-    image_id = models.IntegerField(verbose_name=u'角色形象')
+    image_id = models.IntegerField(verbose_name=u'角色形象', null=True)
     name = models.CharField(max_length=32, verbose_name=u'角色名称')
     type = models.CharField(max_length=28, verbose_name=u'角色类型')
-    min = models.IntegerField(default=1, verbose_name=u'最小人数')
-    max = models.IntegerField(default=100, verbose_name=u'最大人数')
-    category = models.PositiveIntegerField(verbose_name=u'类别')
+    min = models.IntegerField(default=1, verbose_name=u'最小人数', null=True)
+    max = models.IntegerField(default=100, verbose_name=u'最大人数', null=True)
+    category = models.PositiveIntegerField(verbose_name=u'类别', null=True)
     capacity = models.IntegerField(verbose_name=u'人数', default=1)
     job_type = models.ForeignKey(TJobType, on_delete=models.SET_NULL, null=True, blank=True)
     class Meta:
@@ -71,6 +86,7 @@ class ProjectRoleAllocation(models.Model):
     role_id = models.IntegerField(verbose_name=u'角色')
     can_terminate = models.BooleanField(verbose_name=u'结束环节权限')
     can_brought = models.BooleanField(verbose_name=u'是否被带入')
+    can_take_in = models.BooleanField(verbose_name=u'This guy will be taken in this step ', default=False)
     num = models.PositiveIntegerField(default=0, verbose_name=u'奖励数量')
     score = models.PositiveIntegerField(default=0, verbose_name=u'奖励分数')
     no = models.IntegerField(default=1, verbose_name=u'Number')
