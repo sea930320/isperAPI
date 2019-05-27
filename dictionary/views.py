@@ -50,13 +50,13 @@ def get_dic_data(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
-def get_pp_data(request):
+def get_officeItem_data(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 2:
+        if request.session['login_type'] not in [2, 6, 3, 7]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         results = [{
