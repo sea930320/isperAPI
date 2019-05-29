@@ -7,7 +7,7 @@ from platform import platform
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 DEBUG = True
-if 'Linux-4.4.0-93-generic-x86_64-with-debian-jessie-sid' in platform():
+if 'Linux-4.4.0-146-generic-x86_64-with-Ubuntu-16.04-xenial' in platform():
     isLiveServer = True
 else:
     isLiveServer = False
