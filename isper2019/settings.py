@@ -95,13 +95,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'isper2019.wsgi.application'
 
-# HOST = '39.107.122.234'
-HOST='127.0.0.1'
-DB_NAME = 'lets'
-# DB_USER = 'remote'
-# DB_PWD = 'remoteadmin'
-DB_USER = 'root'
-DB_PWD = ''
+HOST = '39.107.122.234'
+DB_NAME = 'isper2019'
+DB_USER = 'remote'
+DB_PWD = 'remoteadmin'
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
