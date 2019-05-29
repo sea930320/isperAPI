@@ -12,6 +12,8 @@ from account.service import user_simple_info
 from project.models import *
 from datetime import datetime
 from team.models import Team
+from group.models import AllGroups
+from account.models import TCompany
 from workflow.models import *
 from experiment.models import Experiment
 from course.models import Course, CourseClass
@@ -19,6 +21,7 @@ from utils.request_auth import auth_check
 from utils import query, code, public_fun, tools
 from django.core.cache import cache
 from utils.permission import permission_check
+from django.forms.models import model_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -368,8 +371,8 @@ def api_project_roles_configurate(request):
                     flowNode = FlowNode.objects.get(pk=node['id'])
                     for key1, pra in enumerate(projectRoleAllocs):
                         ProjectRoleAllocation.objects.filter(pk=pra['id']).update(can_take_in=pra['can_take_in'],
-                                                                              can_terminate=pra['can_terminate'],
-                                                                              can_brought=pra['can_brought'])
+                                                                                  can_terminate=pra['can_terminate'],
+                                                                                  can_brought=pra['can_brought'])
                     projectNodeInfo = ProjectNodeInfo.objects.filter(project=obj, node=flowNode)
                     if projectNodeInfo.count() > 0:
                         projectNodeInfo.update(look_on=node['look_on'])
@@ -794,13 +797,53 @@ def api_project_list(request):
                 groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
                 qs = qs.filter(Q(is_group_share=1) | (
-                    Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID])))
+                    Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID]) | Q(
+                        created_by__allgroups_set_assistants__in=[groupID])))
 
             if request.session['login_type'] == 3:
                 groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
                 qs = qs.filter(
                     Q(created_by=user.id) | (Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
+            if request.session['login_type'] == 5:
+                group_id = request.GET.get("group_id", None)
+                company_id = request.GET.get("company_id", None)
+                office_id = request.GET.get('office_id', None)
+                by_method = request.GET.get('by_method', None)
+                if group_id and by_method == 'company':
+                    group = AllGroups.objects.get(pk=int(group_id))
+                    groupManagers = group.groupManagers.all()
+                    groupAssistants = group.groupManagerAssistants.all()
+                    createdByGMs = [manager.id for manager in groupManagers]
+                    createdByGMAs = [manager.id for manager in groupAssistants]
+                    companies = group.tcompany_set.all()  # get all companies
+                    createdByCMs = []
+                    createdByCMAs = []
+                    for company in companies:
+                        companyManagers = company.tcompanymanagers_set.all()  # get all company managers
+                        companyAssistants = company.assistants.all()  # get all company manager assistants
+                        for companyManager in companyManagers:
+                            createdByCMs.append(companyManager.tuser.id)
+                        for companyAssistant in companyAssistants:
+                            createdByCMAs.append(companyAssistant.id)
+                    qs = qs.filter((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) | (
+                        Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) | (
+                                       Q(created_by__in=createdByCMs) & Q(created_role_id=3)) | (
+                                       Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                if company_id and by_method == 'company':
+                    company = TCompany.objects.get(pk=int(company_id))
+                    companyManagers = company.tcompanymanagers_set.all()
+                    companyAssistants = company.assistants.all()
+                    createdByCMs = []
+                    createdByCMAs = []
+                    for companyManager in companyManagers:
+                        createdByCMs.append(companyManager.tuser.id)
+                    for companyAssistant in companyAssistants:
+                        createdByCMAs.append(companyAssistant.id)
+                    qs = qs.filter((Q(created_by__in=createdByCMs) & Q(created_role_id=3)) | (
+                        Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                if office_id and by_method == 'office':
+                    qs = qs.filter(officeItem_id=int(office_id))
 
         paginator = Paginator(qs, size)
 
@@ -839,10 +882,12 @@ def api_project_list(request):
                     if request.session['login_type'] == 3:
                         if project.is_company_share == 1:
                             currentShare = 1
+            company_name = project.created_by.tcompanymanagers_set.get().tcompany.name if project.created_role_id == 3 else  project.created_by.t_company_set_assistants.get().name if project.created_role_id == 7 else ''
 
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
-                'officeItem': project.officeItem_id,
+                'company_name': company_name,
+                'officeItem': model_to_dict(project.officeItem) if project.officeItem else {},
                 'course': project.course_id,
                 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
                 'course_name': project.course.name, 'reference': project.reference,
