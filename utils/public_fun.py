@@ -114,3 +114,25 @@ def loginLog(loginType, userID, ip):
             group = company.group
     login_log = LoginLog(user=user, role=role, group=group, company=company, login_ip=ip)
     login_log.save()
+
+
+def getProjectIDByGroupManager(loginType, userID):
+    res = []
+    # Group Manager
+    res['login_type'] = 'G'
+    user = Tuser.objects.get(id=userID)
+    # Group ID
+    group = user.allgroups_set.all().first()
+    res['group_id'] = group.id
+    groupManagers = group.groupManagers.all()
+    groupManagersIDs = []
+    for groupManager in groupManagers:
+        groupManagersIDs.append(groupManager.id)
+    companies_group = TCompany.objects.filter(group_id=res['group_id'])
+    companies = []
+    for company_id in companies_group:
+        companies.append(company_id.id)
+    res['companies'] = companies
+    res['groupManagers'] = groupManagersIDs
+#     resp = code.get_msg(code.PERMISSION_DENIED)
+# return json.dumps(res)
