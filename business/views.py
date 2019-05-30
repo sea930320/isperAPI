@@ -30,7 +30,6 @@ def api_experiment_list_nodel(request):
 
         try:
             userID = request.user.id
-            print userID
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
@@ -92,7 +91,7 @@ def api_experiment_list_nodel(request):
 
                 user_roles = []
                 exp = {
-                    'id': item.id, 'name': u'{0} {1}'.format(item.id, item.name), 'show_nickname': item.show_nickname,
+                    'id': item.id, 'name':item.name, 'show_nickname': item.show_nickname,
                     'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
                     'end_time': item.end_time.strftime('%Y-%m-%d') if item.end_time else None,
                     'team': team_dict, 'status': item.status, 'created_by': user_simple_info(item.created_by),
@@ -194,7 +193,7 @@ def api_experiment_list_del(request):
 
                 user_roles = []
                 exp = {
-                    'id': item.id, 'name': u'{0} {1}'.format(item.id, item.name), 'show_nickname': item.show_nickname,
+                    'id': item.id, 'name': item.name, 'show_nickname': item.show_nickname,
                     'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
                     'end_time': item.end_time.strftime('%Y-%m-%d') if item.end_time else None,
                     'team': team_dict, 'status': item.status, 'created_by': user_simple_info(item.created_by),
@@ -253,6 +252,7 @@ def api_experiment_delete(request):
         resp = code.get_msg(code.PERMISSION_DENIED)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 # Recovery Business
 def api_experiment_recovery(request):
     if request.session['login_type'] in [2, 6]:
@@ -291,7 +291,6 @@ def api_experiment_result(request):
             experiment_id = request.GET.get("experiment_id")  # 实验ID
             user_id = request.user.id
             exp = Experiment.objects.filter(pk=experiment_id).first()
-            print experiment_id
             if exp:
                 team = Team.objects.filter(pk=exp.team_id).first()
                 project = Project.objects.filter(pk=exp.project_id).first()
@@ -310,198 +309,165 @@ def api_experiment_result(request):
                 # 各环节提交文件信息和聊天信息
                 paths = ExperimentTransPath.objects.filter(experiment_id=exp.id)
                 node_list = []
-                for item in paths:
-                    # 个人笔记
-                    note = ExperimentNotes.objects.filter(experiment_id=experiment_id,
-                                                          node_id=item.node_id, created_by=user_id).first()
+                # for item in paths:
+                #     # 个人笔记
+                #     note = ExperimentNotes.objects.filter(experiment_id=experiment_id,
+                #                                           node_id=item.node_id, created_by=user_id).first()
+                #
+                #     # 角色项目素材
+                #     project_doc_list = []
+                #     operation_guide_list = []
+                #     project_tips_list = []
+                #
+                #     doc_ids = FlowNodeDocs.objects.filter(flow_id=flow.pk,
+                #                                           node_id=item.node_id).values_list('doc_id', flat=True)
+                #     if doc_ids:
+                #         operation_docs = FlowDocs.objects.filter(id__in=doc_ids, usage__in=(1, 2, 3))
+                #         for d in operation_docs:
+                #             url = ''
+                #             if d.file:
+                #                 url = d.file.url
+                #             if d.usage == 1:
+                #                 operation_guide_list.append({
+                #                     'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
+                #                     'content': d.content, 'url': url, 'file_type': d.file_type
+                #                 })
+                #             else:
+                #                 project_doc_list.append({
+                #                     'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
+                #                     'content': d.content, 'url': url, 'file_type': d.file_type
+                #                 })
+                #
+                #     # 获取该环节角色分配项目素材id
+                #     doc_ids = ProjectDocRole.objects.filter(project_id=item.project_id,
+                #                                             node_id=item.node_id).values_list('doc_id', flat=True)
+                #
+                #     if doc_ids:
+                #         # logger.info(doc_ids)
+                #         project_docs = ProjectDoc.objects.filter(id__in=doc_ids)
+                #         for d in project_docs:
+                #             if d.usage in [3, 4, 5, 7]:
+                #                 is_exist = False
+                #                 if d.usage == 3:
+                #                     for t in project_doc_list:
+                #                         if d.name == t['name']:
+                #                             is_exist = True
+                #                             break
+                #                 if not is_exist:
+                #                     project_doc_list.append({
+                #                         'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
+                #                         'content': d.content, 'url': d.file.url, 'file_type': d.file_type
+                #                     })
+                #
+                #     node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
+                #     print node
+                #     doc_list = []
+                #     vote_status = []
+                #     # ##############################################################################
+                #     if node.process.type == 2:
+                #         # 如果是编辑
+                #         # 应用模板
+                #         contents = ExperimentDocContent.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
+                #                                                        has_edited=True)
+                #         for d in contents:
+                #             doc_list.append({
+                #                 'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
+                #                 'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                #                 'url': d.file.url if d.file else None
+                #             })
+                #         # 提交的文件
+                #         docs = ExperimentDoc.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
+                #                                             path_id=item.pk)
+                #         for d in docs:
+                #             sign_list = ExperimentDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
+                #             doc_list.append({
+                #                 'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                #                 'signs': list(sign_list), 'url': d.file.url if d.file else None
+                #             })
+                #     elif node.process.type == 3:
+                #         project_docs = ExperimentDoc.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
+                #                                                     path_id=item.pk)
+                #         for d in project_docs:
+                #             doc_list.append({
+                #                 'id': d.id, 'filename': d.filename, 'signs': [],
+                #                 'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
+                #             })
+                #     elif node.process.type == 5:
+                #         vote_status_0_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
+                #                                                                  node_id=item.node_id,
+                #                                                                  path_id=item.id, vote_status=0)
+                #         vote_status_0 = []
+                #         for item0 in vote_status_0_temp:
+                #             role_temp = ProjectRole.objects.filter(id=item0.role_id).first()
+                #             if role_temp.name != const.ROLE_TYPE_OBSERVER:
+                #                 vote_status_0.append(item0)
+                #         vote_status_1_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
+                #                                                                  node_id=item.node_id,
+                #                                                                  path_id=item.id, vote_status=1)
+                #         vote_status_1 = []
+                #         for item1 in vote_status_1_temp:
+                #             role_temp = ProjectRole.objects.filter(id=item1.role_id).first()
+                #             if role_temp.name != const.ROLE_TYPE_OBSERVER:
+                #                 vote_status_1.append(item1)
+                #         vote_status_2_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
+                #                                                                  node_id=item.node_id,
+                #                                                                  path_id=item.id, vote_status=2)
+                #         vote_status_2 = []
+                #         for item2 in vote_status_2_temp:
+                #             role_temp = ProjectRole.objects.filter(id=item2.role_id).first()
+                #             if role_temp.name != const.ROLE_TYPE_OBSERVER:
+                #                 vote_status_2.append(item2)
+                #         vote_status_9_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
+                #                                                                  node_id=item.node_id,
+                #                                                                  path_id=item.id, vote_status=9)
+                #         vote_status_9 = []
+                #         for item9 in vote_status_9_temp:
+                #             role_temp = ProjectRole.objects.filter(id=item9.role_id).first()
+                #             if role_temp.name != const.ROLE_TYPE_OBSERVER:
+                #                 vote_status_9.append(item9)
+                #         vote_status = [{'status': '未投票', 'num': len(vote_status_0)},
+                #                        {'status': '同意', 'num': len(vote_status_1)},
+                #                        {'status': '不同意', 'num': len(vote_status_2)},
+                #                        {'status': '弃权', 'num': len(vote_status_9)}]
+                #         pass
+                #     else:
+                #         docs = ExperimentDoc.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
+                #                                             path_id=item.id)
+                #         for d in docs:
+                #             sign_list = ExperimentDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
+                #             doc_list.append({
+                #                 'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                #                 'signs': list(sign_list), 'url': d.file.url if d.file else None
+                #             })
+                #     # 消息
+                #     messages = ExperimentMessage.objects.filter(experiment_id=experiment_id,
+                #                                                 node_id=item.node_id, path_id=item.id).order_by('timestamp')
+                #     message_list = []
+                #     for m in messages:
+                #         audio = ExperimentMessageFile.objects.filter(pk=m.file_id).first()
+                #         message = {
+                #             'user_name': m.user_name, 'role_name': m.role_name,
+                #             'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
+                #             'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                #         }
+                #         if audio:
+                #             message['url'] = const.WEB_HOST + audio.file.url
+                #             message['filename'] = audio.file.name
+                #             message['secret'] = ''
+                #             message['length'] = audio.length
+                #         message_list.append(message)
+                #
+                #     node_list.append({
+                #         'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
+                #         'project_docs': project_doc_list,
+                #         'operation_guides': operation_guide_list,
+                #         'project_tips_list': project_tips_list,
+                #         'note': note.content if note else None, 'type': node.process.type if node.process else 0,
+                #         'vote_status': vote_status
+                #     })
 
-                    # 角色项目素材
-                    project_doc_list = []
-                    operation_guide_list = []
-                    project_tips_list = []
-
-                    doc_ids = FlowNodeDocs.objects.filter(flow_id=flow.pk,
-                                                          node_id=item.node_id).values_list('doc_id', flat=True)
-                    if doc_ids:
-                        operation_docs = FlowDocs.objects.filter(id__in=doc_ids, usage__in=(1, 2, 3))
-                        for d in operation_docs:
-                            url = ''
-                            if d.file:
-                                url = d.file.url
-                            if d.usage == 1:
-                                operation_guide_list.append({
-                                    'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
-                                    'content': d.content, 'url': url, 'file_type': d.file_type
-                                })
-                            else:
-                                project_doc_list.append({
-                                    'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
-                                    'content': d.content, 'url': url, 'file_type': d.file_type
-                                })
-
-                    # 获取该环节角色分配项目素材id
-                    doc_ids = ProjectDocRole.objects.filter(project_id=item.project_id,
-                                                            node_id=item.node_id).values_list('doc_id', flat=True)
-
-                    if doc_ids:
-                        # logger.info(doc_ids)
-                        project_docs = ProjectDoc.objects.filter(id__in=doc_ids)
-                        for d in project_docs:
-                            if d.usage in [3, 4, 5, 7]:
-                                is_exist = False
-                                if d.usage == 3:
-                                    for t in project_doc_list:
-                                        if d.name == t['name']:
-                                            is_exist = True
-                                            break
-                                if not is_exist:
-                                    project_doc_list.append({
-                                        'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
-                                        'content': d.content, 'url': d.file.url, 'file_type': d.file_type
-                                    })
-
-                    node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
-                    doc_list = []
-                    vote_status = []
-                    # ##############################################################################
-                    if node.process.type == 2:
-                        # 如果是编辑
-                        # 应用模板
-                        contents = ExperimentDocContent.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
-                                                                       has_edited=True)
-                        for d in contents:
-                            doc_list.append({
-                                'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
-                                'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                                'url': d.file.url if d.file else None
-                            })
-                        # 提交的文件
-                        docs = ExperimentDoc.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
-                                                            path_id=item.pk)
-                        for d in docs:
-                            sign_list = ExperimentDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                            doc_list.append({
-                                'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                                'signs': list(sign_list), 'url': d.file.url if d.file else None
-                            })
-                    elif node.process.type == 3:
-                        print 7
-                        # 如果是展示
-                        # project_docs = ProjectDoc.objects.filter(project_id=exp.project_id, usage=4)
-                        # for d in project_docs:
-                        #     doc_list.append({
-                        #         'id': d.id, 'filename': d.name, 'signs': [],
-                        #         'url': d.file.url, 'content': d.content, 'file_type': d.file_type,
-                        #     })
-                        project_docs = ExperimentDoc.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
-                                                                    path_id=item.pk)
-                        for d in project_docs:
-                            doc_list.append({
-                                'id': d.id, 'filename': d.filename, 'signs': [],
-                                'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
-                            })
-                            # docs = ExperimentDocContent.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
-                            #                                            has_edited=True)
-                            # for d in docs:
-                            #     doc_list.append({
-                            #         'id': d.pk, 'filename': d.name, 'content': d.content,
-                            #         'url': d.file.url if d.file else None, 'file_type': d.file_type,
-                            #         'has_edited': d.has_edited, 'experiment_id': exp.pk, 'node_id': node.pk,
-                            #         'role_name': '', 'node_name': node.name if node else None,'created_by': None,
-                            #         'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                            #     })
-                    # elif node.process.type == 4:
-                    #     experience = ExperimentExperience.objects.filter(experiment_id=exp.id,
-                    #                                                      created_by=request.user.pk).first()
-                    #     experience_data = {'status': 1, 'content': ''}
-                    #     if experience:
-                    #         experience_data = {
-                    #             'id': experience.id, 'content': experience.content, 'status': experience.status,
-                    #             'created_by': user_simple_info(experience.created_by),
-                    #             'create_time': experience.create_time.strftime('%Y-%m-%d')
-                    #         }
-                    elif node.process.type == 5:
-                        # 如果是投票   三期 - 增加投票结果数量汇总  todo 去掉老师观察者的数量 WTF
-                        vote_status_0_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
-                                                                                 node_id=item.node_id,
-                                                                                 path_id=item.id, vote_status=0)
-                        vote_status_0 = []
-                        # 去掉老师观察者角色的数据
-                        for item0 in vote_status_0_temp:
-                            role_temp = ProjectRole.objects.filter(id=item0.role_id).first()
-                            if role_temp.name != const.ROLE_TYPE_OBSERVER:
-                                vote_status_0.append(item0)
-                        vote_status_1_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
-                                                                                 node_id=item.node_id,
-                                                                                 path_id=item.id, vote_status=1)
-                        vote_status_1 = []
-                        # 去掉老师观察者角色的数据
-                        for item1 in vote_status_1_temp:
-                            role_temp = ProjectRole.objects.filter(id=item1.role_id).first()
-                            if role_temp.name != const.ROLE_TYPE_OBSERVER:
-                                vote_status_1.append(item1)
-                        vote_status_2_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
-                                                                                 node_id=item.node_id,
-                                                                                 path_id=item.id, vote_status=2)
-                        vote_status_2 = []
-                        # 去掉老师观察者角色的数据
-                        for item2 in vote_status_2_temp:
-                            role_temp = ProjectRole.objects.filter(id=item2.role_id).first()
-                            if role_temp.name != const.ROLE_TYPE_OBSERVER:
-                                vote_status_2.append(item2)
-                        vote_status_9_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
-                                                                                 node_id=item.node_id,
-                                                                                 path_id=item.id, vote_status=9)
-                        vote_status_9 = []
-                        # 去掉老师观察者角色的数据
-                        for item9 in vote_status_9_temp:
-                            role_temp = ProjectRole.objects.filter(id=item9.role_id).first()
-                            if role_temp.name != const.ROLE_TYPE_OBSERVER:
-                                vote_status_9.append(item9)
-                        vote_status = [{'status': '未投票', 'num': len(vote_status_0)},
-                                       {'status': '同意', 'num': len(vote_status_1)},
-                                       {'status': '不同意', 'num': len(vote_status_2)},
-                                       {'status': '弃权', 'num': len(vote_status_9)}]
-                        pass
-                    else:
-                        # 提交的文件
-                        docs = ExperimentDoc.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
-                                                            path_id=item.id)
-                        for d in docs:
-                            sign_list = ExperimentDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                            doc_list.append({
-                                'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                                'signs': list(sign_list), 'url': d.file.url if d.file else None
-                            })
-                    # 消息
-                    messages = ExperimentMessage.objects.filter(experiment_id=experiment_id,
-                                                                node_id=item.node_id, path_id=item.id).order_by('timestamp')
-                    message_list = []
-                    for m in messages:
-                        audio = ExperimentMessageFile.objects.filter(pk=m.file_id).first()
-                        message = {
-                            'user_name': m.user_name, 'role_name': m.role_name,
-                            'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
-                            'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                        }
-                        if audio:
-                            message['url'] = const.WEB_HOST + audio.file.url
-                            message['filename'] = audio.file.name
-                            message['secret'] = ''
-                            message['length'] = audio.length
-                        message_list.append(message)
-
-                    node_list.append({
-                        'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
-                        'project_docs': project_doc_list,
-                        'operation_guides': operation_guide_list,
-                        'project_tips_list': project_tips_list,
-                        'note': note.content if note else None, 'type': node.process.type if node.process else 0,
-                        'vote_status': vote_status
-                    })
-
-                detail = {'name': u'{0} {1}'.format(exp.id, exp.name), 'project_name': project.name,
-                          'team_name': team.name, 'members': member_list, 'teacher': course_class.teacher1.name,
+                detail = {'name': exp.name, 'project_name': project.name,
+                          'team_name': team.name, 'members': member_list, 'teacher': course_class.teacher1.name if course_class else None,
                           'finish_time': exp.finish_time.strftime('%Y-%m-%d') if exp.finish_time else None,
                           'start_time': exp.start_time.strftime('%Y-%m-%d') if exp.start_time else None,
                           'end_time': exp.end_time.strftime('%Y-%m-%d') if exp.end_time else None,
@@ -510,7 +476,8 @@ def api_experiment_result(request):
                           'course_class': u'{0} {1} {2}'.format(course_class.name, course_class.no,
                                                                 course_class.term) if course_class else None}
                 resp = code.get_msg(code.SUCCESS)
-                resp['d'] = {'detail': detail, 'nodes': node_list}
+                # resp['d'] = {'detail': detail, 'nodes': node_list}
+                resp['d'] = {'detail': detail}
             else:
                 resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

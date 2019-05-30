@@ -116,7 +116,7 @@ def loginLog(loginType, userID, ip):
     login_log.save()
 
 
-def getProjectIDByGroupManager(loginType, userID):
+def getProjectIDByGroupManager(userID):
     res = []
     # Group Manager
     res['login_type'] = 'G'
