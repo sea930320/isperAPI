@@ -7,9 +7,10 @@ from account.models import *
 from group.models import *
 from group.models import AllGroups
 from account.models import LoginLog
+from project.models import Project
 import json
 import code
-
+import itertools
 
 # 构造文件名称
 def makename(name):
@@ -117,22 +118,10 @@ def loginLog(loginType, userID, ip):
 
 
 def getProjectIDByGroupManager(userID):
-    res = []
-    # Group Manager
-    res['login_type'] = 'G'
-    user = Tuser.objects.get(id=userID)
-    # Group ID
-    group = user.allgroups_set.all().first()
-    res['group_id'] = group.id
-    groupManagers = group.groupManagers.all()
-    groupManagersIDs = []
-    for groupManager in groupManagers:
-        groupManagersIDs.append(groupManager.id)
-    companies_group = TCompany.objects.filter(group_id=res['group_id'])
-    companies = []
-    for company_id in companies_group:
-        companies.append(company_id.id)
-    res['companies'] = companies
-    res['groupManagers'] = groupManagersIDs
-#     resp = code.get_msg(code.PERMISSION_DENIED)
-# return json.dumps(res)
+    # list(Project.objects.filter(created_by__in = list(itertools.chain.from_iterable(map(lambda x : x.values(),list(AllGroups.objects.filter(groupManagers__in=[Tuser.objects.get(id=1605)]).values('groupManagerAssistants', 'groupManagers')) + list(TCompany.objects.filter(group=AllGroups.objects.get(groupManagers__in=[Tuser.objects.get(id=1605)])).values('tcompanymanagers', 'assistants')))))).values_list('id',flat=True))
+    gruopID = AllGroups.objects.get(groupManagers__in=[Tuser.objects.get(id=userID)])
+    groupInfo = AllGroups.objects.filter(groupManagers__in=[Tuser.objects.get(id=userID)])
+    companyAndAssist = TCompany.objects.filter(group=gruopID).values('tcompanymanagers', 'assistants')
+    allData = list(groupInfo.values('groupManagerAssistants', 'groupManagers')) + list(companyAndAssist)
+    allID = itertools.chain.from_iterable(map(lambda x: x.values(), allData))
+    return list(Project.objects.filter(created_by__in=list(allID)).values_list('id', flat=True))

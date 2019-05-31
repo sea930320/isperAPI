@@ -19,6 +19,7 @@ from workflow.models import FlowNode, FlowAction, FlowRoleActionNew, FlowRolePos
     FlowPosition, RoleImage, Flow, ProcessRoleActionNew, FlowDocs, FlowRole, FlowRoleAllocation
 from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
+from utils.public_fun import getProjectIDByGroupManager
 
 
 # Get No-Deleted Experiments
@@ -29,12 +30,14 @@ def api_experiment_list_nodel(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         try:
-            userID = request.user.id
+            userIDInfo = request.user.id
+            projectAvailableList = getProjectIDByGroupManager(userIDInfo)
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
 
             qs = Experiment.objects.filter(del_flag=0)
+            qs = qs.filter(Q(project_id__in=projectAvailableList))
 
             if search:
                 qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
@@ -132,11 +135,14 @@ def api_experiment_list_del(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         try:
+            userIDInfo = request.user.id
+            projectAvailableList = getProjectIDByGroupManager(userIDInfo)
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
 
             qs = Experiment.objects.filter(del_flag=1)
+            qs = qs.filter(Q(project_id__in=projectAvailableList))
 
             if search:
                 qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
