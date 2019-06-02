@@ -36,6 +36,7 @@ INSTALLED_APPS = (
     'experiment',
     'team',
     'cms',
+    'business',
 )
 
 MIDDLEWARE = (

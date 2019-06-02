@@ -803,8 +803,26 @@ def api_project_list(request):
             if request.session['login_type'] == 3:
                 groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
+                created_bys = []
+                group = AllGroups.objects.get(pk=int(groupID))
+                groupManagers = group.groupManagers.all()
+                groupAssistants = group.groupManagerAssistants.all()
+                createdByGMs = [manager.id for manager in groupManagers]
+                createdByGMAs = [manager.id for manager in groupAssistants]
+                createdByCMs = []
+                createdByCMAs = []
+                companies = group.tcompany_set.all()  # get all companies
+                for company in companies:
+                    companyManagers = company.tcompanymanagers_set.all()  # get all company managers
+                    companyAssistants = company.assistants.all()  # get all company manager assistants
+                    for companyManager in companyManagers:
+                        createdByCMs.append(companyManager.tuser.id)
+                    for companyAssistant in companyAssistants:
+                        createdByCMAs.append(companyAssistant.id)
+                created_bys = createdByGMs + createdByGMAs + createdByCMs + createdByCMAs
+                print created_bys
                 qs = qs.filter(
-                    Q(created_by=user.id) | (Q(created_by__tcompany__group_id=groupID) & Q(is_company_share=1)))
+                    Q(created_by=user.id) | (Q(created_by__in=created_bys) & Q(is_company_share=1)))
             if request.session['login_type'] == 5:
                 group_id = request.GET.get("group_id", None)
                 company_id = request.GET.get("company_id", None)
