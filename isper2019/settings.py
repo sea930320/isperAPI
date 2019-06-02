@@ -71,9 +71,9 @@ SUIT_CONFIG = {
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_WHITELIST = (
-     'localhost:8080',
-     '127.0.0.1:8080',
-     '39.107.122.234:8080'
+     # 'localhost:8080',
+     # '127.0.0.1:8080',
+     # '39.107.122.234:8080'
 )
 
 ROOT_URLCONF = 'isper2019.urls'

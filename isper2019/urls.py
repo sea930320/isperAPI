@@ -18,8 +18,8 @@ from group import views as group_views
 from dictionary import views as dictionary_views
 from userManage import views as userManage_views
 from advertising import views as advertising_views
-from partPosition import views as partPosition_views
 from business import views as business_views
+from partPosition import views as partPosition_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -322,6 +322,11 @@ urlpatterns += (
 
 urlpatterns += (
     url(r'^api/business/create', business_views.api_business_create),
+    url(r'^api/business/list_nodel$', business_views.api_experiment_list_nodel),
+    url(r'^api/business/list_del$', business_views.api_experiment_list_del),
+    url(r'^api/business/delete$', business_views.api_experiment_delete),
+    url(r'^api/business/recovery$', business_views.api_experiment_recovery),
+    url(r'^api/business/result$', business_views.api_experiment_result),
 )
 if settings.DEBUG:
     from django.conf.urls.static import static
