@@ -22,7 +22,7 @@ class Project(models.Model):
     can_redo = models.PositiveIntegerField(default=1, choices=const.PROJECT_CAN_REDO, verbose_name=u'是否允许重做')
     is_open = models.PositiveIntegerField(default=1, choices=const.PROJECT_IS_OPEN, verbose_name=u'开放模式')
     target_users = models.ManyToManyField(Tuser, related_name='projectOpenTargeted_users')
-    target_parts = models.ForeignKey(TParts, blank=True, null=True, on_delete=models.CASCADE)
+    target_parts = models.ForeignKey(TParts, blank=True, null=True, on_delete=models.CASCADE, related_name='projectTargetPart_set')
     officeItem = models.ForeignKey(OfficeItems, blank=True, null=True, on_delete=models.CASCADE)
     ability_target = models.PositiveIntegerField(default=1, choices=const.PROJECT_ABILITY_TARGET, verbose_name=u'能力目标')
     start_time = models.DateField(blank=True, null=True, verbose_name=u'开放开始时间')
@@ -39,6 +39,7 @@ class Project(models.Model):
     protected = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否保护')
     is_group_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否共享')
     is_company_share = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否集群共享')
+    use_to = models.ForeignKey(TParts, blank=True, null=True, on_delete=models.CASCADE, related_name='projectUseTo_set')
 
     class Meta:
         db_table = "t_project"
