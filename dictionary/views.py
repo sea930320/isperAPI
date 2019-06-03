@@ -17,7 +17,7 @@ def get_dic_data(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 1:
+        if request.session['login_type'] not in [1, 5]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         company = [{'id': item.id, 'name': item.name, 'content': item.content} for item in TCompanyType.objects.all()]
@@ -34,12 +34,17 @@ def get_dic_data(request):
             'content': item.content,
             'subItems': [{'sid': subitem.id, 'sname': subitem.name, 'scontent': subitem.content} for subitem in item.tcourseitems_set.all()]
         } for item in TCourseKinds.objects.all()]
-        results = {
-            'company': company,
-            'job': job,
-            'office': office,
-            'course': course
-        }
+        if request.session['login_type'] == 1:
+            results = {
+                'company': company,
+                'job': job,
+                'office': office,
+                'course': course
+            }
+        else:
+            results = {
+                'office': office
+            }
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

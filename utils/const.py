@@ -171,6 +171,16 @@ TEAM_OPEN_JOIN = (
     (2, u'不开放'),
 )
 
+BUSINESS_WAITING = 1
+BUSINESS_PROCESSING = 2
+BUSINESS_FINISHED = 9
+
+BUSINESS_STATUS = (
+    (1, u'等待中'),
+    (2, u'进行中'),
+    (9, u'已结束'),
+)
+
 # 实验任务状态
 EXPERIMENT_WAITING = 1
 EXPERIMENT_PROCESSING = 2

@@ -7,7 +7,7 @@ from platform import platform
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 DEBUG = True
-if 'Ubuntu' in platform():
+if 'Linux-4.4.0-146-generic-x86_64-with-Ubuntu-16.04-xenial' in platform():
     isLiveServer = True
 else:
     isLiveServer = False
@@ -36,6 +36,7 @@ INSTALLED_APPS = (
     'experiment',
     'team',
     'cms',
+    'business',
 )
 
 MIDDLEWARE = (
@@ -47,6 +48,7 @@ MIDDLEWARE = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'isper2019.middleware.LogMiddleware'
 )
 
 SUIT_CONFIG = {
@@ -66,12 +68,12 @@ SUIT_CONFIG = {
     )
 }
 
-CORS_ORIGIN_ALLOW_ALL = False
+CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_WHITELIST = (
-    'localhost:83',
-    '127.0.0.1:83',
-    '39.107.122.234:8080'
+     # 'localhost:8080',
+     # '127.0.0.1:8080',
+     # '39.107.122.234:8080'
 )
 
 ROOT_URLCONF = 'isper2019.urls'

@@ -5,12 +5,13 @@ from django.db import models
 from utils.storage import *
 from utils import const
 from account.models import Tuser, TJobType, TParts, TCourse, TRole, OfficeItems
+from workflow.models import FlowNode
 
 
 # 实验项目
 class Project(models.Model):
     flow_id = models.IntegerField(verbose_name=u'流程')
-    name = models.CharField(max_length=64, verbose_name=u'名称')
+    name = models.CharField(max_length=64, verbose_name=u'名称')#
     all_role = models.PositiveIntegerField(default=1, choices=const.PROJECT_ALL_ROLE, verbose_name=u'允许一人扮演所有角色')
     course = models.ForeignKey(TCourse, verbose_name=u'课程')
     reference = models.PositiveIntegerField(default=1, choices=const.PROJECT_REFERENCE, verbose_name=u'成果参考释放方式')
@@ -46,6 +47,16 @@ class Project(models.Model):
 
     def __unicode__(self):
         return self.name
+
+class ProjectNodeInfo(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
+    look_on = models.BooleanField(verbose_name=u'Look On')
+    class Meta:
+        db_table = "t_project_node_info"
+
+    def __unicode__(self):
+        return self.project.name + self.node.name
 
 
 # 项目角色
@@ -155,3 +166,4 @@ class ProjectJump(models.Model):
 
     def __unicode__(self):
         return u""
+

@@ -790,14 +790,14 @@ def get_groups_all_list(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 1:
+        if request.session['login_type'] not in [1, 2, 5, 6]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         groups = AllGroups.objects.all()
         results = []
         for group in groups:
-            result = model_to_dict(group, fields=['id', 'name'])
-            result['companies'] = [model_to_dict(company, fields=['id', 'name']) for company in
+            result = model_to_dict(group, fields=['id', 'name', 'comment'])
+            result['companies'] = [model_to_dict(company, fields=['id', 'name', 'comment']) for company in
                                    group.tcompany_set.all()]
             results.append(result)
         resp = code.get_msg(code.SUCCESS)

@@ -7,9 +7,10 @@ from account.models import *
 from group.models import *
 from group.models import AllGroups
 from account.models import LoginLog
+from project.models import Project
 import json
 import code
-
+import itertools
 
 # 构造文件名称
 def makename(name):
@@ -114,3 +115,13 @@ def loginLog(loginType, userID, ip):
             group = company.group
     login_log = LoginLog(user=user, role=role, group=group, company=company, login_ip=ip)
     login_log.save()
+
+
+def getProjectIDByGroupManager(userID):
+    # list(Project.objects.filter(created_by__in = list(itertools.chain.from_iterable(map(lambda x : x.values(),list(AllGroups.objects.filter(groupManagers__in=[Tuser.objects.get(id=1605)]).values('groupManagerAssistants', 'groupManagers')) + list(TCompany.objects.filter(group=AllGroups.objects.get(groupManagers__in=[Tuser.objects.get(id=1605)])).values('tcompanymanagers', 'assistants')))))).values_list('id',flat=True))
+    gruopID = AllGroups.objects.get(groupManagers__in=[Tuser.objects.get(id=userID)])
+    groupInfo = AllGroups.objects.filter(groupManagers__in=[Tuser.objects.get(id=userID)])
+    companyAndAssist = TCompany.objects.filter(group=gruopID).values('tcompanymanagers', 'assistants')
+    allData = list(groupInfo.values('groupManagerAssistants', 'groupManagers')) + list(companyAndAssist)
+    allID = itertools.chain.from_iterable(map(lambda x: x.values(), allData))
+    return list(Project.objects.filter(created_by__in=list(allID)).values_list('id', flat=True))

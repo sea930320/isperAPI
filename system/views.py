@@ -22,6 +22,7 @@ def api_file_upload(request):
 
     try:
         upload_file = request.FILES.get("file", None)  # 文件
+        print upload_file
 
         if upload_file:
             obj = UploadFile.objects.create(filename=upload_file.name, file=upload_file, created_by=request.user.id)
