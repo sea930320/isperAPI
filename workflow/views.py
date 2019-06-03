@@ -6,7 +6,7 @@ import logging
 import xlwt, xlrd
 from docx import Document
 
-from account.models import Tuser, TJobType
+from account.models import Tuser, TJobType, OfficeItems
 from django.shortcuts import redirect
 from course.models import CourseClass
 from django.core.paginator import Paginator, EmptyPage
@@ -1563,7 +1563,7 @@ def api_workflow_update(request):
         name = request.POST.get('name', None)  # 名称
         animation1 = request.POST.get("animation1", None)  # 渲染动画1
         animation2 = request.POST.get("animation2", None)  # 渲染动画2
-        type_label = int(request.POST.get("type_label", TJobType.objects.all().first().id))  # 实验类型标签
+        type_label = int(request.POST.get("type_label", OfficeItems.objects.all().first().id))  # 实验类型标签
         print type_label
         task_label = request.POST.get("task_label")  # 实验任务标签
 
@@ -1616,7 +1616,7 @@ def api_workflow_create(request):
         name = request.POST.get("name", None)  # 名称
         animation1 = request.POST.get("animation1", None)  # 渲染动画1
         animation2 = request.POST.get("animation2", None)  # 渲染动画2
-        type_label = int(request.POST.get("type_label", TJobType.objects.all().first().id))  # 实验类型标签
+        type_label = int(request.POST.get("type_label", OfficeItems.objects.all().first().id))  # 实验类型标签
         task_label = request.POST.get("task_label", None)  # 试验任务标签
 
         # 参数验证
@@ -2149,6 +2149,20 @@ def api_workflow_job_types(request):
     try:
         jobTypes = [model_to_dict(jobType) for jobType in TJobType.objects.all()]
         resp['d'] = {'job_types': jobTypes}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_workflow_office_items(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    resp = code.get_msg(code.SUCCESS)
+    resp['d'] = {'office_items': []}
+    try:
+        officeItems = [model_to_dict(officeItem) for officeItem in OfficeItems.objects.all()]
+        resp['d'] = {'office_items': officeItems}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
