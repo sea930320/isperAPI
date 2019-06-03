@@ -6,6 +6,7 @@ from utils.storage import *
 from utils import const
 from project.models import Project
 from account.models import Tuser
+from project.models import ProjectRoleAllocation
 
 # 实验任务
 class Business(models.Model):
@@ -32,3 +33,17 @@ class Business(models.Model):
 
     def __unicode__(self):
         return self.name
+
+# class BusinessTeam(models.Model):
+#     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+#     project_role_allocation = models.ForeignKey(ProjectRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Project Role Allocation')
+#     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'User')
+#     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+#     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+#     class Meta:
+#         db_table = "t_business_team"
+#         ordering = ('-create_time', )
+#         verbose_name_plural = verbose_name = u"BusinessTeam"
+#
+#     def __unicode__(self):
+#         return self.name
