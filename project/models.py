@@ -87,6 +87,7 @@ class ProjectRoleAllocation(models.Model):
     can_terminate = models.BooleanField(verbose_name=u'结束环节权限')
     can_brought = models.BooleanField(verbose_name=u'是否被带入')
     can_take_in = models.BooleanField(verbose_name=u'This guy will be taken in this step ', default=False)
+    can_start = models.BooleanField(verbose_name=u'Can Start the business', default=False)
     num = models.PositiveIntegerField(default=0, verbose_name=u'奖励数量')
     score = models.PositiveIntegerField(default=0, verbose_name=u'奖励分数')
     no = models.IntegerField(default=1, verbose_name=u'Number')

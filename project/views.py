@@ -270,6 +270,8 @@ def api_project_roles_detail(request):
             project_nodes = []
             flow_nodes = FlowNode.objects.filter(flow_id=obj.flow_id, del_flag=0)
             for item in flow_nodes:
+                is_start_node = FlowTrans.objects.filter(flow_id=flow.id, incoming__startswith='StartEvent',
+                                                         outgoing=item.task_id).exists()
                 if item.process:
                     process = item.process
                     prc = {
@@ -289,7 +291,7 @@ def api_project_roles_detail(request):
                     look_on = False
                 project_nodes.append(
                     {'id': item.pk, 'name': item.name, 'process': prc, 'project_role_allocs': list(pras),
-                     'look_on': look_on})
+                     'look_on': look_on, 'is_start_node': is_start_node})
             # 项目角色，按类型分类
             sql = '''SELECT t.id,t.type,t.`name` role_name,t.max,t.min,t.category,t.image_id,t.capacity, t.job_type_id,i.`name` image_name,i.gender
             from t_project_role t LEFT JOIN t_role_image i ON t.image_id=i.id
@@ -371,6 +373,7 @@ def api_project_roles_configurate(request):
                     flowNode = FlowNode.objects.get(pk=node['id'])
                     for key1, pra in enumerate(projectRoleAllocs):
                         ProjectRoleAllocation.objects.filter(pk=pra['id']).update(can_take_in=pra['can_take_in'],
+                                                                                  can_start=pra['can_start'],
                                                                                   can_terminate=pra['can_terminate'],
                                                                                   can_brought=pra['can_brought'])
                     projectNodeInfo = ProjectNodeInfo.objects.filter(project=obj, node=flowNode)
@@ -736,6 +739,7 @@ def api_project_create(request):
                     if role:
                         project_allocations.append(ProjectRoleAllocation(project_id=obj.pk, node_id=item.node_id,
                                                                          role_id=role.id,
+                                                                         can_start=item.can_start,
                                                                          can_terminate=item.can_terminate,
                                                                          can_brought=item.can_brought,
                                                                          can_take_in=item.can_take_in,
@@ -997,6 +1001,7 @@ def api_project_copy(request):
                             continue
                         project_allocations.append(ProjectRoleAllocation(project_id=obj.pk, node_id=item.node_id,
                                                                          role_id=new_role_id,
+                                                                         can_start=item.can_start,
                                                                          can_terminate=item.can_terminate,
                                                                          can_brought=item.can_brought,
                                                                          num=item.num, score=item.score))

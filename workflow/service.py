@@ -6,6 +6,7 @@ from docx import Document
 from django.conf import settings
 import os
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +51,8 @@ def flow_nodes(flow_id):
     node_list = []
 
     for node in qs:
+        is_start_node = FlowTrans.objects.filter(flow_id=flow_id, incoming__startswith='StartEvent',
+                                                 outgoing=node.task_id).exists()
         if node.process:
             process = {
                 'id': node.process.id, 'name': node.process.name, 'type': node.process.type,
@@ -59,7 +62,7 @@ def flow_nodes(flow_id):
             process = None
         node_list.append({
             'id': node.id, 'name': node.name, 'look_on': node.look_on, 'step': node.step, 'task_id': node.task_id,
-            'condition': node.condition, 'process': process
+            'condition': node.condition, 'process': process, 'is_start_node': is_start_node
         })
 
     return node_list
