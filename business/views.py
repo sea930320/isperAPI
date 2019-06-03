@@ -22,14 +22,17 @@ from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
 import random
 import string
+from utils.public_fun import getProjectIDByGroupManager
 from django.forms.models import model_to_dict
 
 logger = logging.getLogger(__name__)
+
 
 def randomString(stringLength=10):
     """Generate a random string of fixed length """
     letters= string.ascii_lowercase
     return ''.join(random.sample(letters,stringLength))
+
 
 def api_business_create(request):
     resp = auth_check(request, "POST")
@@ -65,7 +68,6 @@ def api_business_create(request):
     except Exception as e:
         logger.exception('api_business_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
-from utils.public_fun import getProjectIDByGroupManager
 
 
 # Get No-Deleted Experiments
