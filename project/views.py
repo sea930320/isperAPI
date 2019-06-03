@@ -824,7 +824,6 @@ def api_project_list(request):
                     for companyAssistant in companyAssistants:
                         createdByCMAs.append(companyAssistant.id)
                 created_bys = createdByGMs + createdByGMAs + createdByCMs + createdByCMAs
-                print created_bys
                 qs = qs.filter(
                     Q(created_by=user.id) | (Q(created_by__in=created_bys) & Q(is_company_share=1)))
             if request.session['login_type'] == 5:
@@ -866,6 +865,12 @@ def api_project_list(request):
                         Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
                 if office_id and by_method == 'office':
                     qs = qs.filter(officeItem_id=int(office_id))
+                today = datetime.today()
+                if user.tposition and user.tposition.parts:
+                    query = Q(is_open=1) | (Q(is_open=3)&Q(start_time__lte=today)&Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user])) | (Q(is_open=5) & Q(target_parts=user.tposition.parts))
+                else:
+                    query = Q(is_open=1) | (Q(is_open=3)&Q(start_time__lte=today)&Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user]))
+                qs = qs.exclude(Q(is_open=2)).filter(query)
 
         paginator = Paginator(qs, size)
 
