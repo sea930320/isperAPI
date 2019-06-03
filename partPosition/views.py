@@ -232,7 +232,7 @@ def get_inner_permissions(request):
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': {'data':[], 'items': []}, 'paging': {}}
+            resp['d'] = {'results': {'data': [], 'items': []}, 'paging': {}}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         else:
             paginator = Paginator(qs, size)

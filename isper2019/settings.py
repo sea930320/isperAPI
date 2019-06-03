@@ -95,7 +95,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'isper2019.wsgi.application'
 
 HOST = '39.107.122.234'
-DB_NAME = 'lets'
+DB_NAME = 'isper2019'
 DB_USER = 'remote'
 DB_PWD = 'remoteadmin'
 
