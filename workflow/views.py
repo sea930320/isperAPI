@@ -389,6 +389,7 @@ def api_workflow_role_assign_info(request):
                     position_id = role_position.position_id if role_position else None
                     allocation_list.append({
                         'node_id': a.node_id, 'can_terminate': a.can_terminate,
+                        'can_start': a.can_start,
                         'can_brought': a.can_brought, 'position_id': position_id
                     })
                 if item.name != const.ROLE_TYPE_OBSERVER:
@@ -649,6 +650,7 @@ def api_workflow_flow_copy(request):
                                                                    node_id=new_node_id,
                                                                    role_id=new_role_id,
                                                                    can_terminate=item.can_terminate,
+                                                                   can_start=item.can_start,
                                                                    can_brought=item.can_brought))
                 FlowRoleAllocation.objects.bulk_create(role_allocation_list)
 
@@ -936,11 +938,13 @@ def api_workflow_roles_allocate(request):
                                                               role_id=item['role_id']).update(
                                 can_terminate=item['can_terminate'],
                                 can_brought=item['can_brought'],
+                                can_start=item['can_start'],
                                 del_flag=0)
                         else:
                             new_allocations.append(FlowRoleAllocation(flow_id=flow_id, node_id=node_id,
                                                                       role_id=item['role_id'],
                                                                       can_terminate=item['can_terminate'],
+                                                                      can_start=item['can_start'],
                                                                       can_brought=item['can_brought']))
 
                         if node.process and node.process.type == 1:
@@ -1559,7 +1563,8 @@ def api_workflow_update(request):
         name = request.POST.get('name', None)  # 名称
         animation1 = request.POST.get("animation1", None)  # 渲染动画1
         animation2 = request.POST.get("animation2", None)  # 渲染动画2
-        type_label = int(request.POST.get("type_label", 1))  # 实验类型标签
+        type_label = int(request.POST.get("type_label", TJobType.objects.all().first().id))  # 实验类型标签
+        print type_label
         task_label = request.POST.get("task_label")  # 实验任务标签
 
         # 参数验证
@@ -1611,7 +1616,7 @@ def api_workflow_create(request):
         name = request.POST.get("name", None)  # 名称
         animation1 = request.POST.get("animation1", None)  # 渲染动画1
         animation2 = request.POST.get("animation2", None)  # 渲染动画2
-        type_label = int(request.POST.get("type_label", 1))  # 实验类型标签
+        type_label = int(request.POST.get("type_label", TJobType.objects.all().first().id))  # 实验类型标签
         task_label = request.POST.get("task_label", None)  # 试验任务标签
 
         # 参数验证
@@ -2134,6 +2139,20 @@ def api_workflow_unpublic(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_workflow_job_types(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    resp = code.get_msg(code.SUCCESS)
+    resp['d'] = {'job_types': []}
+    try:
+        jobTypes = [model_to_dict(jobType) for jobType in TJobType.objects.all()]
+        resp['d'] = {'job_types': jobTypes}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_workflow_job_type_candidate(request):
     resp = auth_check(request, "GET")
@@ -2186,17 +2205,17 @@ def api_workflow_role_allocation_create(request):
                     if node.flow_id != flow_id:
                         continue
                     FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id,
-                                                      no__gt=capacity).update(can_terminate=0, can_brought=0,
+                                                      no__gt=capacity).update(can_terminate=0, can_brought=0, can_start=0,
                                                                               del_flag=1)
                     for no in range(1, capacity + 1):
                         if FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id,
                                                              no=no).exists():
                             FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id, no=no) \
-                                .update(can_terminate=0, can_brought=0, del_flag=0)
+                                .update(can_start=0, can_terminate=0, can_brought=0, del_flag=0)
                         else:
                             new_allocations.append(
                                 FlowRoleAllocation(flow_id=flow_id, node_id=node_id, role_id=role_id, no=no,
-                                                   can_terminate=0, can_brought=0, del_flag=0))
+                                                   can_start=0, can_terminate=0, can_brought=0, del_flag=0))
                 if new_allocations:
                     FlowRoleAllocation.objects.bulk_create(new_allocations)
             qs = FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id__in=node_ids,
@@ -2207,7 +2226,7 @@ def api_workflow_role_allocation_create(request):
             for roleAllocation in qs:
                 node = model_to_dict(FlowNode.objects.get(pk=roleAllocation.node_id))
                 roleAllocations.append({
-                    'id': roleAllocation.id, 'flow': flow, 'node': node, 'role': role, 'no': roleAllocation.no,
+                    'id': roleAllocation.id, 'flow': flow, 'node': node, 'role': role, 'no': roleAllocation.no, 'can_start':roleAllocation.can_start,
                     'can_terminate': roleAllocation.can_terminate, 'can_brought': roleAllocation.can_brought,
                     'can_take_in': roleAllocation.can_take_in
                 })
@@ -2250,6 +2269,7 @@ def api_workflow_role_allocation_list(request):
                 for allocation in qs:
                     allocations.append({
                         'id': allocation.id, 'flow': flow, 'node': node, 'role': role, 'no': allocation.no,
+                        'can_start': allocation.can_start,
                         'can_terminate': allocation.can_terminate, 'can_brought': allocation.can_brought,
                         'can_take_in': allocation.can_take_in
                     })
@@ -2331,7 +2351,8 @@ def api_workflow_role_allocation_bulk_update(request):
             for allocation in allocations:
                 FlowRoleAllocation.objects.filter(pk=allocation['id']).update(can_take_in=allocation['can_take_in'],
                                                                               can_terminate=allocation['can_terminate'],
-                                                                              can_brought=allocation['can_brought'])
+                                                                              can_brought=allocation['can_brought'],
+                                                                              can_start=allocation['can_start'])
             resp = code.get_msg(code.SUCCESS)
 
             if flow_id:

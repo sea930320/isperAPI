@@ -193,20 +193,59 @@ def api_account_login(request):
                     if login_type == 2:
                         group = user.allgroups_set.get()
                         manager_info = {
-                            'group_id': group.id
+                            'group_id': group.id,
+                            'group_name': group.name,
+                            'part_id': '',
+                            'part_name': '',
+                            'company_id': '',
+                            'company_name': ''
                         }
                     elif login_type == 6:
                         group = user.allgroups_set_assistants.get()
                         manager_info = {
-                            'group_id': group.id
+                            'group_id': group.id,
+                            'group_name': group.name,
+                            'part_id': '',
+                            'part_name': '',
+                            'company_id': '',
+                            'company_name': ''
                         }
                     elif login_type == 3:
+                        company = user.tcompanymanagers_set.get().tcompany
+                        group = company.group
                         manager_info = {
-                            'company_id': user.tcompanymanagers_set.get().tcompany.id
+                            'company_id': company.id,
+                            'company_name': company.name,
+                            'group_id': group.id,
+                            'group_name': group.name,
+                            'part_id': '',
+                            'part_name': ''
                         }
                     elif login_type == 7:
+                        company = user.t_company_set_assistants.get()
+                        group = company.group
                         manager_info = {
-                            'company_id': user.t_company_set_assistants.get().id
+                            'company_id': company.id,
+                            'company_name': company.name,
+                            'group_id': group.id,
+                            'group_name': group.name,
+                            'part_id': '',
+                            'part_name': ''
+                        }
+                    elif login_type ==5:
+                        company = user.tcompany
+                        group = company.group
+                        position = user.tposition
+                        part = None
+                        if position:
+                            part = position.parts
+                        manager_info = {
+                            'company_id': company.id,
+                            'company_name': company.name,
+                            'group_id': group.id,
+                            'group_name': group.name,
+                            'part_id': part.id if part else '',
+                            'part_name': part.name if part else ''
                         }
                     resp['d']['manager_info'] = manager_info
                     if user.last_experiment_id:
@@ -1604,7 +1643,7 @@ def api_get_loginlog_list(request):
             results.append({
                 'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group,
                 'company': company,
-                'role': role, 'login_time': log.login_time is not None and log.login_time.strftime('%Y-%m-%d') or "",
+                'role': role, 'login_time': log.login_time is not None and log.login_time.strftime('%Y-%m-%d %H:%M:%S') or "",
                 'login_ip': log.login_ip
             })
         paging = {
@@ -1779,7 +1818,7 @@ def api_get_worklog_list(request):
                 'id': log.id, 'user_id': log.user.username if log.user else '',
                 'user_name': log.user.name if log.user else '', 'group': group,
                 'company': company,
-                'role': role, 'log_at': log.log_at is not None and log.log_at.strftime('%Y-%m-%d') or "",
+                'role': role, 'log_at': log.log_at is not None and log.log_at.strftime('%Y-%m-%d %H:%M:%S') or "",
                 'ip': log.ip, 'action': log.action, 'targets': log.targets
             })
         paging = {

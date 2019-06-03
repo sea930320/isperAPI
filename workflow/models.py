@@ -152,6 +152,7 @@ class FlowRoleAllocation(models.Model):
     flow = models.ForeignKey(Flow, verbose_name=u'流程')
     node = models.ForeignKey(FlowNode, verbose_name=u'环节')
     role = models.ForeignKey(FlowRole, verbose_name=u'角色')
+    can_start = models.BooleanField(verbose_name=u'Can Start the business', default=False)
     can_terminate = models.BooleanField(verbose_name=u'结束环节权限')
     can_brought = models.BooleanField(verbose_name=u'是否被带入')
     can_take_in = models.BooleanField(verbose_name=u'This guy will be taken in this step ', default=False)
