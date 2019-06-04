@@ -655,7 +655,7 @@ def api_project_create(request):
         logger.info('-----api_project_create----')
 
         if all([flow_id, name, all_role, course, reference, public_status, level, entire_graph, can_redo,
-                is_open, ability_target, intro, purpose, requirement, officeItem, use_to]):
+                is_open, ability_target, intro, purpose, requirement, officeItem]):
             name = name.strip()
             if len(name) == 0 or len(name) > 32:
                 resp = code.get_msg(code.PARAMETER_ERROR)
@@ -828,7 +828,6 @@ def api_project_list(request):
                     for companyAssistant in companyAssistants:
                         createdByCMAs.append(companyAssistant.id)
                 created_bys = createdByGMs + createdByGMAs + createdByCMs + createdByCMAs
-                print created_bys
                 qs = qs.filter(
                     Q(created_by=user.id) | (Q(created_by__in=created_bys) & Q(is_company_share=1)))
             if request.session['login_type'] == 5:
@@ -896,7 +895,7 @@ def api_project_list(request):
                 editAble = 1
                 deleteAble = 1
             else:
-                if project.created_by.id == user.id & project.created_role_id == request.session['login_type']:
+                if project.created_by.id == user.id and project.created_role_id == request.session['login_type']:
                     shareAble = 1
                     editAble = 1
                     deleteAble = 1
@@ -908,7 +907,7 @@ def api_project_list(request):
                     if request.session['login_type'] == 3:
                         if project.is_company_share == 1:
                             currentShare = 1
-            company_name = project.created_by.tcompanymanagers_set.get().tcompany.name if project.created_role_id == 3 else  project.created_by.t_company_set_assistants.get().name if project.created_role_id == 7 else ''
+            company_name = project.created_by.tcompanymanagers_set.get().tcompany.name if project.created_role_id == 3 else project.created_by.t_company_set_assistants.get().name if project.created_role_id == 7 else ''
 
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
@@ -1283,6 +1282,7 @@ def api_project_share(request):
         # Group Manager
         if request.session['login_type'] == 2:
             ids = [i for i in ids_set]
+            print ids
             Project.objects.filter(id__in=ids).update(is_group_share=1)
         if request.session['login_type'] == 3:
             ids = [i for i in ids_set]
@@ -1337,9 +1337,9 @@ def get_allusers_allparts(request):
         users = [{'id': item.id, 'text': item.username} for item in Tuser.objects.filter(roles=5)]
         parts = [{'value': item.id, 'text': item.company.name + ' : ' + item.name} for item in TParts.objects.all()]
         use_to = []
-        if login_type in [2, 6]:
-            group_id = request.user.allgroups_set.get().id if login_type == 2 else request.user.allgroups_set_assistants.get().id
-            use_to = [{'value': item.id, 'text': item.company.name + ' : ' + item.name} for item in TParts.objects.filter(company__group=group_id)]
+        # if login_type in [2, 6]:
+        #     group_id = request.user.allgroups_set.get().id if login_type == 2 else request.user.allgroups_set_assistants.get().id
+        #     use_to = [{'value': item.id, 'text': item.company.name + ' : ' + item.name} for item in TParts.objects.filter(company__group=group_id)]
         if login_type in [3, 7]:
             company_id = request.user.tcompanymanagers_set.get().tcompany.id if login_type == 3 else request.user.t_company_set_assistants.get().id
             use_to = [{'value': item.id, 'text': item.name} for item in TParts.objects.filter(company_id=company_id)]
