@@ -22,14 +22,17 @@ from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
 import random
 import string
+from utils.public_fun import getProjectIDByGroupManager
 from django.forms.models import model_to_dict
 
 logger = logging.getLogger(__name__)
 
+
 def randomString(stringLength=10):
-    """Generate a random string of fixed length """
-    letters= string.ascii_lowercase
-    return ''.join(random.sample(letters,stringLength))
+    """Generate a random string of fixed length"""
+    letters = string.ascii_lowercase
+    return ''.join(random.sample(letters, stringLength))
+
 
 def api_business_create(request):
     resp = auth_check(request, "POST")
@@ -48,14 +51,47 @@ def api_business_create(request):
                 resp = code.get_msg(code.EXPERIMENT_JUMP_PROJECT_SETUP_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+            roles = ProjectRole.objects.filter(project_id=project_id)
+            if roles.exists() is False:
+                resp = code.get_msg(code.PROJECT_ROLE_NOT_EXIST)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             with transaction.atomic():
                 business = Business.objects.create(project=project, name=project.name,
-                                                cur_project_id=project_id, created_by=request.user)
+                                                   cur_project_id=project_id, created_by=request.user)
+                business_roles = []
+                for item in roles:
+                    business_roles.append(BusinessRole(business=business, image_id=item.image_id, name=item.name,
+                                                       type=item.type, flow_role_id=item.flow_role_id,
+                                                       project_role_id=item.id,
+                                                       category=item.category, capacity=item.capacity,
+                                                       job_type=item.job_type))
+                BusinessRole.objects.bulk_create(business_roles)
+
+                # 复制流程角色分配设置
+                business_allocations = []
+                allocations = ProjectRoleAllocation.objects.filter(project_id=project_id)
+                for item in allocations:
+                    # 将角色分配中的role_id设置为ProjectRole id
+                    role = BusinessRole.objects.filter(business=business, project_role_id=item.role_id).first()
+                    if role:
+                        business_allocations.append(
+                            BusinessRoleAllocation(business=business, node=FlowNode.objects.get(pk=item.node_id),
+                                                   role=role,
+                                                   can_start=item.can_start,
+                                                   can_terminate=item.can_terminate,
+                                                   can_brought=item.can_brought,
+                                                   can_take_in=item.can_take_in,
+                                                   no=item.no))
+                BusinessRoleAllocation.objects.bulk_create(business_allocations)
+
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
-                    'id': business.id, 'name': u'{0} {1}'.format(business.id, business.name), 'project_id': business.project_id,
-                    'show_nickname': business.show_nickname, 'start_time': business.start_time, 'end_time': business.end_time, 'status': business.status, 'created_by': user_simple_info(business.created_by),
-                    'course_class_id': model_to_dict(project.course) if project.course else '', 'node_id': business.node_id,
+                    'id': business.id, 'name': u'{0} {1}'.format(business.id, business.name),
+                    'project_id': business.project.id,
+                    'show_nickname': business.show_nickname, 'start_time': business.start_time,
+                    'end_time': business.end_time, 'status': business.status,
+                    'created_by': user_simple_info(business.created_by.id) if business.created_by else '',
+                    'node_id': business.node.id if business.node else '',
                     'create_time': business.create_time.strftime('%Y-%m-%d')
                 }
         else:
@@ -65,7 +101,6 @@ def api_business_create(request):
     except Exception as e:
         logger.exception('api_business_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
-from utils.public_fun import getProjectIDByGroupManager
 
 
 # Get No-Deleted Experiments
@@ -140,7 +175,7 @@ def api_experiment_list_nodel(request):
 
                 user_roles = []
                 exp = {
-                    'id': item.id, 'name':item.name, 'show_nickname': item.show_nickname,
+                    'id': item.id, 'name': item.name, 'show_nickname': item.show_nickname,
                     'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
                     'end_time': item.end_time.strftime('%Y-%m-%d') if item.end_time else None,
                     'team': team_dict, 'status': item.status, 'created_by': user_simple_info(item.created_by),
@@ -519,7 +554,8 @@ def api_experiment_result(request):
                 #     })
 
                 detail = {'name': exp.name, 'project_name': project.name,
-                          'team_name': team.name, 'members': member_list, 'teacher': course_class.teacher1.name if course_class else None,
+                          'team_name': team.name, 'members': member_list,
+                          'teacher': course_class.teacher1.name if course_class else None,
                           'finish_time': exp.finish_time.strftime('%Y-%m-%d') if exp.finish_time else None,
                           'start_time': exp.start_time.strftime('%Y-%m-%d') if exp.start_time else None,
                           'end_time': exp.end_time.strftime('%Y-%m-%d') if exp.end_time else None,

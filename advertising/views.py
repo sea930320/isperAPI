@@ -186,23 +186,20 @@ def api_advertising_create(request):
                 else:
                     obj = Advertising.objects.create(name=ad_name, created_by=Tuser.objects.get(id=request.user.pk))
                 saved_data_id = obj.id
-                tmp_filename = str(saved_data_id)+'.html'
-                docx_file_name = str(saved_data_id)+'.docx'
+                html_file = str(saved_data_id)+'.html'
+                docx_file = str(saved_data_id)+'.docx'
+                tmp_filename =  'media/files/advertising/' + html_file
+                docx_file_name =  'media/files/advertising/' + docx_file
                 
                 f=codecs.open(tmp_filename, "a+", "utf-8")
                 f.write(ad_content)
                 f.close()
 
                 pypandoc.convert_file(tmp_filename, 'docx', outputfile=docx_file_name)
-                print docx_file_name
-                shutil.move(docx_file_name, 'media/files/advertising/' + docx_file_name)
-                shutil.move(tmp_filename, 'media/files/advertising/' + tmp_filename)
-                obj = UploadFile.objects.create(filename=docx_file_name, file='files/advertising/' + docx_file_name, created_by=request.user.id)
+                obj = UploadFile.objects.create(filename=docx_file, file='files/advertising/' + docx_file, created_by=request.user.id)
                 pathDocx = obj.id
-                print pathDocx
-                obj1 = UploadFile.objects.create(filename=tmp_filename, file='files/advertising/' + tmp_filename, created_by=request.user.id)
+                obj1 = UploadFile.objects.create(filename=html_file, file='files/advertising/' + html_file, created_by=request.user.id)
                 pathHtml = obj1.id
-                print pathHtml
 
                 with transaction.atomic():
                     Advertising.objects.filter(id=saved_data_id).update(path_docx=pathDocx,path_html=pathHtml)

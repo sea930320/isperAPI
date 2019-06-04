@@ -669,7 +669,10 @@ def api_account_avatar_img_update(request):
         avatar = request.FILES['img']
         filename = str(uuid.uuid4()) + '.png'
         user = Tuser.objects.get(pk=user_id)
-        default_storage.delete(user.avatar.name)
+        try:
+            default_storage.delete(user.avatar.name)
+        except:
+            pass
         user.avatar.save(filename, avatar, True)
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {
