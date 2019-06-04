@@ -77,10 +77,11 @@ class BusinessRoleAllocation(models.Model):
 
 class BusinessTeam(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role = models.ForeignKey(BusinessRole, on_delete=models.CASCADE, verbose_name=u'Business Role')
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'User')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+    no = models.IntegerField(default=1, verbose_name=u'Number')
     class Meta:
         db_table = "t_business_team"
         ordering = ('-create_time', )
