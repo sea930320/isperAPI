@@ -870,6 +870,7 @@ def api_project_list(request):
                 if office_id and by_method == 'office':
                     qs = qs.filter(officeItem_id=int(office_id))
 
+        qs = qs.filter(del_flag=0)
         paginator = Paginator(qs, size)
 
         try:
@@ -912,7 +913,7 @@ def api_project_list(request):
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
                 'company_name': company_name,
-                'officeItem': model_to_dict(project.officeItem) if project.officeItem else {},
+                'officeItem': project.officeItem_id if project.officeItem else None,
                 'course': project.course_id,
                 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
                 'course_name': project.course.name, 'reference': project.reference,

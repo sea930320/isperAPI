@@ -3,7 +3,7 @@
 
 from django.db import models
 from account.models import Tuser
-from account.models import TJobType
+from account.models import TJobType, TRole
 from utils import const
 from utils.storage import *
 
@@ -18,6 +18,7 @@ class Flow(models.Model):
     copy_from = models.IntegerField(blank=True, null=True, verbose_name=u'复制流程ID')
     xml = models.TextField(blank=True, null=True, verbose_name=u'流程图xml数据')
     created_by = models.IntegerField(verbose_name=u'创建者')
+    created_role = models.ForeignKey(TRole, models.CASCADE, verbose_name=u'创建者_ROLE')
     step = models.IntegerField(default=const.FLOW_STEP_0, verbose_name=u'设置步骤')
     status = models.IntegerField(choices=const.FLOW_STATUS, default=1, verbose_name=u'状态')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
