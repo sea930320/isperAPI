@@ -1631,7 +1631,8 @@ def api_workflow_create(request):
 
         instance = Flow.objects.create(name=name, animation1=animation1, animation2=animation2,
                                        task_label=task_label, type_label=type_label,
-                                       created_by=request.user.id)
+                                       created_by=request.user.id,
+                                       created_role_id=request.session['login_type'])
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {
@@ -2139,6 +2140,7 @@ def api_workflow_unpublic(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_workflow_job_types(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -2152,6 +2154,7 @@ def api_workflow_job_types(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_workflow_office_items(request):
     resp = auth_check(request, "GET")
@@ -2219,7 +2222,8 @@ def api_workflow_role_allocation_create(request):
                     if node.flow_id != flow_id:
                         continue
                     FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id,
-                                                      no__gt=capacity).update(can_terminate=0, can_brought=0, can_start=0,
+                                                      no__gt=capacity).update(can_terminate=0, can_brought=0,
+                                                                              can_start=0,
                                                                               del_flag=1)
                     for no in range(1, capacity + 1):
                         if FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id,
@@ -2240,7 +2244,8 @@ def api_workflow_role_allocation_create(request):
             for roleAllocation in qs:
                 node = model_to_dict(FlowNode.objects.get(pk=roleAllocation.node_id))
                 roleAllocations.append({
-                    'id': roleAllocation.id, 'flow': flow, 'node': node, 'role': role, 'no': roleAllocation.no, 'can_start':roleAllocation.can_start,
+                    'id': roleAllocation.id, 'flow': flow, 'node': node, 'role': role, 'no': roleAllocation.no,
+                    'can_start': roleAllocation.can_start,
                     'can_terminate': roleAllocation.can_terminate, 'can_brought': roleAllocation.can_brought,
                     'can_take_in': roleAllocation.can_take_in
                 })

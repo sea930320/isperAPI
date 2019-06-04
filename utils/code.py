@@ -67,6 +67,7 @@ PROJECT_NAME_HAS_EXIST = 30002
 PROJECT_JUMP_CANNOT_SETUP_SELF = 30003
 # 跳转项目已创建实验
 PROJECT_JUMP_HAS_USE = 30004
+PROJECT_ROLE_NOT_EXIST = 30005
 
 # 小组名称已存在
 TEAM_HAS_EXIST = 40001
@@ -186,6 +187,7 @@ MSG = {
     30002: u'项目名称已存在',
     30003: u'跳转项目不能设置自身',
     30004: u'该项目已创建实验，无法修改跳转设置！',
+    30005: u'角色不存在',
 
     40001: u'小组名称已存在',
     40002: u'小组已参加实验,无法删除小组和成员',
