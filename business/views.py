@@ -57,7 +57,8 @@ def api_business_create(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             with transaction.atomic():
                 business = Business.objects.create(project=project, name=project.name,
-                                                   cur_project_id=project_id, created_by=request.user)
+                                                   cur_project_id=project_id, created_by=request.user,
+                                                   officeItem=project.officeItem)
                 business_roles = []
                 for item in roles:
                     business_roles.append(BusinessRole(business=business, image_id=item.image_id, name=item.name,
@@ -101,6 +102,209 @@ def api_business_create(request):
     except Exception as e:
         logger.exception('api_business_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
+
+
+def api_business_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        search = request.GET.get("search", None)  # 关键字
+        page = int(request.GET.get("page", 1))  # 页码
+        size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
+        status = int(request.GET.get("status", 1))  # 实验状态
+
+        user = request.user
+        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id',
+                                                                                                  flat=True)
+        qs = Business.objects.filter(
+            Q(del_flag=0, pk__in=bussinessIDsInTeam) | Q(created_by=request.user))
+
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
+            qs = qs.filter(del_flag=0)
+        if status == 3:
+            qs = qs.filter(Q(status=1) | Q(status=2))
+        else:
+            qs = qs.filter(status=status)
+        paginator = Paginator(qs, size)
+
+        try:
+            businesses = paginator.page(page)
+        except EmptyPage:
+            businesses = paginator.page(1)
+
+        results = []
+
+        for item in businesses:
+            team_dict = [model_to_dict(member) for member in BusinessTeamMember.objects.filter(business_id=item.id)]
+
+            project = Project.objects.filter(pk=item.project_id).first()
+            if project:
+                project_dict = {
+                    'id': project.id, 'name': project.name,
+                    'office_item': project.officeItem.name if project.officeItem else None
+                }
+            else:
+                project_dict = None
+
+            node = FlowNode.objects.filter(pk=item.node_id).first() if item.node else None
+            if node:
+                cur_node = {
+                    'id': node.id, 'name': node.name, 'condition': node.condition,
+                    'process_type': node.process.type if node.process else None,
+                }
+            else:
+                cur_node = None
+
+            business = {
+                'id': item.id, 'name': u'{0} {1}'.format(item.id, item.name), 'show_nickname': item.show_nickname,
+                'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
+                'end_time': item.end_time.strftime('%Y-%m-%d') if item.end_time else None,
+                'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S') if item.create_time else None,
+                'team': team_dict, 'status': item.status, 'created_by': user_simple_info(item.created_by_id),
+                'node_id': item.node_id,
+                'project': project_dict,
+                'huanxin_id': item.huanxin_id,
+                'node': cur_node, 'flow_id': project.flow_id if project else None,
+                'officeItem': model_to_dict(item.officeItem) if item.officeItem else None
+            }
+            results.append(business)
+
+        paging = {
+            'count': paginator.count,
+            'has_previous': businesses.has_previous(),
+            'has_next': businesses.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': businesses.number,
+            'page_size': size
+        }
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'paging': paging}
+        print results
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_start(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id")  # get business ID
+        business = Business.objects.filter(pk=business_id).first()  # get Business
+        logger.info('api_business_start:business_id=%s' % business_id)
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if business.status != 1:
+            resp = code.get_msg(code.BUSINESS_HAS_STARTED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # get Project that this business is based on
+        project = Project.objects.get(pk=business.project_id)
+        # 验证项目中是否有未配置的跳转项目 todo
+        if not check_jump_project(project):
+            resp = code.get_msg(code.BUSINESS_JUMP_PROJECT_SETUP_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        # get First Node ID and Node by project Flow ID
+        first_node_id = get_start_node(project.flow_id)
+        node = FlowNode.objects.get(pk=first_node_id)
+        # get All Business Roles to check if all users are allocated to business Role Alloc
+        businessRoles = BusinessRole.objects.filter(business=business)  # get all Business Roles
+        for role in businessRoles:
+            for no in range(1, role.capacity + 1):
+                teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
+                                                                del_flag=0)  # get all team members with same business, role, no to check if user is allocated to this allocation
+                if teamMembers.count() == 0:
+                    resp = code.get_msg(code.TEAM_MEMBER_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # teamMembers = BusinessTeamMember.objects.filter(business=business, del_flag=0)
+        # ids = list(teamMembers.values_list('user_id'))
+
+        # 注册所有的群组用户到环信群组
+        # easemob_success, easemob_result = easemob.create_groups(str(business.pk), str(request.user.pk), ids)
+        # logger.info(u'easemob create_groups:{}{}'.format(easemob_success, easemob_result))
+
+        # if easemob_success is False:
+        #     resp = code.get_msg(code.BUSINESS_START_FAILED)
+        #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # get Start Role Allocation
+        startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1, can_take_in=1).first()
+        # check if this user is Start User
+        isStartUser = BusinessTeamMember.objects.filter(business=business, user=request.user,
+                                                        business_role=startRoleAlloc.role,
+                                                        no=startRoleAlloc.no).exists()
+        if not isStartUser:
+            resp = code.get_msg(code.BUSINESS_NO_ACCESS_TO_START)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        # get all allocations take part in this first node of this business
+        allocations = BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1)
+        with transaction.atomic():
+            # Create Business TransPath
+            path = BusinessTransPath.objects.create(business=business, node=node,
+                                                    project=business.project, task_id=node.task_id, step=1)
+            for item in allocations:
+                if item.can_brought:
+                    come_status = 1
+                else:
+                    come_status = 9
+                # 三期 - 不能直接创建， 在service中结束并走向下一环节的时候会创建角色状态，这里再创建一次就重复了
+                brses = BusinessRoleAllocationStatus.objects.filter(business=business, business_role_allocation=item,
+                                                                    path=path)
+                if brses.count() > 0:  # 存在则更新
+                    brs = brses.first()
+                    brs.come_status = come_status
+                    brs.save()
+                else:  # 不存在则创建
+                    BusinessRoleAllocationStatus.objects.update_or_create(business=business,
+                                                                          business_role_allocation=item,
+                                                                          path=path,
+                                                                          come_status=come_status)
+
+            # 环信id
+            # huanxin_id = easemob_result['data']['groupid']
+            # exp.huanxin_id = huanxin_id
+            # 设置实验环节为开始环节,改变实验状态
+            business.node = node
+            business.path_id = path.id
+            business.status = 2
+            business.save()
+
+        # todo 优化
+        user_role_allocs = []
+        # teamMembers that I can take part in this business process
+        teamMembers = BusinessTeamMember.objects.filter(business=business, user=request.user, del_flag=0)
+        for teamMember in teamMembers:
+            role_allocs = [model_to_dict(bra) for bra in BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1,
+                                                                role=teamMember.business_role,
+                                                                no=teamMember.no)]
+            user_role_allocs = user_role_allocs + role_allocs
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'node': {
+                'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': node.process.type},
+            'huanxin_id': business.huanxin_id, 'user_role_allocs': user_role_allocs, 'id': business_id,
+            'flow_id': project.flow_id, 'project_id': project.id
+        }
+        logger.info('api_business_start end:business_id=%s' % business_id)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_start Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
 # Get No-Deleted Experiments
