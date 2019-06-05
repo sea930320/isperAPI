@@ -104,32 +104,25 @@ def create_new_group(request):
             companyType=TCompanyType.objects.get(id=1),
             is_default=1
         ).save()
-        order = int(request.POST.get("order", 0))
-        if order == 0:
-            newUser = NewGroup.groupManagers.create(
-                username=request.POST.get("managerName", ''),
-                password=make_password(request.POST.get("managerPass", None)),
-                is_superuser=0,
-                gender=1,
-                name='',
-                comment='',
-                identity=1,
-                type=1,
-                is_active=1,
-                is_admin=0,
-                director=0,
-                manage=0,
-                update_time='',
-                del_flag=0,
-                is_register=0
-            )
-            newUser.roles.add(TRole.objects.get(id=2))
-        elif order == 1:
-            NewGroup.groupManagers.add(Tuser.objects.get(username=request.POST.get("managerName")))
-            Tuser.objects.get(username=request.POST.get("managerName")).roles.add(TRole.objects.get(id=2))
-        elif order == 2:
-            Tuser.objects.get(username=request.POST.get("managerName")).allgroups_set.clear()
-            Tuser.objects.get(username=request.POST.get("managerName")).allgroups_set.add(NewGroup)
+
+        newUser = NewGroup.groupManagers.create(
+            username=request.POST.get("managerName", ''),
+            password=make_password(request.POST.get("managerPass", None)),
+            is_superuser=0,
+            gender=1,
+            name='',
+            comment='',
+            identity=1,
+            type=1,
+            is_active=1,
+            is_admin=0,
+            director=0,
+            manage=0,
+            update_time='',
+            del_flag=0,
+            is_register=0
+        )
+        newUser.roles.add(TRole.objects.get(id=2))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -238,9 +231,6 @@ def group_add_manager(request):
         elif order == 1:
             AllGroups.objects.get(id=groupID).groupManagers.add(Tuser.objects.get(username=name))
             Tuser.objects.get(username=name).roles.add(TRole.objects.get(id=2))
-        elif order == 2:
-            Tuser.objects.get(username=name).allgroups_set.clear()
-            Tuser.objects.get(username=name).allgroups_set.add(AllGroups.objects.get(id=groupID))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -425,24 +415,30 @@ def create_instructors(request):
         id = request.POST.get("id", None)
         name = request.POST.get("data[name]", None)
         password = request.POST.get("data[password]", None)
-        newInstructor = AllGroups.objects.get(id=id).groupInstructors.create(
-            username=name,
-            password=make_password(password),
-            is_superuser=0,
-            gender=1,
-            name='',
-            comment='',
-            identity=1,
-            type=1,
-            is_active=1,
-            is_admin=0,
-            director=0,
-            manage=0,
-            update_time='',
-            del_flag=0,
-            is_register=0
-        )
-        newInstructor.roles.add(TRole.objects.get(id=4))
+        order = int(request.POST.get("order", 0))
+
+        if order == 0:
+            newInstructor = AllGroups.objects.get(id=id).groupInstructors.create(
+                username=name,
+                password=make_password(password),
+                is_superuser=0,
+                gender=1,
+                name='',
+                comment='',
+                identity=1,
+                type=1,
+                is_active=1,
+                is_admin=0,
+                director=0,
+                manage=0,
+                update_time='',
+                del_flag=0,
+                is_register=0
+            )
+            newInstructor.roles.add(TRole.objects.get(id=4))
+        elif order == 1:
+            AllGroups.objects.get(id=id).groupInstructors.add(Tuser.objects.get(username=name))
+            Tuser.objects.get(username=name).roles.add(TRole.objects.get(id=4))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -661,30 +657,30 @@ def add_company_manager(request):
         name = request.POST.get("data[name]", '')
         description = request.POST.get("data[description]", '')
         password = request.POST.get("data[password]", None)
+        order = int(request.POST.get("order", 0))
 
-        if Tuser.objects.filter(username=request.POST.get("data[name]")).count() > 0:
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': 'managerNameError'}
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-        newUser = TCompany.objects.get(id=companyID).tuser_set.create(
-            username=name,
-            password=make_password(password),
-            is_superuser=0,
-            gender=1,
-            comment=description,
-            identity=1,
-            type=1,
-            is_active=1,
-            is_admin=0,
-            director=0,
-            manage=0,
-            update_time='',
-            del_flag=0,
-            is_register=0
-        )
-        TCompany.objects.get(id=companyID).tcompanymanagers_set.create(tuser=newUser)
-        newUser.roles.add(TRole.objects.get(id=3))
+        if order == 0:
+            newUser = TCompany.objects.get(id=companyID).tuser_set.create(
+                username=name,
+                password=make_password(password),
+                is_superuser=0,
+                gender=1,
+                comment=description,
+                identity=1,
+                type=1,
+                is_active=1,
+                is_admin=0,
+                director=0,
+                manage=0,
+                update_time='',
+                del_flag=0,
+                is_register=0
+            )
+            TCompany.objects.get(id=companyID).tcompanymanagers_set.create(tuser=newUser)
+            newUser.roles.add(TRole.objects.get(id=3))
+        elif order == 1:
+            TCompany.objects.get(id=companyID).tcompanymanagers_set.add(Tuser.objects.get(username=name))
+            Tuser.objects.get(username=name).roles.add(TRole.objects.get(id=3))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -816,27 +812,51 @@ def check_user_group(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 1:
+        if request.session['login_type'] not in [1, 2, 6]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         username = request.POST.get("username", None)
-        before = ''
-
+        group = request.POST.get("group", None)
+        role = request.POST.get("role", None)
+        groupID = None
         results = None
         if len(Tuser.objects.filter(username=username)) == 0:
-            results = 0
-        elif len(Tuser.objects.filter(Q(username=username) & Q(roles__id__in=[2]))) > 0:
-            results = 2
-            try:
-                before = Tuser.objects.filter(Q(username=username) & Q(roles__id__in=[2])).get().allgroups_set.get().name
-            except:
-                before = ''
-        elif len(Tuser.objects.filter(Q(username=username) & ~Q(roles__id__in=[2]))) > 0:
-            results = 1
+            results = 0                                                                 # non Exist User
+        else:
+            user = Tuser.objects.get(username=username)
+            userRoles = list(user.roles.values_list('id', flat=True))
+
+            if userRoles[0] == 1:
+                groupID = -1
+            elif userRoles[0] == 2:
+                groupID = user.allgroups_set.get().id
+            elif userRoles[0] == 6:
+                groupID = user.allgroups_set_assistants.get().id
+            elif userRoles[0] == 3:
+                groupID = user.tcompanymanagers_set.get().tcompany.group_id
+            elif userRoles[0] == 7:
+                groupID = user.tcompanymanagerassistants_set.get().tcompany.group_id
+            elif userRoles[0] == 4:
+                groupID = user.allgroups_set_instructors.get().id
+            elif userRoles[0] == 5:
+                groupID = user.tcompany.group.id
+            elif userRoles[0] == 8:
+                groupID = user.allgroups_set_instructor_assistants.get().id
+
+            if group == -1:
+                results = 2                                                             # Exist User
+            elif groupID == -1:
+                results = 4                                                             # Super User
+            elif int(group) != groupID:
+                results = 2                                                             # Exist on Other Group
+            elif int(group) == groupID and int(role) in userRoles:
+                results = 3                                                             # Exist on this Group with the Role
+            elif int(group) == groupID and int(role) not in userRoles:
+                results = 1                                                             # Exist on this Group without the Role
 
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'results': results, 'before': before}
+        resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
@@ -858,6 +878,7 @@ def delete_group_manager(request):
         mid = request.POST.get("mid", None)
 
         AllGroups.objects.get(id=gid).groupManagers.remove(Tuser.objects.get(id=mid))
+        Tuser.objects.get(id=mid).roles.remove(TRole.objects.get(id=2))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -882,6 +903,7 @@ def delete_company_manager(request):
         mid = request.POST.get("mid", None)
 
         TCompany.objects.get(id=cid).tcompanymanagers_set.get(tuser=Tuser.objects.get(id=mid)).delete()
+        Tuser.objects.get(id=mid).roles.remove(TRole.objects.get(id=3))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -906,6 +928,7 @@ def delete_group_instructor(request):
         iid = request.POST.get("iid", None)
 
         AllGroups.objects.get(id=gid).groupInstructors.remove(Tuser.objects.get(id=iid))
+        Tuser.objects.get(id=iid).roles.remove(TRole.objects.get(id=4))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}

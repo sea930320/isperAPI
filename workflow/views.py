@@ -1667,24 +1667,29 @@ def api_workflow_list(request):
         if login_type in [2, 6]:
             try:
                 group = user.allgroups_set.all().first() if login_type == 2 else user.allgroups_set_assistants.all().first()  # get group that this user belongs to
-                groupManagers = group.groupManagers.all()  # get all group managers
-                groupAssistants = group.groupManagerAssistants.all()  # get all group manager assistants
+                createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
+                createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
             except AttributeError as ae:
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            createdBys = [manager.id for manager in groupManagers | groupAssistants]
             companies = group.tcompany_set.all()  # get all companies
+            createdByCMs = []
+            createdByCMAs = []
             for company in companies:
                 companyManagers = company.tcompanymanagers_set.all()  # get all company managers
                 companyAssistants = company.assistants.all()  # get all company manager assistants
                 for companyManager in companyManagers:
-                    createdBys.append(companyManager.tuser.id)
+                    createdByCMs.append(companyManager.tuser.id)
                 for companyAssistant in companyAssistants:
-                    createdBys.append(companyAssistant.id)
+                    createdByCMAs.append(companyAssistant.id)
             qs = Flow.objects.filter(
                 Q(created_by=request.user.id, created_role=request.session['login_type'], del_flag=0) |
-                (~Q(created_role=request.session['login_type']) & Q(created_by=request.user.id, status=2)) |
-                Q(status=2, is_public=1, created_by__in=createdBys, del_flag=0) |
+                (Q(status=2, is_public=1, del_flag=0) &
+                 ((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
+                  (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
+                  (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                  (Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                 ) |
                 Q(status=2, is_share=1, del_flag=0))
         elif login_type in [3, 7]:
             try:
@@ -1694,26 +1699,33 @@ def api_workflow_list(request):
             except AttributeError as ae:
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            groupManagers = group.groupManagers.all()  # get all group managers
-            groupAssistants = group.groupManagerAssistants.all()  # get all group manager assistants
-            groupMembers = [manager.id for manager in groupManagers | groupAssistants]
+            createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
+            createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
             companies = group.tcompany_set.all()  # get all companies
+            createdByCMs = []
+            createdByCMAs = []
             for company in companies:
                 companyManagers = company.tcompanymanagers_set.all()  # get all company managers
                 companyAssistants = company.assistants.all()  # get all company manager assistants
                 for companyManager in companyManagers:
-                    groupMembers.append(companyManager.tuser.id)
+                    createdByCMs.append(companyManager.tuser.id)
                 for companyAssistant in companyAssistants:
-                    groupMembers.append(companyAssistant.id)
+                    createdByCMAs.append(companyAssistant.id)
                 if company.id == companyId:
-                    createdBys = [companyManager.tuser.id for companyManager in companyManagers]
-                    for companyAssistant in companyAssistants:
-                        createdBys.append(companyAssistant.id)
+                    CMs = [companyManager.tuser.id for companyManager in companyManagers]
+                    CMAs = [companyAssistant.id for companyAssistant in companyAssistants]
             qs = Flow.objects.filter(
                 Q(created_by=request.user.id, created_role=request.session['login_type'], del_flag=0) |
-                (~Q(created_role=request.session['login_type']) & Q(created_by=request.user.id, status=2)) |
-                Q(status=2, is_public=1, created_by__in=createdBys, del_flag=0) |
-                Q(status=2, is_share=1, created_by__in=groupMembers, del_flag=0))
+                (Q(status=2, is_public=1, del_flag=0) &
+                 ((Q(created_by__in=CMs) & Q(created_role_id=3)) |
+                  (Q(created_by__in=CMAs) & Q(created_role_id=7))
+                  )) |
+                (Q(status=2, is_share=1, del_flag=0) &
+                 ((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
+                  (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
+                  (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                  (Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                 ))
         elif request.session['login_type'] == 1:
             qs = Flow.objects.filter(Q(status=2, del_flag=0))
         else:

@@ -804,19 +804,31 @@ def api_project_list(request):
         if request.session['login_type'] != 1:
             if request.session['login_type'] in [2, 6]:
                 groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
-                groupID = groupInfo['group_id']
-                qs = qs.filter(Q(is_group_share=1) | (
-                    Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID]) | Q(
-                        created_by__allgroups_set_assistants__in=[groupID])))
+                group = AllGroups.objects.get(id=groupInfo['group_id'])
+                createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
+                createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
+                companies = group.tcompany_set.all()  # get all companies
+                createdByCMs = []
+                createdByCMAs = []
+                for company in companies:
+                    companyManagers = company.tcompanymanagers_set.all()  # get all company managers
+                    companyAssistants = company.assistants.all()  # get all company manager assistants
+                    for companyManager in companyManagers:
+                        createdByCMs.append(companyManager.tuser.id)
+                    for companyAssistant in companyAssistants:
+                        createdByCMAs.append(companyAssistant.id)
+                qs = qs.filter(
+                    Q(is_group_share=1) |
+                    ((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
+                     (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
+                     (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                     (Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                )
 
             if request.session['login_type'] in [3, 7]:
                 groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
                 group = AllGroups.objects.get(pk=int(groupID))
-                groupManagers = group.groupManagers.all()
-                groupAssistants = group.groupManagerAssistants.all()
-                createdByGMs = [manager.id for manager in groupManagers]
-                createdByGMAs = [manager.id for manager in groupAssistants]
                 createdByCMs = []
                 createdByCMAs = []
                 companies = group.tcompany_set.all()  # get all companies
@@ -827,9 +839,11 @@ def api_project_list(request):
                         createdByCMs.append(companyManager.tuser.id)
                     for companyAssistant in companyAssistants:
                         createdByCMAs.append(companyAssistant.id)
-                created_bys = createdByGMs + createdByGMAs + createdByCMs + createdByCMAs
                 qs = qs.filter(
-                    Q(created_by=user.id) | (Q(created_by__in=created_bys) & Q(is_company_share=1)))
+                    (Q(created_by=user.id) & Q(created_role_id=request.session['login_type'])) |
+                    ((Q(created_by__in=createdByCMs) & Q(created_role_id=3) & Q(is_company_share=1)) |
+                     (Q(created_by__in=createdByCMAs) & Q(created_role_id=7) & Q(is_company_share=1)))
+                )
             if request.session['login_type'] == 5:
                 group_id = request.GET.get("group_id", None)
                 company_id = request.GET.get("company_id", None)
@@ -851,10 +865,12 @@ def api_project_list(request):
                             createdByCMs.append(companyManager.tuser.id)
                         for companyAssistant in companyAssistants:
                             createdByCMAs.append(companyAssistant.id)
-                    qs = qs.filter((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) | (
-                        Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) | (
-                                       Q(created_by__in=createdByCMs) & Q(created_role_id=3)) | (
-                                       Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                    qs = qs.filter(
+                        (Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
+                        (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
+                        (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                        (Q(created_by__in=createdByCMAs) & Q(created_role_id=7))
+                    )
                 if company_id and by_method == 'company':
                     company = TCompany.objects.get(pk=int(company_id))
                     companyManagers = company.tcompanymanagers_set.all()
@@ -865,15 +881,17 @@ def api_project_list(request):
                         createdByCMs.append(companyManager.tuser.id)
                     for companyAssistant in companyAssistants:
                         createdByCMAs.append(companyAssistant.id)
-                    qs = qs.filter((Q(created_by__in=createdByCMs) & Q(created_role_id=3)) | (
-                        Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                    qs = qs.filter(
+                        (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                        (Q(created_by__in=createdByCMAs) & Q(created_role_id=7))
+                    )
                 if office_id and by_method == 'office':
                     qs = qs.filter(officeItem_id=int(office_id))
                 today = datetime.today()
                 if user.tposition and user.tposition.parts:
-                    query = Q(is_open=1) | (Q(is_open=3)&Q(start_time__lte=today)&Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user])) | (Q(is_open=5) & Q(target_parts=user.tposition.parts))
+                    query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user])) | (Q(is_open=5) & Q(target_parts=user.tposition.parts))
                 else:
-                    query = Q(is_open=1) | (Q(is_open=3)&Q(start_time__lte=today)&Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user]))
+                    query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user]))
                 qs = qs.exclude(Q(is_open=2)).filter(query)
 
         qs = qs.filter(del_flag=0)
