@@ -1682,9 +1682,10 @@ def api_workflow_list(request):
                 for companyAssistant in companyAssistants:
                     createdBys.append(companyAssistant.id)
             qs = Flow.objects.filter(
-                Q(created_by=request.user.id, del_flag=0) | Q(status=2, is_public=1, created_by__in=createdBys,
-                                                              del_flag=0)
-                | Q(status=2, is_share=1, del_flag=0))
+                Q(created_by=request.user.id, created_role=request.session['login_type'], del_flag=0) |
+                (~Q(created_role=request.session['login_type']) & Q(created_by=request.user.id, status=2)) |
+                Q(status=2, is_public=1, created_by__in=createdBys, del_flag=0) |
+                Q(status=2, is_share=1, del_flag=0))
         elif login_type in [3, 7]:
             try:
                 company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()  # get company info
@@ -1709,9 +1710,10 @@ def api_workflow_list(request):
                     for companyAssistant in companyAssistants:
                         createdBys.append(companyAssistant.id)
             qs = Flow.objects.filter(
-                Q(created_by=request.user.id, del_flag=0) | Q(status=2, is_public=1, created_by__in=createdBys,
-                                                              del_flag=0)
-                | Q(status=2, is_share=1, created_by__in=groupMembers, del_flag=0))
+                Q(created_by=request.user.id, created_role=request.session['login_type'], del_flag=0) |
+                (~Q(created_role=request.session['login_type']) & Q(created_by=request.user.id, status=2)) |
+                Q(status=2, is_public=1, created_by__in=createdBys, del_flag=0) |
+                Q(status=2, is_share=1, created_by__in=groupMembers, del_flag=0))
         elif request.session['login_type'] == 1:
             qs = Flow.objects.filter(Q(status=2, del_flag=0))
         else:
@@ -1759,7 +1761,7 @@ def api_workflow_list(request):
                 'task_label': flow.task_label,
                 'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d') or "",
                 'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share,
-                'is_public': flow.is_public
+                'is_public': flow.is_public, 'created_role': flow.created_role_id
             })
         # 分页信息
         paging = {
