@@ -18,6 +18,10 @@ import shutil
 from system.views import file_info
 import codecs
 from django.db.models import Q
+from datetime import date
+import datetime
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -78,20 +82,25 @@ def api_advertising_list(request):
 
 def api_advertising_list_home(request):
     try:
-        search = request.GET.get("search", None)  # 搜索关键字
-        page = int(request.GET.get("page", 1))  # 页码
-        size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
-        html_id = int(request.GET.get("html_id", -1))
-
+        is_home = request.GET.get("is_home", None)
         qs = Advertising.objects.filter()
-
-        if search:
-            qs = qs.filter(Q(name__icontains=search))
+        if (is_home):
+            page = 1  # 页码
+            size = 5  # 页面条数
+            html_id = int(request.GET.get("html_id", -1))
+            start_time = datetime.date(2000,1,1)
+            end_time = datetime.datetime.today()
+            qs = qs.filter(public_time__range=(start_time,end_time)).order_by('-public_time')
+        else:
+            search = request.GET.get("search", None)  # 搜索关键字
+            page = int(request.GET.get("page", 1))  # 页码
+            size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
+            html_id = int(request.GET.get("html_id", -1))
+            if search:
+                qs = qs.filter(Q(name__icontains=search))
         if html_id != -1:
             qs = qs.filter(id=html_id)
-
         paginator = Paginator(qs, size)
-
         try:
             advertisings = paginator.page(page)
         except EmptyPage:
@@ -100,12 +109,13 @@ def api_advertising_list_home(request):
         results = []
 
         for advertising in advertisings:
-
             results.append({
                 'id': advertising.id,
                 'name': advertising.name, 'path_html': file_info(advertising.path_html)['url'],
                 'path_docx': file_info(advertising.path_docx)['url'], 'file_type': advertising.file_type,
                 'created_by': user_simple_info(advertising.created_by.id),
+                'public_time':advertising.public_time is not None and advertising.public_time.strftime(
+                    '%Y-%m-%d %H:%M:%S') or '',
                 'create_time': advertising.create_time is not None and advertising.create_time.strftime(
                     '%Y-%m-%d %H:%M:%S') or ''
             })
@@ -161,10 +171,21 @@ def api_advertising_create(request):
         if request.session['login_type'] == 1:
             ad_name = request.POST.get("ad_name", None)  # 名称
             public_time = request.POST.get("public_time", None)
+            today = datetime.datetime.today()
+
+            print today, public_time
+            # if (today>datetime.strptime(public_time,'%Y-%m-%d')):
+            #     resp = code.get_msg(code.PARAMETER_ERROR)
+            #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             if (public_time):
-                public_time = datetime.strptime(public_time, '%Y-%m-%d')
+                public_time = datetime.datetime.strptime(public_time, '%Y-%m-%d')
+                if (today.date() > public_time.date()):
+                    resp = code.get_msg(code.PARAMETER_ERROR)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            else:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             ad_content = request.POST.get("ad_content", None)
-            # if all([ad_name]):
             name = ad_name.strip()
             ad_content = ad_content.strip()
             if len(name) == 0 or len(name) > 32:
