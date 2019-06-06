@@ -6,7 +6,7 @@ import logging
 import xlwt, xlrd
 from docx import Document
 
-from account.models import Tuser, TJobType
+from account.models import Tuser, TJobType, OfficeItems
 from django.shortcuts import redirect
 from course.models import CourseClass
 from django.core.paginator import Paginator, EmptyPage
@@ -389,6 +389,7 @@ def api_workflow_role_assign_info(request):
                     position_id = role_position.position_id if role_position else None
                     allocation_list.append({
                         'node_id': a.node_id, 'can_terminate': a.can_terminate,
+                        'can_start': a.can_start,
                         'can_brought': a.can_brought, 'position_id': position_id
                     })
                 if item.name != const.ROLE_TYPE_OBSERVER:
@@ -649,6 +650,7 @@ def api_workflow_flow_copy(request):
                                                                    node_id=new_node_id,
                                                                    role_id=new_role_id,
                                                                    can_terminate=item.can_terminate,
+                                                                   can_start=item.can_start,
                                                                    can_brought=item.can_brought))
                 FlowRoleAllocation.objects.bulk_create(role_allocation_list)
 
@@ -936,11 +938,13 @@ def api_workflow_roles_allocate(request):
                                                               role_id=item['role_id']).update(
                                 can_terminate=item['can_terminate'],
                                 can_brought=item['can_brought'],
+                                can_start=item['can_start'],
                                 del_flag=0)
                         else:
                             new_allocations.append(FlowRoleAllocation(flow_id=flow_id, node_id=node_id,
                                                                       role_id=item['role_id'],
                                                                       can_terminate=item['can_terminate'],
+                                                                      can_start=item['can_start'],
                                                                       can_brought=item['can_brought']))
 
                         if node.process and node.process.type == 1:
@@ -1559,7 +1563,8 @@ def api_workflow_update(request):
         name = request.POST.get('name', None)  # 名称
         animation1 = request.POST.get("animation1", None)  # 渲染动画1
         animation2 = request.POST.get("animation2", None)  # 渲染动画2
-        type_label = int(request.POST.get("type_label", 1))  # 实验类型标签
+        type_label = int(request.POST.get("type_label", OfficeItems.objects.all().first().id))  # 实验类型标签
+        print type_label
         task_label = request.POST.get("task_label")  # 实验任务标签
 
         # 参数验证
@@ -1611,7 +1616,7 @@ def api_workflow_create(request):
         name = request.POST.get("name", None)  # 名称
         animation1 = request.POST.get("animation1", None)  # 渲染动画1
         animation2 = request.POST.get("animation2", None)  # 渲染动画2
-        type_label = int(request.POST.get("type_label", 1))  # 实验类型标签
+        type_label = int(request.POST.get("type_label", OfficeItems.objects.all().first().id))  # 实验类型标签
         task_label = request.POST.get("task_label", None)  # 试验任务标签
 
         # 参数验证
@@ -1626,7 +1631,8 @@ def api_workflow_create(request):
 
         instance = Flow.objects.create(name=name, animation1=animation1, animation2=animation2,
                                        task_label=task_label, type_label=type_label,
-                                       created_by=request.user.id)
+                                       created_by=request.user.id,
+                                       created_role_id=request.session['login_type'])
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {
@@ -1661,24 +1667,30 @@ def api_workflow_list(request):
         if login_type in [2, 6]:
             try:
                 group = user.allgroups_set.all().first() if login_type == 2 else user.allgroups_set_assistants.all().first()  # get group that this user belongs to
-                groupManagers = group.groupManagers.all()  # get all group managers
-                groupAssistants = group.groupManagerAssistants.all()  # get all group manager assistants
+                createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
+                createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
             except AttributeError as ae:
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            createdBys = [manager.id for manager in groupManagers | groupAssistants]
             companies = group.tcompany_set.all()  # get all companies
+            createdByCMs = []
+            createdByCMAs = []
             for company in companies:
                 companyManagers = company.tcompanymanagers_set.all()  # get all company managers
                 companyAssistants = company.assistants.all()  # get all company manager assistants
                 for companyManager in companyManagers:
-                    createdBys.append(companyManager.tuser.id)
+                    createdByCMs.append(companyManager.tuser.id)
                 for companyAssistant in companyAssistants:
-                    createdBys.append(companyAssistant.id)
+                    createdByCMAs.append(companyAssistant.id)
             qs = Flow.objects.filter(
-                Q(created_by=request.user.id, del_flag=0) | Q(status=2, is_public=1, created_by__in=createdBys,
-                                                              del_flag=0)
-                | Q(status=2, is_share=1, del_flag=0))
+                Q(created_by=request.user.id, created_role=request.session['login_type'], del_flag=0) |
+                (Q(status=2, is_public=1, del_flag=0) &
+                 ((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
+                  (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
+                  (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                  (Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                 ) |
+                Q(status=2, is_share=1, del_flag=0))
         elif login_type in [3, 7]:
             try:
                 company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()  # get company info
@@ -1687,25 +1699,33 @@ def api_workflow_list(request):
             except AttributeError as ae:
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            groupManagers = group.groupManagers.all()  # get all group managers
-            groupAssistants = group.groupManagerAssistants.all()  # get all group manager assistants
-            groupMembers = [manager.id for manager in groupManagers | groupAssistants]
+            createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
+            createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
             companies = group.tcompany_set.all()  # get all companies
+            createdByCMs = []
+            createdByCMAs = []
             for company in companies:
                 companyManagers = company.tcompanymanagers_set.all()  # get all company managers
                 companyAssistants = company.assistants.all()  # get all company manager assistants
                 for companyManager in companyManagers:
-                    groupMembers.append(companyManager.tuser.id)
+                    createdByCMs.append(companyManager.tuser.id)
                 for companyAssistant in companyAssistants:
-                    groupMembers.append(companyAssistant.id)
+                    createdByCMAs.append(companyAssistant.id)
                 if company.id == companyId:
-                    createdBys = [companyManager.tuser.id for companyManager in companyManagers]
-                    for companyAssistant in companyAssistants:
-                        createdBys.append(companyAssistant.id)
+                    CMs = [companyManager.tuser.id for companyManager in companyManagers]
+                    CMAs = [companyAssistant.id for companyAssistant in companyAssistants]
             qs = Flow.objects.filter(
-                Q(created_by=request.user.id, del_flag=0) | Q(status=2, is_public=1, created_by__in=createdBys,
-                                                              del_flag=0)
-                | Q(status=2, is_share=1, created_by__in=groupMembers, del_flag=0))
+                Q(created_by=request.user.id, created_role=request.session['login_type'], del_flag=0) |
+                (Q(status=2, is_public=1, del_flag=0) &
+                 ((Q(created_by__in=CMs) & Q(created_role_id=3)) |
+                  (Q(created_by__in=CMAs) & Q(created_role_id=7))
+                  )) |
+                (Q(status=2, is_share=1, del_flag=0) &
+                 ((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
+                  (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
+                  (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                  (Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                 ))
         elif request.session['login_type'] == 1:
             qs = Flow.objects.filter(Q(status=2, del_flag=0))
         else:
@@ -1753,7 +1773,7 @@ def api_workflow_list(request):
                 'task_label': flow.task_label,
                 'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d') or "",
                 'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share,
-                'is_public': flow.is_public
+                'is_public': flow.is_public, 'created_role': flow.created_role_id
             })
         # 分页信息
         paging = {
@@ -2135,6 +2155,36 @@ def api_workflow_unpublic(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+def api_workflow_job_types(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    resp = code.get_msg(code.SUCCESS)
+    resp['d'] = {'job_types': []}
+    try:
+        jobTypes = [model_to_dict(jobType) for jobType in TJobType.objects.all()]
+        resp['d'] = {'job_types': jobTypes}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_office_items(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    resp = code.get_msg(code.SUCCESS)
+    resp['d'] = {'office_items': []}
+    try:
+        officeItems = [model_to_dict(officeItem) for officeItem in OfficeItems.objects.all()]
+        resp['d'] = {'office_items': officeItems}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
 def api_workflow_job_type_candidate(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -2187,16 +2237,17 @@ def api_workflow_role_allocation_create(request):
                         continue
                     FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id,
                                                       no__gt=capacity).update(can_terminate=0, can_brought=0,
+                                                                              can_start=0,
                                                                               del_flag=1)
                     for no in range(1, capacity + 1):
                         if FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id,
                                                              no=no).exists():
                             FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=node_id, role_id=role_id, no=no) \
-                                .update(can_terminate=0, can_brought=0, del_flag=0)
+                                .update(can_start=0, can_terminate=0, can_brought=0, del_flag=0)
                         else:
                             new_allocations.append(
                                 FlowRoleAllocation(flow_id=flow_id, node_id=node_id, role_id=role_id, no=no,
-                                                   can_terminate=0, can_brought=0, del_flag=0))
+                                                   can_start=0, can_terminate=0, can_brought=0, del_flag=0))
                 if new_allocations:
                     FlowRoleAllocation.objects.bulk_create(new_allocations)
             qs = FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id__in=node_ids,
@@ -2208,6 +2259,7 @@ def api_workflow_role_allocation_create(request):
                 node = model_to_dict(FlowNode.objects.get(pk=roleAllocation.node_id))
                 roleAllocations.append({
                     'id': roleAllocation.id, 'flow': flow, 'node': node, 'role': role, 'no': roleAllocation.no,
+                    'can_start': roleAllocation.can_start,
                     'can_terminate': roleAllocation.can_terminate, 'can_brought': roleAllocation.can_brought,
                     'can_take_in': roleAllocation.can_take_in
                 })
@@ -2250,6 +2302,7 @@ def api_workflow_role_allocation_list(request):
                 for allocation in qs:
                     allocations.append({
                         'id': allocation.id, 'flow': flow, 'node': node, 'role': role, 'no': allocation.no,
+                        'can_start': allocation.can_start,
                         'can_terminate': allocation.can_terminate, 'can_brought': allocation.can_brought,
                         'can_take_in': allocation.can_take_in
                     })
@@ -2331,7 +2384,8 @@ def api_workflow_role_allocation_bulk_update(request):
             for allocation in allocations:
                 FlowRoleAllocation.objects.filter(pk=allocation['id']).update(can_take_in=allocation['can_take_in'],
                                                                               can_terminate=allocation['can_terminate'],
-                                                                              can_brought=allocation['can_brought'])
+                                                                              can_brought=allocation['can_brought'],
+                                                                              can_start=allocation['can_start'])
             resp = code.get_msg(code.SUCCESS)
 
             if flow_id:

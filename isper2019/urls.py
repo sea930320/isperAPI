@@ -232,6 +232,8 @@ urlpatterns += (
     url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic), #Jonas worklog added
     url(r'^api/workflow/share$', workflow_views.api_workflow_share), #Jonas worklog added
     url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare), #Jonas worklog added
+    url(r'^api/workflow/job_types', workflow_views.api_workflow_job_types), #Jonas
+    url(r'^api/workflow/office_items', workflow_views.api_workflow_office_items), #Jonas
     url(r'^api/workflow/job_type/candidate', workflow_views.api_workflow_job_type_candidate), #Jonas
     url(r'^api/workflow/role/allocation/list', workflow_views.api_workflow_role_allocation_list), #Jonas
     url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create), #Jonas
@@ -322,6 +324,8 @@ urlpatterns += (
 
 urlpatterns += (
     url(r'^api/business/create', business_views.api_business_create),
+    url(r'^api/business/start$', business_views.api_business_start),
+    url(r'^api/business/list$', business_views.api_business_list),
     url(r'^api/business/list_nodel$', business_views.api_experiment_list_nodel),
     url(r'^api/business/list_del$', business_views.api_experiment_list_del),
     url(r'^api/business/delete$', business_views.api_experiment_delete),

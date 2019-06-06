@@ -270,6 +270,8 @@ def api_project_roles_detail(request):
             project_nodes = []
             flow_nodes = FlowNode.objects.filter(flow_id=obj.flow_id, del_flag=0)
             for item in flow_nodes:
+                is_start_node = FlowTrans.objects.filter(flow_id=flow.id, incoming__startswith='StartEvent',
+                                                         outgoing=item.task_id).exists()
                 if item.process:
                     process = item.process
                     prc = {
@@ -289,7 +291,7 @@ def api_project_roles_detail(request):
                     look_on = False
                 project_nodes.append(
                     {'id': item.pk, 'name': item.name, 'process': prc, 'project_role_allocs': list(pras),
-                     'look_on': look_on})
+                     'look_on': look_on, 'is_start_node': is_start_node})
             # 项目角色，按类型分类
             sql = '''SELECT t.id,t.type,t.`name` role_name,t.max,t.min,t.category,t.image_id,t.capacity, t.job_type_id,i.`name` image_name,i.gender
             from t_project_role t LEFT JOIN t_role_image i ON t.image_id=i.id
@@ -371,6 +373,7 @@ def api_project_roles_configurate(request):
                     flowNode = FlowNode.objects.get(pk=node['id'])
                     for key1, pra in enumerate(projectRoleAllocs):
                         ProjectRoleAllocation.objects.filter(pk=pra['id']).update(can_take_in=pra['can_take_in'],
+                                                                                  can_start=pra['can_start'],
                                                                                   can_terminate=pra['can_terminate'],
                                                                                   can_brought=pra['can_brought'])
                     projectNodeInfo = ProjectNodeInfo.objects.filter(project=obj, node=flowNode)
@@ -429,6 +432,7 @@ def api_project_update(request):
         officeItem = request.POST.get("officeItem", None)
         purpose = request.POST.get("purpose", None)  # 实验目的
         requirement = request.POST.get("requirement", None)  # 实验要求
+        use_to = request.POST.get("use_to", None)
 
         # 课程没有就保存
         Course.objects.get_or_create(name=course)
@@ -477,6 +481,7 @@ def api_project_update(request):
                 obj.officeItem_id = officeItem
                 obj.purpose = purpose
                 obj.requirement = requirement
+                obj.use_to_id = use_to
                 if obj.step < const.PRO_STEP_1:
                     obj.step = const.PRO_STEP_1
                 obj.save()
@@ -646,7 +651,9 @@ def api_project_create(request):
         purpose = request.POST.get("purpose", None)  # 实验目的
         requirement = request.POST.get("requirement", None)  # 实验要求
         officeItem = request.POST.get("officeItem", None)
+        use_to = request.POST.get("use_to", None)
         logger.info('-----api_project_create----')
+
         if all([flow_id, name, all_role, course, reference, public_status, level, entire_graph, can_redo,
                 is_open, ability_target, intro, purpose, requirement, officeItem]):
             name = name.strip()
@@ -708,7 +715,8 @@ def api_project_create(request):
                     ability_target=ability_target, start_time=start_time, end_time=end_time,
                     intro=intro, purpose=purpose, requirement=requirement,
                     type=flow.type_label, created_by=Tuser.objects.get(id=request.user.pk),
-                    created_role_id=request.session['login_type'])
+                    created_role_id=request.session['login_type'], use_to_id=use_to
+                )
 
                 if is_open == '4':
                     target_users = eval(request.POST.get("target_users", ''))
@@ -736,6 +744,7 @@ def api_project_create(request):
                     if role:
                         project_allocations.append(ProjectRoleAllocation(project_id=obj.pk, node_id=item.node_id,
                                                                          role_id=role.id,
+                                                                         can_start=item.can_start,
                                                                          can_terminate=item.can_terminate,
                                                                          can_brought=item.can_brought,
                                                                          can_take_in=item.can_take_in,
@@ -793,22 +802,33 @@ def api_project_list(request):
         user = request.user
 
         if request.session['login_type'] != 1:
-            if request.session['login_type'] == 2:
+            if request.session['login_type'] in [2, 6]:
                 groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
-                groupID = groupInfo['group_id']
-                qs = qs.filter(Q(is_group_share=1) | (
-                    Q(created_by__tcompany__group_id=groupID) | Q(created_by__allgroups_set__in=[groupID]) | Q(
-                        created_by__allgroups_set_assistants__in=[groupID])))
+                group = AllGroups.objects.get(id=groupInfo['group_id'])
+                createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
+                createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
+                companies = group.tcompany_set.all()  # get all companies
+                createdByCMs = []
+                createdByCMAs = []
+                for company in companies:
+                    companyManagers = company.tcompanymanagers_set.all()  # get all company managers
+                    companyAssistants = company.assistants.all()  # get all company manager assistants
+                    for companyManager in companyManagers:
+                        createdByCMs.append(companyManager.tuser.id)
+                    for companyAssistant in companyAssistants:
+                        createdByCMAs.append(companyAssistant.id)
+                qs = qs.filter(
+                    Q(is_group_share=1) |
+                    ((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
+                     (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
+                     (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                     (Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                )
 
-            if request.session['login_type'] == 3:
+            if request.session['login_type'] in [3, 7]:
                 groupInfo = json.loads(public_fun.getGroupByCompanyManagerID(request.session['login_type'], user.id))
                 groupID = groupInfo['group_id']
-                created_bys = []
                 group = AllGroups.objects.get(pk=int(groupID))
-                groupManagers = group.groupManagers.all()
-                groupAssistants = group.groupManagerAssistants.all()
-                createdByGMs = [manager.id for manager in groupManagers]
-                createdByGMAs = [manager.id for manager in groupAssistants]
                 createdByCMs = []
                 createdByCMAs = []
                 companies = group.tcompany_set.all()  # get all companies
@@ -819,10 +839,11 @@ def api_project_list(request):
                         createdByCMs.append(companyManager.tuser.id)
                     for companyAssistant in companyAssistants:
                         createdByCMAs.append(companyAssistant.id)
-                created_bys = createdByGMs + createdByGMAs + createdByCMs + createdByCMAs
-                print created_bys
                 qs = qs.filter(
-                    Q(created_by=user.id) | (Q(created_by__in=created_bys) & Q(is_company_share=1)))
+                    (Q(created_by=user.id) & Q(created_role_id=request.session['login_type'])) |
+                    ((Q(created_by__in=createdByCMs) & Q(created_role_id=3) & Q(is_company_share=1)) |
+                     (Q(created_by__in=createdByCMAs) & Q(created_role_id=7) & Q(is_company_share=1)))
+                )
             if request.session['login_type'] == 5:
                 group_id = request.GET.get("group_id", None)
                 company_id = request.GET.get("company_id", None)
@@ -844,10 +865,12 @@ def api_project_list(request):
                             createdByCMs.append(companyManager.tuser.id)
                         for companyAssistant in companyAssistants:
                             createdByCMAs.append(companyAssistant.id)
-                    qs = qs.filter((Q(created_by__in=createdByGMs) & Q(created_role_id=2)) | (
-                        Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) | (
-                                       Q(created_by__in=createdByCMs) & Q(created_role_id=3)) | (
-                                       Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                    qs = qs.filter(
+                        (Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
+                        (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
+                        (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                        (Q(created_by__in=createdByCMAs) & Q(created_role_id=7))
+                    )
                 if company_id and by_method == 'company':
                     company = TCompany.objects.get(pk=int(company_id))
                     companyManagers = company.tcompanymanagers_set.all()
@@ -858,11 +881,20 @@ def api_project_list(request):
                         createdByCMs.append(companyManager.tuser.id)
                     for companyAssistant in companyAssistants:
                         createdByCMAs.append(companyAssistant.id)
-                    qs = qs.filter((Q(created_by__in=createdByCMs) & Q(created_role_id=3)) | (
-                        Q(created_by__in=createdByCMAs) & Q(created_role_id=7)))
+                    qs = qs.filter(
+                        (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
+                        (Q(created_by__in=createdByCMAs) & Q(created_role_id=7))
+                    )
                 if office_id and by_method == 'office':
                     qs = qs.filter(officeItem_id=int(office_id))
+                today = datetime.today()
+                if user.tposition and user.tposition.parts:
+                    query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user])) | (Q(is_open=5) & Q(target_parts=user.tposition.parts))
+                else:
+                    query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user]))
+                qs = qs.exclude(Q(is_open=2)).filter(query)
 
+        qs = qs.filter(del_flag=0)
         paginator = Paginator(qs, size)
 
         try:
@@ -888,7 +920,7 @@ def api_project_list(request):
                 editAble = 1
                 deleteAble = 1
             else:
-                if project.created_by.id == user.id:
+                if project.created_by.id == user.id and project.created_role_id == request.session['login_type']:
                     shareAble = 1
                     editAble = 1
                     deleteAble = 1
@@ -900,12 +932,12 @@ def api_project_list(request):
                     if request.session['login_type'] == 3:
                         if project.is_company_share == 1:
                             currentShare = 1
-            company_name = project.created_by.tcompanymanagers_set.get().tcompany.name if project.created_role_id == 3 else  project.created_by.t_company_set_assistants.get().name if project.created_role_id == 7 else ''
+            company_name = project.created_by.tcompanymanagers_set.get().tcompany.name if project.created_role_id == 3 else project.created_by.t_company_set_assistants.get().name if project.created_role_id == 7 else ''
 
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
                 'company_name': company_name,
-                'officeItem': model_to_dict(project.officeItem) if project.officeItem else {},
+                'officeItem': project.officeItem_id if project.officeItem else None,
                 'course': project.course_id,
                 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
                 'course_name': project.course.name, 'reference': project.reference,
@@ -920,8 +952,8 @@ def api_project_list(request):
                 'is_group_share': project.is_group_share,
                 'is_company_share': project.is_company_share, 'share_able': shareAble, 'edit_able': editAble,
                 'delete_able': deleteAble, 'current_share': currentShare,
-                'target_parts': {'value': project.target_parts.id,
-                                 'text': project.target_parts.name} if project.target_parts_id else {}
+                'target_parts': {'value': project.target_parts.id, 'text': project.target_parts.name} if project.target_parts_id else {},
+                'use_to': {'value': project.use_to.id, 'text': project.use_to.name} if project.use_to else {}
             })
 
         # 分页信息
@@ -997,6 +1029,7 @@ def api_project_copy(request):
                             continue
                         project_allocations.append(ProjectRoleAllocation(project_id=obj.pk, node_id=item.node_id,
                                                                          role_id=new_role_id,
+                                                                         can_start=item.can_start,
                                                                          can_terminate=item.can_terminate,
                                                                          can_brought=item.can_brought,
                                                                          num=item.num, score=item.score))
@@ -1274,6 +1307,7 @@ def api_project_share(request):
         # Group Manager
         if request.session['login_type'] == 2:
             ids = [i for i in ids_set]
+            print ids
             Project.objects.filter(id__in=ids).update(is_group_share=1)
         if request.session['login_type'] == 3:
             ids = [i for i in ids_set]
@@ -1324,11 +1358,19 @@ def get_allusers_allparts(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
+        login_type = request.session['login_type']
         users = [{'id': item.id, 'text': item.username} for item in Tuser.objects.filter(roles=5)]
         parts = [{'value': item.id, 'text': item.company.name + ' : ' + item.name} for item in TParts.objects.all()]
+        use_to = []
+        # if login_type in [2, 6]:
+        #     group_id = request.user.allgroups_set.get().id if login_type == 2 else request.user.allgroups_set_assistants.get().id
+        #     use_to = [{'value': item.id, 'text': item.company.name + ' : ' + item.name} for item in TParts.objects.filter(company__group=group_id)]
+        if login_type in [3, 7]:
+            company_id = request.user.tcompanymanagers_set.get().tcompany.id if login_type == 3 else request.user.t_company_set_assistants.get().id
+            use_to = [{'value': item.id, 'text': item.name} for item in TParts.objects.filter(company_id=company_id)]
 
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'users': users, 'parts': parts}
+        resp['d'] = {'users': users, 'parts': parts, 'use_to_list': use_to}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
