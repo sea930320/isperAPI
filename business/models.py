@@ -9,8 +9,10 @@ from account.models import Tuser, TJobType
 from project.models import ProjectRoleAllocation
 from workflow.models import FlowNode
 
+
 def get_business_doc_upload_to(instance, filename):
     return u'business/{}/{}'.format(instance.experiment_id, filename)
+
 
 # 实验任务
 class Business(models.Model):
@@ -38,6 +40,7 @@ class Business(models.Model):
     def __unicode__(self):
         return self.name
 
+
 # 项目角色
 class BusinessRole(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
@@ -57,6 +60,7 @@ class BusinessRole(models.Model):
     def __unicode__(self):
         return self.name
 
+
 # 项目角色分配
 class BusinessRoleAllocation(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
@@ -75,6 +79,7 @@ class BusinessRoleAllocation(models.Model):
     def __unicode__(self):
         return self.business.name
 
+
 class BusinessTeam(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
@@ -88,6 +93,7 @@ class BusinessTeam(models.Model):
 
     def __unicode__(self):
         return self.name
+
 
 class BusinessDoc(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -113,6 +119,7 @@ class BusinessDoc(models.Model):
 
     def __unicode__(self):
         return self.filename
+
 
 class BusinessDocTeam(models.Model):
     business_team = models.ForeignKey(BusinessTeam, on_delete=models.CASCADE, verbose_name=u'Business')
