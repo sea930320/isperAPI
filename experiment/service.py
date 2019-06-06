@@ -1335,7 +1335,6 @@ def get_roles_status_by_user(exp, path, user_id):
         cache.set(key, role_list)
         return role_list
 
-
 # def get_without_node_user_roles(exp, user_id):
 #     """
 #     当前用户可选角色

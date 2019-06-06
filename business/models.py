@@ -16,7 +16,7 @@ def get_business_doc_upload_to(instance, filename):
 class Business(models.Model):
     name = models.CharField(max_length=64, verbose_name=u'名称')
     huanxin_id = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'环信id')
-    project = models.ForeignKey(Project, verbose_name=u'项目')
+    project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
     show_nickname = models.BooleanField(default=False, verbose_name=u'昵称显示组员')
     start_time = models.DateTimeField(blank=True, null=True, verbose_name=u'开始时间')
     end_time = models.DateTimeField(blank=True, null=True, verbose_name=u'结束时间')
@@ -42,7 +42,7 @@ class Business(models.Model):
 # 实验流转路径
 class BusinessTransPath(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
-    project = models.ForeignKey(Project, verbose_name=u'当前项目')
+    project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'当前环节')
     task_id = models.CharField(max_length=16, blank=True, null=True, verbose_name=u'xml中task id')
     step = models.IntegerField(default=1, blank=True, null=True, verbose_name=u'步骤')
@@ -61,6 +61,7 @@ class BusinessTransPath(models.Model):
 # 项目角色
 class BusinessRole(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
+    project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
     name = models.CharField(max_length=32, verbose_name=u'角色名称')
     type = models.CharField(max_length=28, verbose_name=u'角色类型')
     image_id = models.IntegerField(verbose_name=u'角色形象', null=True)
@@ -80,6 +81,7 @@ class BusinessRole(models.Model):
 # 项目角色分配
 class BusinessRoleAllocation(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
+    project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
     role = models.ForeignKey(BusinessRole, on_delete=models.CASCADE, verbose_name=u'角色')
     can_terminate = models.BooleanField(verbose_name=u'结束环节权限')
@@ -117,6 +119,7 @@ class BusinessRoleAllocationStatus(models.Model):
 
 class BusinessTeamMember(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
     business_role = models.ForeignKey(BusinessRole, on_delete=models.CASCADE, verbose_name=u'Business Role')
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'User')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
