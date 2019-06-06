@@ -5,7 +5,7 @@ from django.db import models
 from utils.storage import *
 from utils import const
 from project.models import Project
-from account.models import Tuser, TJobType, OfficeItems
+from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts
 from project.models import ProjectRoleAllocation
 from workflow.models import FlowNode
 
@@ -30,6 +30,8 @@ class Business(models.Model):
     finish_time = models.DateTimeField(blank=True, null=True, verbose_name=u'实际完成时间')
     officeItem = models.ForeignKey(OfficeItems, blank=True, null=True, on_delete=models.CASCADE)
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    target_company = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.CASCADE)
+    target_part = models.ForeignKey(TParts, blank=True, null=True, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "t_business"

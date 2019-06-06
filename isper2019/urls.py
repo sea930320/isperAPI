@@ -258,6 +258,7 @@ urlpatterns += (
     url(r'^api/group/checkUserGroup$', group_views.check_user_group),
     url(r'^api/group/deleteGroupManager$', group_views.delete_group_manager),
     url(r'^api/group/deleteGroupInstructor$', group_views.delete_group_instructor),
+    url(r'^api/group/getCompanyListOfGroup$', group_views.get_companyList_OfGroup),
     url(r'^api/company/fetchCompanyList$', group_views.get_company_list),
     url(r'^api/company/createCompany$', group_views.create_new_company),
     url(r'^api/company/deleteCompany$', group_views.delete_selected_company),

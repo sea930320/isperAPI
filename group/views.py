@@ -451,8 +451,6 @@ def create_instructors(request):
 
 
 # Company Action API
-
-
 def get_company_list(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -932,6 +930,28 @@ def delete_group_instructor(request):
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def get_companyList_OfGroup(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 5:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        groupID = request.POST.get("groupID", None)
+        results = [{'value': item.id, 'text': item.name} for item in TCompany.objects.filter(group_id=groupID, is_default=0)]
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))

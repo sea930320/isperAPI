@@ -429,7 +429,6 @@ def api_project_update(request):
         start_time = request.POST.get("start_time", None)  # 开放开始时间
         end_time = request.POST.get("end_time", None)  # 开放结束时间
         intro = request.POST.get("intro", None)  # 项目简介
-        officeItem = request.POST.get("officeItem", None)
         purpose = request.POST.get("purpose", None)  # 实验目的
         requirement = request.POST.get("requirement", None)  # 实验要求
         use_to = request.POST.get("use_to", None)
@@ -478,7 +477,6 @@ def api_project_update(request):
                 obj.start_time = start_time
                 obj.end_time = end_time
                 obj.intro = intro
-                obj.officeItem_id = officeItem
                 obj.purpose = purpose
                 obj.requirement = requirement
                 obj.use_to_id = use_to
@@ -937,7 +935,7 @@ def api_project_list(request):
             results.append({
                 'id': project.id, 'flow_id': project.flow_id, 'name': project.name, 'all_role': project.all_role,
                 'company_name': company_name,
-                'officeItem': project.officeItem_id if project.officeItem else None,
+                'officeItem_name': project.officeItem.name if project.officeItem else None,
                 'course': project.course_id,
                 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
                 'course_name': project.course.name, 'reference': project.reference,
@@ -946,6 +944,7 @@ def api_project_list(request):
                 'is_open': project.is_open,
                 'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time,
                 'created_by': user_simple_info(project.created_by.id),
+                'created_role': project.created_role_id,
                 'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
                 'flow': flow_data, 'intro': project.intro,
                 'purpose': project.purpose, 'requirement': project.requirement, 'protected': project.protected,
