@@ -191,6 +191,136 @@ def api_business_list(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+# def api_business_detail(request):
+#     resp = auth_check(request, "GET")
+#     if resp != {}:
+#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#     try:
+#         business_id = request.GET.get("business_id ")  # 实验id
+#         business = Business.objects.filter(pk=business_id , del_flag=0).first()
+#         if business:
+#             # if not exp.course_class_id:
+#             #     logger.exception('api_experiment_detail Exception:该实验没有注册到课堂')
+#             #     resp = code.get_msg(code.EXPERIMENT_NOT_REGISTER)
+#             #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#             data = get_experiment_detail(business)
+#
+#             # 三期记录用户最后一次进入的实验id
+#             user = request.user
+#             user.last_business_id = business_id
+#             user.save()
+#
+#             user_roles = []
+#             if business.status == 1:
+#                 control_status = 1
+#                 path_id = None
+#             else:
+#                 path = ExperimentTransPath.objects.filter(experiment_id=experiment_id).last()
+#                 control_status = path.control_status
+#                 path_id = path.pk
+#                 # user_roles = get_roles_status_by_user(exp, path, request.user.pk)
+#                 # 三期 - 老师进入实验观察学生做实验  ——ps：二手项目真是个麻烦事
+#                 # 获取用户登录类型是老师的
+#                 if request.session['login_type'] == 2:
+#                     # 老师没有角色就给他创建各种角色， mdzz~zzz， 老师观察者权限
+#                     p_temp = Project.objects.get(pk=exp.project_id)
+#                     f_role_temp = FlowRole.objects.filter(flow_id=p_temp.flow_id, name=const.ROLE_TYPE_OBSERVER,
+#                                                           type=const.ROLE_TYPE_OBSERVER)
+#                     if not f_role_temp:
+#                         f_role_temp = FlowRole.objects.create(flow_id=p_temp.flow_id, name=const.ROLE_TYPE_OBSERVER,
+#                                                               type=const.ROLE_TYPE_OBSERVER, category=99, image_id=40,
+#                                                               min=1, max=100)
+#                     else:
+#                         f_role_temp = f_role_temp.first()
+#                     p_role_temp = ProjectRole.objects.filter(project_id=exp.project_id, flow_role_id=f_role_temp.id,
+#                                                              name=const.ROLE_TYPE_OBSERVER,
+#                                                              type=const.ROLE_TYPE_OBSERVER, )
+#                     if not p_role_temp:
+#                         p_role_temp = ProjectRole.objects.create(project_id=exp.project_id, category=99,
+#                                                                  flow_role_id=f_role_temp.id, image_id=40,
+#                                                                  name=const.ROLE_TYPE_OBSERVER,
+#                                                                  type=const.ROLE_TYPE_OBSERVER, )
+#                     else:
+#                         p_role_temp = p_role_temp.first()
+#                     e_role_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id, node_id=path.node_id,
+#                                                                       user_id=request.user.id, role_id=p_role_temp.id,
+#                                                                       path_id=path.pk)
+#                     if not e_role_temp:
+#                         e_role_temp = ExperimentRoleStatus.objects.create(experiment_id=experiment_id,
+#                                                                           node_id=path.node_id, user_id=request.user.id,
+#                                                                           role_id=p_role_temp.id, path_id=path.pk,
+#                                                                           sitting_status=const.SITTING_DOWN_STATUS)
+#                     else:  # 老师默认入席
+#                         e_role_temp.update(sitting_status=const.SITTING_DOWN_STATUS)
+#                     # 将老师注册到环信群组
+#                     easemob_members = []
+#                     easemob_members.append(request.user.id)
+#                     easemob_success, easemob_result = easemob.add_groups_member(exp.huanxin_id, easemob_members)
+#                     pass
+#                 # 重新获取一遍user_roles
+#                 user_roles_temp = get_roles_status_by_user(exp, path, request.user.pk)
+#                 # user_roles = []
+#                 # 三期 老师以实验指导登录进来，老师只观察只给一个观察者的角色;
+#                 # 老师以实验者登录进来，要去掉老师的观察者角色
+#                 if request.session['login_type'] == 2:
+#                     for role_temp in user_roles_temp:
+#                         if role_temp['name'] == const.ROLE_TYPE_OBSERVER:
+#                             user_roles.append(role_temp)
+#                 else:
+#                     for role_temp in user_roles_temp:
+#                         if role_temp['name'] != const.ROLE_TYPE_OBSERVER:
+#                             user_roles.append(role_temp)
+#
+#                 # 取一个角色id
+#                 mr = MemberRole.objects.filter(experiment_id=experiment_id, user_id=request.user.pk, del_flag=0).first()
+#                 if mr:
+#                     data['without_node_user_role_id'] = mr.role_id
+#                 # 获取角色相关环节
+#                 data['with_user_nodes'] = get_user_with_node(exp, request.user.pk)
+#
+#             data['control_status'] = control_status
+#             data['path_id'] = path_id
+#             data['user_roles'] = user_roles
+#             resp = code.get_msg(code.SUCCESS)
+#             resp['d'] = data
+#
+#         else:
+#             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#         # 三期 - 到达指定环节还有角色没有设置提示设置角色
+#         node = business.node
+#         if node:
+#             # 已设置的角色
+#             role_list_has = MemberRole.objects.filter(experiment_id=experiment_id, project_id=exp.project_id,
+#                                                       del_flag=0)
+#             role_id_list_has = [item.role_id for item in role_list_has]  # 项目角色id
+#             # 环节需要的角色
+#             project_role_need = ProjectRoleAllocation.objects.filter(project_id=exp.project_id, node_id=node.pk)
+#             role_id_list_need = [item.role_id for item in project_role_need]  # 流程角色id
+#             # 没有设置的角色名称
+#             role_name_not_set = []
+#             # 如果当前环节需要的角色还没有设置，则加入到role_name_not_set
+#             for role_id_need_temp in role_id_list_need:
+#                 if role_id_need_temp not in role_id_list_has:
+#                     role_need_temp = ProjectRole.objects.filter(id=role_id_need_temp).first()
+#                     # 除掉老师观察者
+#                     if role_need_temp.name != const.ROLE_TYPE_OBSERVER:
+#                         role_name_not_set.append(role_need_temp.name)
+#             if len(role_name_not_set) > 0:
+#                 logger.info('当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set))
+#                 # resp['c'] = code.get_msg(code.EXPERIMENT_ROLE_NOT_SET)
+#                 resp['m'] = '当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set)
+#                 data['role_not_set'] = resp['m']
+#                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#     except Exception as e:
+#         logger.exception('api_experiment_detail Exception:{0}'.format(str(e)))
+#         resp = code.get_msg(code.SYSTEM_ERROR)
+#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def api_business_start(request):
     resp = auth_check(request, "POST")
