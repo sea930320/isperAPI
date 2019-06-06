@@ -5,14 +5,12 @@ from django.db import models
 from utils.storage import *
 from utils import const
 from project.models import Project
-from account.models import Tuser, TJobType
+from account.models import Tuser, TJobType, OfficeItems
 from project.models import ProjectRoleAllocation
 from workflow.models import FlowNode
 
-
 def get_business_doc_upload_to(instance, filename):
     return u'business/{}/{}'.format(instance.experiment_id, filename)
-
 
 # 实验任务
 class Business(models.Model):
@@ -30,6 +28,7 @@ class Business(models.Model):
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     finish_time = models.DateTimeField(blank=True, null=True, verbose_name=u'实际完成时间')
+    officeItem = models.ForeignKey(OfficeItems, blank=True, null=True, on_delete=models.CASCADE)
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
 
     class Meta:
@@ -40,6 +39,24 @@ class Business(models.Model):
     def __unicode__(self):
         return self.name
 
+# 实验流转路径
+class BusinessTransPath(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
+    project = models.ForeignKey(Project, verbose_name=u'当前项目')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'当前环节')
+    task_id = models.CharField(max_length=16, blank=True, null=True, verbose_name=u'xml中task id')
+    step = models.IntegerField(default=1, blank=True, null=True, verbose_name=u'步骤')
+    control_status = models.PositiveIntegerField(default=1, choices=const.EXPERIMENT_CONTROL_STATUS,
+                                                 verbose_name=u'表达管理状态')
+    vote_status = models.PositiveIntegerField(choices=const.EXPERIMENT_VOTE_STATUS, default=1, verbose_name=u'投票状态')
+
+    class Meta:
+        db_table = "t_business_trans_path"
+        ordering = ['step']
+        verbose_name_plural = verbose_name = u"实验流转路径"
+
+    def __unicode__(self):
+        return self.business_id
 
 # 项目角色
 class BusinessRole(models.Model):
@@ -60,7 +77,6 @@ class BusinessRole(models.Model):
     def __unicode__(self):
         return self.name
 
-
 # 项目角色分配
 class BusinessRoleAllocation(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
@@ -79,21 +95,41 @@ class BusinessRoleAllocation(models.Model):
     def __unicode__(self):
         return self.business.name
 
-
-class BusinessTeam(models.Model):
-    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+# 实验环节角色状态
+class BusinessRoleAllocationStatus(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
+    speak_times = models.IntegerField(default=0, verbose_name=u'发言次数')
+    submit_status = models.PositiveIntegerField(choices=const.SUBMIT_STATUS, default=9, verbose_name=u'提交状态')
+    show_status = models.PositiveIntegerField(choices=const.SHOW_STATUS, default=9, verbose_name=u'展示状态')
+    come_status = models.PositiveIntegerField(choices=const.COME_STATUS, default=9, verbose_name=u'带入带出状态')
+    sitting_status = models.PositiveIntegerField(choices=const.SITTING_STATUS, default=1, verbose_name=u'入席退席状态')
+    stand_status = models.PositiveIntegerField(choices=const.STAND_STATUS, default=2, verbose_name=u'起立坐下状态')
+    vote_status = models.PositiveIntegerField(choices=const.VOTE_STATUS, default=0, verbose_name=u'投票状态')
+
+    class Meta:
+        db_table = "t_business_role_allocation_status"
+        verbose_name_plural = verbose_name = u"实验环节角色状态"
+
+    def __unicode__(self):
+        return u""
+
+class BusinessTeamMember(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    business_role = models.ForeignKey(BusinessRole, on_delete=models.CASCADE, verbose_name=u'Business Role')
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'User')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+    no = models.IntegerField(default=1, verbose_name=u'Number')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     class Meta:
-        db_table = "t_business_team"
+        db_table = "t_business_team_member"
         ordering = ('-create_time', )
         verbose_name_plural = verbose_name = u"BusinessTeam"
 
     def __unicode__(self):
         return self.name
-
 
 class BusinessDoc(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -120,9 +156,8 @@ class BusinessDoc(models.Model):
     def __unicode__(self):
         return self.filename
 
-
 class BusinessDocTeam(models.Model):
-    business_team = models.ForeignKey(BusinessTeam, on_delete=models.CASCADE, verbose_name=u'Business')
+    business_team_member = models.ForeignKey(BusinessTeamMember, on_delete=models.CASCADE, verbose_name=u'Business')
     business_doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')

@@ -324,6 +324,9 @@ urlpatterns += (
 
 urlpatterns += (
     url(r'^api/business/create', business_views.api_business_create),
+    # url(r'^api/business/detail', business_views.api_business_detail),
+    url(r'^api/business/start$', business_views.api_business_start),
+    url(r'^api/business/list$', business_views.api_business_list),
     url(r'^api/business/list_nodel$', business_views.api_experiment_list_nodel),
     url(r'^api/business/list_del$', business_views.api_experiment_list_del),
     url(r'^api/business/delete$', business_views.api_experiment_delete),

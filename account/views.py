@@ -1914,8 +1914,8 @@ def api_export_worklogs(request):
         row = 1
         title = [u'用户名', u'姓名', u'集群', u'单位', u'角色', u'时间', u'IP', u'Action Name', u'Target Name']
         for log in qs:
-            sheet.write(row, 0, log.user.username)
-            sheet.write(row, 1, log.user.name)
+            sheet.write(row, 0, log.user.username if log.user else '')
+            sheet.write(row, 1, log.user.name if log.user else '')
             sheet.write(row, 2, log.group.name if log.group else '')
             sheet.write(row, 3, log.company.name if log.company else '')
             sheet.write(row, 4, log.role.name if log.role else '')
