@@ -58,9 +58,17 @@ def api_business_create(request):
                 resp = code.get_msg(code.PROJECT_ROLE_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             with transaction.atomic():
-                business = Business.objects.create(project_id=project_id, name=project.name,
-                                                   cur_project_id=project_id, created_by=request.user,
-                                                   officeItem=project.officeItem)
+                if project.created_role_id in [3, 7]:
+                    company_id = project.created_by.tcompanymanagers_set.get().tcompany.id if project.created_role_id == 3 else project.created_by.t_company_set_assistants.get().id if project.created_role_id == 7 else None
+                business = Business.objects.create(
+                    project_id=project_id,
+                    name=project.name,
+                    cur_project_id=project_id,
+                    created_by=request.user,
+                    officeItem=project.officeItem,
+                    target_company_id=use_to if project.created_role_id in [2, 6] else company_id if project.created_role_id in [3, 7] and project.use_to_id is None else None,
+                    target_part_id=project.use_to_id if project.created_role_id in [3, 7] and project.use_to_id is not None else None,
+                )
                 business_roles = []
                 for item in roles:
                     business_roles.append(BusinessRole(business=business, image_id=item.image_id, name=item.name,
@@ -88,6 +96,8 @@ def api_business_create(request):
                                                    no=item.no))
                 BusinessRoleAllocation.objects.bulk_create(business_allocations)
 
+                teammates_configuration(business.id)
+
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
                     'id': business.id, 'name': u'{0} {1}'.format(business.id, business.name),
@@ -105,6 +115,21 @@ def api_business_create(request):
     except Exception as e:
         logger.exception('api_business_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# def teammates_configuration(business_id):
+#
+#     teammateList = list(BusinessRoleAllocation.objects.filter(business_id=business_id).values('role_id', 'role__job_type', 'no').distinct())
+#
+#     business = Business.objects.get(id=business_id)
+#     if business.target_part is not None:
+#         targetUnitUsers = [{
+#                 'id': item.id,
+#                 'position': item.tposition.name,
+#             } for item in Tuser.objects.filter(tposition__parts_id=business.target_part)]
+#     elif business.target_company is not None:
+#         targetUnitUsers =
 
 
 def api_business_list(request):
@@ -119,8 +144,7 @@ def api_business_list(request):
         status = int(request.GET.get("status", 1))  # 实验状态
 
         user = request.user
-        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id',
-                                                                                                  flat=True)
+        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id', flat=True)
         qs = Business.objects.filter(
             Q(del_flag=0, pk__in=bussinessIDsInTeam) | Q(created_by=request.user))
 
@@ -186,13 +210,13 @@ def api_business_list(request):
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': results, 'paging': paging}
-        print results
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('api_business_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_business_detail(request):
     resp = auth_check(request, "GET")
@@ -324,6 +348,7 @@ def api_business_detail(request):
         logger.exception('api_experiment_detail Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_business_start(request):
     resp = auth_check(request, "POST")

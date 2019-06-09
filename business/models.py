@@ -9,8 +9,10 @@ from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts
 from project.models import ProjectRoleAllocation
 from workflow.models import FlowNode
 
+
 def get_business_doc_upload_to(instance, filename):
     return u'business/{}/{}'.format(instance.experiment_id, filename)
+
 
 # 实验任务
 class Business(models.Model):
@@ -41,6 +43,7 @@ class Business(models.Model):
     def __unicode__(self):
         return self.name
 
+
 # 实验流转路径
 class BusinessTransPath(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
@@ -59,6 +62,7 @@ class BusinessTransPath(models.Model):
 
     def __unicode__(self):
         return self.business_id
+
 
 # 项目角色
 class BusinessRole(models.Model):
@@ -80,6 +84,7 @@ class BusinessRole(models.Model):
     def __unicode__(self):
         return self.name
 
+
 # 项目角色分配
 class BusinessRoleAllocation(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
@@ -98,6 +103,7 @@ class BusinessRoleAllocation(models.Model):
 
     def __unicode__(self):
         return self.business.name
+
 
 # 实验环节角色状态
 class BusinessRoleAllocationStatus(models.Model):
@@ -119,6 +125,7 @@ class BusinessRoleAllocationStatus(models.Model):
     def __unicode__(self):
         return u""
 
+
 class BusinessTeamMember(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
@@ -135,6 +142,7 @@ class BusinessTeamMember(models.Model):
 
     def __unicode__(self):
         return self.name
+
 
 class BusinessDoc(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -160,6 +168,7 @@ class BusinessDoc(models.Model):
 
     def __unicode__(self):
         return self.filename
+
 
 class BusinessDocTeam(models.Model):
     business_team_member = models.ForeignKey(BusinessTeamMember, on_delete=models.CASCADE, verbose_name=u'Business')
