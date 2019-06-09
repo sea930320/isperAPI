@@ -11,13 +11,15 @@ from django.db.models import Q
 from django.http import HttpResponse
 from experiment.models import *
 from business.models import *
+from business.service import *
 from experiment.service import *
 from project.models import Project, ProjectRole, ProjectRoleAllocation, ProjectDoc, ProjectDocRole
 from team.models import Team, TeamMember
 from utils import const, code, tools, easemob
 from utils.request_auth import auth_check
 from workflow.models import FlowNode, FlowAction, FlowRoleActionNew, FlowRolePosition, \
-    FlowPosition, RoleImage, Flow, ProcessRoleActionNew, FlowDocs, FlowRole, FlowRoleAllocation
+    FlowPosition, RoleImage, Flow, ProcessRoleActionNew, FlowDocs, FlowRole, FlowRoleAllocation, \
+    FlowRoleAllocationAction
 from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
 import random
@@ -41,6 +43,7 @@ def api_business_create(request):
 
     try:
         project_id = request.POST.get("project_id")  # 项目ID
+        use_to = request.POST.get("use_to")
 
         project = Project.objects.get(pk=project_id)
 
@@ -56,14 +59,22 @@ def api_business_create(request):
                 resp = code.get_msg(code.PROJECT_ROLE_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             with transaction.atomic():
-                business = Business.objects.create(project=project, name=project.name,
-                                                   cur_project_id=project_id, created_by=request.user,
-                                                   officeItem=project.officeItem)
+                if project.created_role_id in [3, 7]:
+                    company_id = project.created_by.tcompanymanagers_set.get().tcompany.id if project.created_role_id == 3 else project.created_by.t_company_set_assistants.get().id if project.created_role_id == 7 else None
+                business = Business.objects.create(
+                    project_id=project_id,
+                    name=project.name,
+                    cur_project_id=project_id,
+                    created_by=request.user,
+                    officeItem=project.officeItem,
+                    target_company_id=use_to if project.created_role_id in [2, 6] else company_id if project.created_role_id in [3, 7] and project.use_to_id is None else None,
+                    target_part_id=project.use_to_id if project.created_role_id in [3, 7] and project.use_to_id is not None else None,
+                )
                 business_roles = []
                 for item in roles:
                     business_roles.append(BusinessRole(business=business, image_id=item.image_id, name=item.name,
                                                        type=item.type, flow_role_id=item.flow_role_id,
-                                                       project_role_id=item.id,
+                                                       project_role_id=item.id, project_id=project_id,
                                                        category=item.category, capacity=item.capacity,
                                                        job_type=item.job_type))
                 BusinessRole.objects.bulk_create(business_roles)
@@ -74,9 +85,21 @@ def api_business_create(request):
                 for item in allocations:
                     # 将角色分配中的role_id设置为ProjectRole id
                     role = BusinessRole.objects.filter(business=business, project_role_id=item.role_id).first()
+                    project = Project.objects.filter(pk=item.project_id).first()
+                    projectRole = ProjectRole.objects.filter(pk=item.role_id).first()
+                    if project is None or projectRole is None:
+                        continue
+                    flow_role_alloc = FlowRoleAllocation.objects.filter(flow_id=project.flow_id, node_id=item.node_id,
+                                                                        role_id=projectRole.flow_role_id,
+                                                                        no=item.no).first()
+                    if flow_role_alloc is None:
+                        continue
                     if role:
                         business_allocations.append(
                             BusinessRoleAllocation(business=business, node=FlowNode.objects.get(pk=item.node_id),
+                                                   project_id=project_id,
+                                                   project_role_alloc_id=item.id,
+                                                   flow_role_alloc_id=flow_role_alloc.id,
                                                    role=role,
                                                    can_start=item.can_start,
                                                    can_terminate=item.can_terminate,
@@ -85,10 +108,12 @@ def api_business_create(request):
                                                    no=item.no))
                 BusinessRoleAllocation.objects.bulk_create(business_allocations)
 
+                teammates_configuration(business.id)
+
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
                     'id': business.id, 'name': u'{0} {1}'.format(business.id, business.name),
-                    'project_id': business.project.id,
+                    'project_id': business.project_id,
                     'show_nickname': business.show_nickname, 'start_time': business.start_time,
                     'end_time': business.end_time, 'status': business.status,
                     'created_by': user_simple_info(business.created_by.id) if business.created_by else '',
@@ -102,6 +127,7 @@ def api_business_create(request):
     except Exception as e:
         logger.exception('api_business_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
 def api_business_list(request):
@@ -116,8 +142,7 @@ def api_business_list(request):
         status = int(request.GET.get("status", 1))  # 实验状态
 
         user = request.user
-        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id',
-                                                                                                  flat=True)
+        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id', flat=True)
         qs = Business.objects.filter(
             Q(del_flag=0, pk__in=bussinessIDsInTeam) | Q(created_by=request.user))
 
@@ -183,7 +208,6 @@ def api_business_list(request):
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': results, 'paging': paging}
-        print results
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
@@ -191,136 +215,76 @@ def api_business_list(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-# def api_business_detail(request):
-#     resp = auth_check(request, "GET")
-#     if resp != {}:
-#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#
-#     try:
-#         business_id = request.GET.get("business_id ")  # 实验id
-#         business = Business.objects.filter(pk=business_id , del_flag=0).first()
-#         if business:
-#             # if not exp.course_class_id:
-#             #     logger.exception('api_experiment_detail Exception:该实验没有注册到课堂')
-#             #     resp = code.get_msg(code.EXPERIMENT_NOT_REGISTER)
-#             #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#             data = get_experiment_detail(business)
-#
-#             # 三期记录用户最后一次进入的实验id
-#             user = request.user
-#             user.last_business_id = business_id
-#             user.save()
-#
-#             user_roles = []
-#             if business.status == 1:
-#                 control_status = 1
-#                 path_id = None
-#             else:
-#                 path = ExperimentTransPath.objects.filter(experiment_id=experiment_id).last()
-#                 control_status = path.control_status
-#                 path_id = path.pk
-#                 # user_roles = get_roles_status_by_user(exp, path, request.user.pk)
-#                 # 三期 - 老师进入实验观察学生做实验  ——ps：二手项目真是个麻烦事
-#                 # 获取用户登录类型是老师的
-#                 if request.session['login_type'] == 2:
-#                     # 老师没有角色就给他创建各种角色， mdzz~zzz， 老师观察者权限
-#                     p_temp = Project.objects.get(pk=exp.project_id)
-#                     f_role_temp = FlowRole.objects.filter(flow_id=p_temp.flow_id, name=const.ROLE_TYPE_OBSERVER,
-#                                                           type=const.ROLE_TYPE_OBSERVER)
-#                     if not f_role_temp:
-#                         f_role_temp = FlowRole.objects.create(flow_id=p_temp.flow_id, name=const.ROLE_TYPE_OBSERVER,
-#                                                               type=const.ROLE_TYPE_OBSERVER, category=99, image_id=40,
-#                                                               min=1, max=100)
-#                     else:
-#                         f_role_temp = f_role_temp.first()
-#                     p_role_temp = ProjectRole.objects.filter(project_id=exp.project_id, flow_role_id=f_role_temp.id,
-#                                                              name=const.ROLE_TYPE_OBSERVER,
-#                                                              type=const.ROLE_TYPE_OBSERVER, )
-#                     if not p_role_temp:
-#                         p_role_temp = ProjectRole.objects.create(project_id=exp.project_id, category=99,
-#                                                                  flow_role_id=f_role_temp.id, image_id=40,
-#                                                                  name=const.ROLE_TYPE_OBSERVER,
-#                                                                  type=const.ROLE_TYPE_OBSERVER, )
-#                     else:
-#                         p_role_temp = p_role_temp.first()
-#                     e_role_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id, node_id=path.node_id,
-#                                                                       user_id=request.user.id, role_id=p_role_temp.id,
-#                                                                       path_id=path.pk)
-#                     if not e_role_temp:
-#                         e_role_temp = ExperimentRoleStatus.objects.create(experiment_id=experiment_id,
-#                                                                           node_id=path.node_id, user_id=request.user.id,
-#                                                                           role_id=p_role_temp.id, path_id=path.pk,
-#                                                                           sitting_status=const.SITTING_DOWN_STATUS)
-#                     else:  # 老师默认入席
-#                         e_role_temp.update(sitting_status=const.SITTING_DOWN_STATUS)
-#                     # 将老师注册到环信群组
-#                     easemob_members = []
-#                     easemob_members.append(request.user.id)
-#                     easemob_success, easemob_result = easemob.add_groups_member(exp.huanxin_id, easemob_members)
-#                     pass
-#                 # 重新获取一遍user_roles
-#                 user_roles_temp = get_roles_status_by_user(exp, path, request.user.pk)
-#                 # user_roles = []
-#                 # 三期 老师以实验指导登录进来，老师只观察只给一个观察者的角色;
-#                 # 老师以实验者登录进来，要去掉老师的观察者角色
-#                 if request.session['login_type'] == 2:
-#                     for role_temp in user_roles_temp:
-#                         if role_temp['name'] == const.ROLE_TYPE_OBSERVER:
-#                             user_roles.append(role_temp)
-#                 else:
-#                     for role_temp in user_roles_temp:
-#                         if role_temp['name'] != const.ROLE_TYPE_OBSERVER:
-#                             user_roles.append(role_temp)
-#
-#                 # 取一个角色id
-#                 mr = MemberRole.objects.filter(experiment_id=experiment_id, user_id=request.user.pk, del_flag=0).first()
-#                 if mr:
-#                     data['without_node_user_role_id'] = mr.role_id
-#                 # 获取角色相关环节
-#                 data['with_user_nodes'] = get_user_with_node(exp, request.user.pk)
-#
-#             data['control_status'] = control_status
-#             data['path_id'] = path_id
-#             data['user_roles'] = user_roles
-#             resp = code.get_msg(code.SUCCESS)
-#             resp['d'] = data
-#
-#         else:
-#             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
-#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#
-#         # 三期 - 到达指定环节还有角色没有设置提示设置角色
-#         node = business.node
-#         if node:
-#             # 已设置的角色
-#             role_list_has = MemberRole.objects.filter(experiment_id=experiment_id, project_id=exp.project_id,
-#                                                       del_flag=0)
-#             role_id_list_has = [item.role_id for item in role_list_has]  # 项目角色id
-#             # 环节需要的角色
-#             project_role_need = ProjectRoleAllocation.objects.filter(project_id=exp.project_id, node_id=node.pk)
-#             role_id_list_need = [item.role_id for item in project_role_need]  # 流程角色id
-#             # 没有设置的角色名称
-#             role_name_not_set = []
-#             # 如果当前环节需要的角色还没有设置，则加入到role_name_not_set
-#             for role_id_need_temp in role_id_list_need:
-#                 if role_id_need_temp not in role_id_list_has:
-#                     role_need_temp = ProjectRole.objects.filter(id=role_id_need_temp).first()
-#                     # 除掉老师观察者
-#                     if role_need_temp.name != const.ROLE_TYPE_OBSERVER:
-#                         role_name_not_set.append(role_need_temp.name)
-#             if len(role_name_not_set) > 0:
-#                 logger.info('当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set))
-#                 # resp['c'] = code.get_msg(code.EXPERIMENT_ROLE_NOT_SET)
-#                 resp['m'] = '当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set)
-#                 data['role_not_set'] = resp['m']
-#                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#
-#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#
-#     except Exception as e:
-#         logger.exception('api_experiment_detail Exception:{0}'.format(str(e)))
-#         resp = code.get_msg(code.SYSTEM_ERROR)
-#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_business_detail(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get("business_id")  # 实验id
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business:
+            data = get_business_detail(business)
+
+            # 三期记录用户最后一次进入的实验id
+            user = request.user
+            user.last_business_id = business_id
+            user.save()
+
+            user_role_allocs = []
+            if business.status == 1:
+                control_status = 1
+                path_id = None
+            else:
+                path = BusinessTransPath.objects.filter(business=business).last()
+                control_status = path.control_status
+                path_id = path.pk
+                user_role_allocs_temp = get_role_allocs_status_by_user(business, path, request.user)
+                for role_alloc_temp in user_role_allocs_temp:
+                    print role_alloc_temp['role']
+                    if role_alloc_temp['role']['type'] != const.ROLE_TYPE_OBSERVER:
+                        user_role_allocs.append(role_alloc_temp)
+
+                data['with_user_nodes'] = get_user_with_node_on_business(business, request.user)
+
+            data['control_status'] = control_status
+            data['path_id'] = path_id
+            data['user_role_allocs'] = user_role_allocs
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = data
+        else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 三期 - 到达指定环节还有角色没有设置提示设置角色
+        node = business.node
+        if node:
+            role_name_not_set = []
+            role_allocs_node = BusinessRoleAllocation.objects.filter(business=business, node=node,
+                                                                     project_id=business.cur_project_id,
+                                                                     can_take_in=True)
+            for role_alloc in role_allocs_node:
+                btmExist = BusinessTeamMember.objects.filter(business=business, business_role=role_alloc.role,
+                                                             no=role_alloc.no, project_id=business.cur_project_id,
+                                                             del_flag=0).exists()
+                if btmExist and role_alloc.role.type != const.ROLE_TYPE_OBSERVER:
+                    continue
+                role_name_not_set.append(role_alloc.role.name)
+            if len(role_name_not_set) > 0:
+                logger.info('当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set))
+                # resp['c'] = code.get_msg(code.EXPERIMENT_ROLE_NOT_SET)
+                resp['m'] = '当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set)
+                data['role_not_set'] = resp['m']
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_detail Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_business_start(request):
     resp = auth_check(request, "POST")
@@ -370,7 +334,8 @@ def api_business_start(request):
         #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         # get Start Role Allocation
-        startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1, can_take_in=1).first()
+        startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
+                                                               can_take_in=1).first()
         # check if this user is Start User
         isStartUser = BusinessTeamMember.objects.filter(business=business, user=request.user,
                                                         business_role=startRoleAlloc.role,
@@ -383,7 +348,7 @@ def api_business_start(request):
         with transaction.atomic():
             # Create Business TransPath
             path = BusinessTransPath.objects.create(business=business, node=node,
-                                                    project=business.project, task_id=node.task_id, step=1)
+                                                    project_id=business.project_id, task_id=node.task_id, step=1)
             for item in allocations:
                 if item.can_brought:
                     come_status = 1
@@ -416,9 +381,10 @@ def api_business_start(request):
         # teamMembers that I can take part in this business process
         teamMembers = BusinessTeamMember.objects.filter(business=business, user=request.user, del_flag=0)
         for teamMember in teamMembers:
-            role_allocs = [model_to_dict(bra) for bra in BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1,
-                                                                role=teamMember.business_role,
-                                                                no=teamMember.no)]
+            role_allocs = [model_to_dict(bra) for bra in
+                           BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1,
+                                                                 role=teamMember.business_role,
+                                                                 no=teamMember.no)]
             user_role_allocs = user_role_allocs + role_allocs
 
         resp = code.get_msg(code.SUCCESS)
@@ -435,6 +401,408 @@ def api_business_start(request):
         logger.exception('api_business_start Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 实验环节详情
+def api_business_node_detail(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get("node_id", None)  # 环节id
+        roleAllocID = request.GET.get("roleAllocID", None)  # 角色id
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        project = Project.objects.get(pk=business.cur_project_id)
+
+        # 验证环节是否存在
+        node = FlowNode.objects.filter(pk=node_id).first()
+        if node is None:
+            resp = code.get_msg(code.BUSINESS_NODE_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 获取上个环节
+        pre_node = get_business_pre_node_path(business)
+        pre_node_id = None
+        if pre_node:
+            pre_node_id = pre_node.node_id
+
+        path = BusinessTransPath.objects.filter(business=business).last()
+
+        # 当前用户可选角色
+        role_alloc_list_temp = get_role_allocs_status_by_user(business, path, request.user)
+
+        role_alloc_list = []
+
+        # 三期 老师以实验指导登录进来，老师只观察只给一个观察者的角色;老师以实验者登录进来，要去掉老师的观察者角色
+        if request.session['login_type'] == 2:
+            for role_alloc_temp in role_alloc_list_temp:
+                if role_alloc_temp['role']['name'] == const.ROLE_TYPE_OBSERVER:
+                    role_alloc_list.append(role_alloc_temp)
+        else:
+            for role_alloc_temp in role_alloc_list_temp:
+                if role_alloc_temp['role']['name'] != const.ROLE_TYPE_OBSERVER:
+                    role_alloc_list.append(role_alloc_temp)
+
+        # 当前环节所有角色状态
+        role_alloc_status_list_temp = get_all_simple_role_allocs_status(business, node, path)
+
+        role_alloc_status_list = []
+        # 三期 老师以实验指导登录进来, 不显示老师角色
+        # 这
+        for role_alloc_temp in role_alloc_status_list_temp:
+            if role_alloc_temp['role_name'] != const.ROLE_TYPE_OBSERVER:
+                role_alloc_status_list.append(role_alloc_temp)
+
+        # 是否投票
+        has_vote = BusinessRoleAllocationStatus.objects.filter(business=business,
+                                                               business_role_allocation_id=roleAllocID,
+                                                               business_role_allocation__can_take_in=1,
+                                                               business_role_allocation__node=node,
+                                                               path=path, vote_status=0).exists()
+        if path.vote_status == 1:
+            end_vote = False
+        else:
+            end_vote = True
+
+        # 场景动作列表
+        process_action_list = []
+        # 场景信息
+        if node.process:
+            pro = node.process
+            process = {
+                'id': pro.id, 'name': pro.name, 'type': pro.type, 'can_switch': pro.can_switch,
+                'file': pro.file.url if pro.file else None,
+                'image': pro.image.url if pro.image else None
+            }
+        else:
+            process = None
+
+        # 查询小组组长
+        can_opt = True if business.created_by == request.user else False
+
+        # 实验心得
+        # experience = ExperimentExperience.objects.filter(experiment_id=exp.id, created_by=request.user.pk).first()
+        # experience_data = {'status': 1, 'content': ''}
+        # if experience:
+        #     experience_data = {
+        #         'id': experience.id, 'content': experience.content, 'status': experience.status,
+        #         'created_by': user_simple_info(experience.created_by),
+        #         'create_time': experience.create_time.strftime('%Y-%m-%d')
+        #     }
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'role_allocs': role_alloc_list, 'process': process, 'process_actions': process_action_list,
+            'can_opt': can_opt,
+            'role_alloc_status': role_alloc_status_list, 'id': business.id, 'name': business.name,
+            # 'experience': experience_data,
+            'node': {'id': node.id, 'name': node.name, 'condition': node.condition}, 'pre_node_id': pre_node_id,
+            'huanxin_id': business.huanxin_id, 'control_status': path.control_status,
+            'entire_graph': project.entire_graph,
+            # 'leader': team.leader if team else None,
+            'flow_id': project.flow_id, 'has_vote': False if has_vote else True, 'end_vote': end_vote
+        }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_node_detail Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_trans_path(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get("business_id")  # 实验ID
+        # 判断实验是否存在
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business:
+            if business.status == const.EXPERIMENT_FINISHED:
+                node = {'is_finished': True}
+            else:
+                next_node = FlowNode.objects.filter(pk=business.node_id).first()
+                node = {'node_id': next_node.pk, 'task_id': next_node.task_id,
+                        'name': next_node.name, 'is_finished': False}
+
+            project = Project.objects.get(pk=business.cur_project_id)
+            paths = BusinessTransPath.objects.filter(business_id=business.id,
+                                                     project_id=business.cur_project_id).values_list('task_id',
+                                                                                                     flat=True)
+            flow = Flow.objects.get(pk=project.flow_id)
+            xml = bpmn_color(flow.xml, list(paths))
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'business_id': business.pk, 'business_name': business.name, 'flow_id': flow.pk,
+                         'flow_name': flow.name,
+                         'xml': xml, 'node': node}
+        else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+    except Exception as e:
+        logger.exception('api_business_trans_path Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 实验环节聊天消息列表
+def api_business_node_messages(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get("business_id")  # 实验ID
+        node_id = request.GET.get("node_id", None)  # 环节id
+        is_paging = int(request.GET.get('is_paging', 1))  # 是否进行分页（1，分页；0，不分页）
+        page = int(request.GET.get("page", 1))
+        size = int(request.GET.get("size", const.ROW_SIZE))
+
+        business = Business.objects.filter(pk=business_id).first()
+        if business:
+            path = BusinessTransPath.objects.filter(business_id=business_id).last()
+            data = get_node_path_messages_on_business(business, node_id, path.pk, is_paging, page, size)
+
+            for i in range(len(data['results'])):
+                file_id = data['results'][i]['file_id']
+                mid = data['results'][i]['id']
+                m_ext = data['results'][i]['ext']
+                opt_status = data['results'][i]['opt_status']
+
+                # 更新扩展
+                ext = json.loads(m_ext)
+                ext['id'] = mid
+                if opt_status == 1:
+                    ext['opt_status'] = True
+                else:
+                    ext['opt_status'] = False
+
+                data['results'][i]['type'] = 'groupchat'
+                data['results'][i]['ext'] = ext
+                data['results'][i]['to'] = business.huanxin_id
+
+                # 音频文件
+                if file_id:
+                    audio = BusinessMessageFile.objects.filter(pk=file_id).first()
+                    if audio:
+                        # data['results'][i]['url'] = const.WEB_HOST + audio.file.url
+                        data['results'][i]['url'] = const.WEB_HOST + audio.file.url
+                        data['results'][i]['filename'] = audio.file.name
+                        data['results'][i]['secret'] = ''
+                        data['results'][i]['length'] = audio.length
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = data
+        else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_node_messages Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 实验功能按钮
+# def api_business_node_function(request):
+#     resp = auth_check(request, "GET")
+#     if resp != {}:
+#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#     try:
+#         business_id = request.GET.get('business_id', None)  # 实验id
+#         node_id = request.GET.get("node_id", None)  # 环节id
+#         role_alloc_id = request.GET.get("role_alloc_id", None)  # 角色id
+#
+#         user_id = request.user.id
+#         business = Business.objects.filter(pk=business_id).first()
+#         if business is None:
+#             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#         project = Project.objects.filter(pk=business.cur_project_id).first()
+#         # 验证环节是否存在
+#         node = FlowNode.objects.filter(pk=node_id).first()
+#         if node is None:
+#             resp = code.get_msg(code.BUSINESS_NODE_ERROR)
+#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#         # 路径
+#         path = BusinessTransPath.objects.filter(business_id=business_id).last()
+#         # 判断该实验环节是否存在该角色
+#         if role_alloc_id is None:
+#             brases = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+#                                                                  business_role_allocation__node_id=node_id,
+#                                                                  business_role_allocation__project_id=business.cur_project_id,
+#                                                                  path_id=path.pk)
+#             role_alloc = None
+#             for bras in brases:
+#                 bra = bras.business_role_allocation
+#                 btm = BusinessTeamMember.objects.filter(business=business, user_id=user_id, business_role=bra.role,
+#                                                         no=bra.no, del_flag=0, project_id=business.cur_project_id)
+#                 if btm.exists():
+#                     role_alloc = bra
+#                     break;
+#             if role_alloc is None:
+#                 resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
+#                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#             else:
+#                 role_alloc_id = role_alloc.id
+#
+#         role_alloc_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation_id=role_alloc_id).first()
+#         if role_alloc_status is None:
+#             resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
+#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#         # 三期 - 根据上一步骤自动入席 判断是否入席
+#         bps = BusinessPositionStatus.objects.filter(business_id=business_id, business_role_allocation__node_id=path.node_id, path_id=path.id,
+#                                                     business_role_allocation_id=role_alloc_id)
+#         if bps:
+#             business_position_status = bps.first()
+#             if business_position_status.sitting_status == 2:  # 已入席
+#                 role_alloc_status.sitting_status = const.SITTING_DOWN_STATUS
+#
+#         # 用户角色状态
+#         # 当前用户可选角色
+#         role_alloc_list = get_role_allocs_status_simple_by_user(business, node, path, user_id)
+#
+#         # 功能动作列表根据环节和角色分配过滤
+#         role_alloc = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
+#         flow_action_ids = []
+#         process_action_ids = []
+#         if role_alloc:
+#             flow_actions = FlowRoleAllocationAction.objects.filter(flow_id=project.flow_id, node_id=node_id,
+#                                                             role_alloction_id=role_alloc.flow_role_id, del_flag=0).first()
+#
+#             process_actions = ProcessRoleActionNew.objects.filter(flow_id=project.flow_id, node_id=node_id,
+#                                                                   role_id=role.flow_role_id, del_flag=0).first()
+#             if process_actions and process_actions.actions:
+#                 process_action_ids = json.loads(process_actions.actions)
+#             if flow_actions and flow_actions.actions:
+#                 flow_action_ids = json.loads(flow_actions.actions)
+#
+#         # 当前角色动画
+#         process_action_list = get_role_process_actions(exp, path, role_id, process_action_ids)
+#
+#         # 功能按钮
+#         # 是否有结束环节的权限
+#         # role_conf = ProjectRoleAllocation.objects.filter(project_id=exp.cur_project_id, node_id=node_id,
+#         #                                                  role_id=role_id).first()
+#         if ProjectRoleAllocation.objects.filter(project_id=exp.cur_project_id, node_id=node_id,
+#                                                 role_id=role_id, can_terminate=True).exists():
+#             can_terminate = True
+#         else:
+#             can_terminate = False
+#             # can_brought = False
+#             # if role_conf:
+#             #     if role_conf.can_terminate:
+#             #         can_terminate = True
+#             # if role_conf.can_brought:
+#             #     can_brought = True
+#         function_action_list = []
+#         function_actions = FlowAction.objects.filter(id__in=flow_action_ids, del_flag=0)
+#         # 判断按钮是否可用
+#         for item in function_actions:
+#             if can_terminate:
+#                 disable = False
+#             else:
+#                 disable = False
+#                 # 判断表达管理
+#                 if path.control_status == 2:
+#                     if role_status:
+#                         if item.cmd == const.ACTION_DOC_SHOW:
+#                             if role_status.show_status != 1:
+#                                 disable = True
+#                         if item.cmd == const.ACTION_DOC_SUBMIT:
+#                             if role_status.submit_status != 1:
+#                                 disable = True
+#                     else:
+#                         disable = True
+#                 else:
+#                     # 申请发言状态
+#                     if item.cmd == const.ACTION_ROLE_APPLY_SPEAK:
+#                         disable = True
+#                     if item.cmd == const.ACTION_DOC_APPLY_SUBMIT:
+#                         disable = True
+#                     if item.cmd == const.ACTION_DOC_APPLY_SHOW:
+#                         disable = True
+#
+#             # 入席、退席互斥
+#             if role_status.sitting_status == const.SITTING_UP_STATUS:
+#                 if item.cmd == const.ACTION_ROLE_LETOUT or item.cmd == const.ACTION_ROLE_LETIN \
+#                         or item.cmd == const.ACTION_ROLE_REQUEST_SIGN or item.cmd == const.ACTION_ROLE_SCHEDULE_REPORT \
+#                         or item.cmd == const.ACTION_ROLE_HIDE:
+#                     disable = True
+#                     # 约见
+#                     # if item.cmd == const.ACTION_ROLE_MEET and not can_brought:
+#                     #     disable = True
+#             else:
+#                 if item.cmd == const.ACTION_ROLE_SHOW:
+#                     disable = True
+#
+#                 if item.cmd == const.ACTION_ROLE_HIDE:
+#                     report_exists = ExperimentReportStatus.objects.filter(experiment_id=exp.pk, node_id=node_id,
+#                                                                           path_id=path.pk, role_id=role.pk,
+#                                                                           schedule_status=const.SCHEDULE_UP_STATUS).exists()
+#                     if report_exists:
+#                         disable = True
+#
+#                 # 起立坐下互斥
+#                 if item.cmd == const.ACTION_ROLE_STAND:
+#                     if role_status.stand_status == 1:
+#                         disable = True
+#
+#                 if item.cmd == const.ACTION_ROLE_SITDOWN:
+#                     if role_status.stand_status == 2:
+#                         disable = True
+#                 # 约见
+#                 if item.cmd == const.ACTION_ROLE_MEET:
+#                     disable = True
+#
+#             # 判断报告按钮状态
+#             if item.cmd == const.ACTION_ROLE_TOWARD_REPORT:
+#                 disable = True
+#                 report_exists = ExperimentReportStatus.objects.filter(experiment_id=exp.pk, node_id=node_id,
+#                                                                       path_id=path.pk, role_id=role.pk,
+#                                                                       schedule_status=const.SCHEDULE_OK_STATUS).exists()
+#                 if report_exists:
+#                     disable = False
+#
+#             if item.cmd == const.ACTION_ROLE_EDN_REPORT:
+#                 disable = True
+#                 report_exists = ExperimentReportStatus.objects.filter(experiment_id=exp.pk, node_id=node_id,
+#                                                                       path_id=path.pk, role_id=role.pk,
+#                                                                       schedule_status=const.SCHEDULE_UP_STATUS).exists()
+#                 if report_exists:
+#                     disable = False
+#
+#             btn = {
+#                 'id': item.id, 'name': item.name, 'cmd': item.cmd, 'disable': disable
+#             }
+#             function_action_list.append(btn)
+#
+#         resp = code.get_msg(code.SUCCESS)
+#
+#         # 三期，如果进来的是老师观察者角色， 没有任何功能按钮， tmd
+#         if role.type == const.ROLE_TYPE_OBSERVER:
+#             function_action_list = []
+#             process_action_list = []
+#
+#         resp['d'] = {'function_action_list': function_action_list,
+#                      'process_action_list': process_action_list,
+#                      'user_roles': role_list}
+#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#     except Exception as e:
+#         logger.exception('api_experiment_node_function Exception:{0}'.format(str(e)))
+#         resp = code.get_msg(code.SYSTEM_ERROR)
+#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
 # Get No-Deleted Experiments
