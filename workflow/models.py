@@ -247,6 +247,20 @@ class FlowRoleActionNew(models.Model):
     def __unicode__(self):
         return u""
 
+# 角色动作设置
+class FlowRoleAllocationAction(models.Model):
+    flow = models.ForeignKey(Flow, verbose_name=u'流程')
+    node = models.ForeignKey(FlowNode, verbose_name=u'环节')
+    role_allocation = models.ForeignKey(FlowRoleAllocation, verbose_name=u'角色')
+    actions = models.CharField(max_length=128, blank=True, null=True, verbose_name=u'功能动作')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
+    class Meta:
+        db_table = "t_flow_role_alloction_action"
+        verbose_name_plural = verbose_name = u"角色动作"
+
+    def __unicode__(self):
+        return u""
 
 # 角色场景动画设置
 class ProcessRoleActionNew(models.Model):

@@ -82,6 +82,8 @@ class BusinessRole(models.Model):
 class BusinessRoleAllocation(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
     project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
+    project_role_alloc_id = models.IntegerField(verbose_name=u'ProjectRoleAlloction ID', null=True)
+    flow_role_alloc_id = models.IntegerField(verbose_name=u'FlowRoleAlloction ID', null=True)
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
     role = models.ForeignKey(BusinessRole, on_delete=models.CASCADE, verbose_name=u'角色')
     can_terminate = models.BooleanField(verbose_name=u'结束环节权限')
@@ -117,6 +119,21 @@ class BusinessRoleAllocationStatus(models.Model):
     def __unicode__(self):
         return u""
 
+# 实验环节占位状态
+class BusinessPositionStatus(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
+    position_id = models.IntegerField(verbose_name=u'占位')
+    sitting_status = models.PositiveIntegerField(choices=const.SITTING_STATUS, default=1, verbose_name=u'入席退席状态')
+
+    class Meta:
+        db_table = "t_business_position_status"
+        verbose_name_plural = verbose_name = u"实验任务场景占位状态"
+
+    def __unicode__(self):
+        return u""
+
 class BusinessTeamMember(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
@@ -133,6 +150,49 @@ class BusinessTeamMember(models.Model):
 
     def __unicode__(self):
         return self.name
+# 消息
+class BusinessMessage(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'User')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    file_id = models.IntegerField(blank=True, null=True, verbose_name=u'文件')
+    path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
+    user_name = models.CharField(max_length=8, blank=True, null=True, verbose_name=u'姓名')
+    role_name = models.CharField(max_length=32, blank=True, null=True, verbose_name=u'角色名称')
+    msg = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'消息内容')
+    msg_type = models.CharField(max_length=10, verbose_name=u'消息类型')
+    ext = models.TextField(verbose_name=u'自定义拓展属性')
+    opt_status = models.BooleanField(default=False, verbose_name=u'操作状态')
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name=u'消息发送时间')
+
+    class Meta:
+        db_table = "t_business_message"
+        verbose_name_plural = verbose_name = u"消息"
+
+    def __unicode__(self):
+        return u""
+
+# 消息文件
+class BusinessMessageFile(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'User')
+    path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
+    file = models.FileField(upload_to=get_business_doc_upload_to, storage=FileStorage(), verbose_name=u'文件')
+    length = models.PositiveIntegerField(blank=True, null=True, verbose_name=u'语音时长', help_text=u'单位为秒，这个属性只有语音消息有')
+    url = models.CharField(max_length=100, blank=True, null=True, verbose_name=u'图片语音等文件的网络URL',
+                           help_text=u'图片和语音消息有这个属性')
+    filename = models.CharField(max_length=64, blank=True, null=True, verbose_name=u'文件名称', help_text=u'图片和语音消息有这个属性')
+    secret = models.CharField(max_length=64, blank=True, null=True, verbose_name=u'获取文件的secret',
+                              help_text=u'图片和语音消息有这个属性')
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+
+    class Meta:
+        db_table = 't_business_message_file'
+        verbose_name_plural = verbose_name = u'消息文件'
+
+    def __unicode__(self):
+        return self.file.name
 
 class BusinessDoc(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
