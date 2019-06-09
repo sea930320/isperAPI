@@ -71,12 +71,25 @@ def get_all_simple_role_allocs_status(business, node, path):
             continue
     return role_alloc_list
 
+
 def get_role_allocs_status_simple_by_user(business, node, path, user_id):
-    role__alloc_list = BusinessRoleAllocationStatus.objects.filter(business=business, business_role_allocation__node_id=node.pk,
-                                                    path_id=path.pk,
-                                                    user_id=user_id).values('business_role_allocation_id', 'sitting_status')
-    data = list(role__alloc_list)
-    return data
+    role_alloc_list = []
+    btmQs = BusinessTeamMember.objects.filter(business=business, user_id=user_id)
+    for btm in btmQs:
+        try:
+            roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, role=btm.business_role,
+                                                              no=btm.no, project_id=business.cur_project_id,
+                                                              can_take_in=True).first()
+            roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
+                                                                          business_role_allocation=roleAlloc).first()
+            role_alloc_list.append({
+                'business_role_allocation_id': roleAllocStatus.business_role_allocation_id,
+                'sitting_status': roleAllocStatus.sitting_status,
+            })
+        except:
+            continue
+    return role_alloc_list
+
 
 def get_user_with_node_on_business(business, user):
     nodes = []
@@ -84,7 +97,8 @@ def get_user_with_node_on_business(business, user):
     for btm in btmQs:
         try:
             node_ids = BusinessRoleAllocation.objects.filter(business=business, role=btm.business_role,
-                                                             no=btm.no, project_id=business.cur_project_id, can_take_in=True).values_list(
+                                                             no=btm.no, project_id=business.cur_project_id,
+                                                             can_take_in=True).values_list(
                 'node_id', flat=True)
             nodes = list(FlowNode.objects.filter(id__in=node_ids).values_list('name', flat=True))
         except Exception as e:
@@ -116,7 +130,8 @@ def get_business_detail(business):
     else:
         cur_node = None
     role_allocs = []
-    business_role_allocs = BusinessRoleAllocation.objects.filter(business=business, project_id=business.cur_project_id, can_take_in=True)
+    business_role_allocs = BusinessRoleAllocation.objects.filter(business=business, project_id=business.cur_project_id,
+                                                                 can_take_in=True)
     for bra in business_role_allocs:
         try:
             teamMember = BusinessTeamMember.objects.filter(business=business, del_flag=0,
@@ -159,6 +174,7 @@ def get_business_pre_node_path(business):
         logger.exception(u'get_business_pre_node_path Exception:{}'.format(str(e)))
         return None
 
+
 def get_node_path_messages_on_business(business, node_id, path_id, is_paging, page, size):
     """
     环节消息
@@ -180,3 +196,69 @@ def get_node_path_messages_on_business(business, node_id, path_id, is_paging, pa
         logger.info(sql)
         data = query.select(sql, ['id', 'from', 'msg_type', 'data', 'ext', 'file_id', 'opt_status'])
         return {'results': data, 'paging': None}
+
+
+def get_role_alloc_process_actions(business, path, role_id, process_action_ids):
+    process_actions = ProcessAction.objects.filter(id__in=process_action_ids,
+                                                   del_flag=0).values('id', 'name', 'cmd')
+
+    data = list(process_actions)
+    return data
+
+
+def get_node_role_alloc_docs(business, node_id, project_id, flow_id, role_alloc_id):
+    # 角色项目素材
+    cur_doc_list = []
+    operation_guide_list = []
+    project_tips_list = []
+
+    # 流程素材，对所有角色
+    doc_ids = FlowNodeDocs.objects.filter(flow_id=flow_id, node_id=node_id, del_flag=0).values_list('doc_id',
+                                                                                                    flat=True)
+    if doc_ids:
+        node_docs = FlowDocs.objects.filter(id__in=doc_ids, usage__in=(1, 2, 3))
+        for item in node_docs:
+            url = ''
+            if item.file:
+                url = item.file.url
+            if item.usage == 1:
+                logger.info(item.name)
+                operation_guide_list.append({
+                    'id': item.id, 'name': item.name, 'type': item.type, 'usage': item.usage,
+                    'content': item.content,
+                    'url': url, 'file_type': item.file_type
+                })
+            else:
+                cur_doc_list.append({
+                    'id': item.id, 'name': item.name, 'type': item.type, 'usage': item.usage,
+                    'content': item.content,
+                    'url': url, 'file_type': item.file_type
+                })
+    data = {'cur_doc_list': cur_doc_list, 'operation_guides': operation_guide_list,
+            'project_tips_list': project_tips_list}
+    return data
+
+
+def get_pre_node_role_alloc_docs(business, node_id, project_id, role_alloc_id):
+    data = []
+    node_ids = list(BusinessTransPath.objects.filter(business_id=business.id).values_list('node_id', flat=True))
+    businessRoleAlloc = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
+    if not businessRoleAlloc:
+        return []
+    projectRoleAlloc = ProjectRoleAllocation.objects.filter(pk=businessRoleAlloc.project_role_alloc_id).first()
+    if not projectRoleAlloc:
+        return []
+
+    if node_ids:
+        node_ids.remove(business.node_id)
+        doc_ids = ProjectDocRole.objects.filter(project_id=project_id, node_id__in=node_ids,
+                                                role_id=projectRoleAlloc.role_id, no=projectRoleAlloc.no).values_list(
+            'doc_id', flat=True)
+        project_docs = ProjectDoc.objects.filter(id__in=doc_ids)
+        for item in project_docs:
+            if item.usage in [2, 3, 4, 5, 7]:
+                data.append({
+                    'id': item.id, 'name': item.name, 'type': item.type, 'usage': item.usage,
+                    'content': item.content, 'url': item.file.url, 'file_type': item.file_type
+                })
+    return data

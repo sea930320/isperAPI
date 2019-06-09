@@ -19,7 +19,7 @@ from utils import const, code, tools, easemob
 from utils.request_auth import auth_check
 from workflow.models import FlowNode, FlowAction, FlowRoleActionNew, FlowRolePosition, \
     FlowPosition, RoleImage, Flow, ProcessRoleActionNew, FlowDocs, FlowRole, FlowRoleAllocation, \
-    FlowRoleAllocationAction
+    FlowRoleAllocationAction, ProcessRoleAllocationAction
 from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
 import random
@@ -67,8 +67,11 @@ def api_business_create(request):
                     cur_project_id=project_id,
                     created_by=request.user,
                     officeItem=project.officeItem,
-                    target_company_id=use_to if project.created_role_id in [2, 6] else company_id if project.created_role_id in [3, 7] and project.use_to_id is None else None,
-                    target_part_id=project.use_to_id if project.created_role_id in [3, 7] and project.use_to_id is not None else None,
+                    target_company_id=use_to if project.created_role_id in [2,
+                                                                            6] else company_id if project.created_role_id in [
+                        3, 7] and project.use_to_id is None else None,
+                    target_part_id=project.use_to_id if project.created_role_id in [3,
+                                                                                    7] and project.use_to_id is not None else None,
                 )
                 business_roles = []
                 for item in roles:
@@ -108,7 +111,7 @@ def api_business_create(request):
                                                    no=item.no))
                 BusinessRoleAllocation.objects.bulk_create(business_allocations)
 
-                teammates_configuration(business.id)
+                # teammates_configuration(business.id)
 
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
@@ -142,7 +145,8 @@ def api_business_list(request):
         status = int(request.GET.get("status", 1))  # 实验状态
 
         user = request.user
-        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id', flat=True)
+        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id',
+                                                                                                  flat=True)
         qs = Business.objects.filter(
             Q(del_flag=0, pk__in=bussinessIDsInTeam) | Q(created_by=request.user))
 
@@ -611,198 +615,272 @@ def api_business_node_messages(request):
 
 
 # 实验功能按钮
-# def api_business_node_function(request):
-#     resp = auth_check(request, "GET")
-#     if resp != {}:
-#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#
-#     try:
-#         business_id = request.GET.get('business_id', None)  # 实验id
-#         node_id = request.GET.get("node_id", None)  # 环节id
-#         role_alloc_id = request.GET.get("role_alloc_id", None)  # 角色id
-#
-#         user_id = request.user.id
-#         business = Business.objects.filter(pk=business_id).first()
-#         if business is None:
-#             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
-#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#
-#         project = Project.objects.filter(pk=business.cur_project_id).first()
-#         # 验证环节是否存在
-#         node = FlowNode.objects.filter(pk=node_id).first()
-#         if node is None:
-#             resp = code.get_msg(code.BUSINESS_NODE_ERROR)
-#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#
-#         # 路径
-#         path = BusinessTransPath.objects.filter(business_id=business_id).last()
-#         # 判断该实验环节是否存在该角色
-#         if role_alloc_id is None:
-#             brases = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-#                                                                  business_role_allocation__node_id=node_id,
-#                                                                  business_role_allocation__project_id=business.cur_project_id,
-#                                                                  path_id=path.pk)
-#             role_alloc = None
-#             for bras in brases:
-#                 bra = bras.business_role_allocation
-#                 btm = BusinessTeamMember.objects.filter(business=business, user_id=user_id, business_role=bra.role,
-#                                                         no=bra.no, del_flag=0, project_id=business.cur_project_id)
-#                 if btm.exists():
-#                     role_alloc = bra
-#                     break;
-#             if role_alloc is None:
-#                 resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
-#                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#             else:
-#                 role_alloc_id = role_alloc.id
-#
-#         role_alloc_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation_id=role_alloc_id).first()
-#         if role_alloc_status is None:
-#             resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
-#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#
-#         # 三期 - 根据上一步骤自动入席 判断是否入席
-#         bps = BusinessPositionStatus.objects.filter(business_id=business_id, business_role_allocation__node_id=path.node_id, path_id=path.id,
-#                                                     business_role_allocation_id=role_alloc_id)
-#         if bps:
-#             business_position_status = bps.first()
-#             if business_position_status.sitting_status == 2:  # 已入席
-#                 role_alloc_status.sitting_status = const.SITTING_DOWN_STATUS
-#
-#         # 用户角色状态
-#         # 当前用户可选角色
-#         role_alloc_list = get_role_allocs_status_simple_by_user(business, node, path, user_id)
-#
-#         # 功能动作列表根据环节和角色分配过滤
-#         role_alloc = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
-#         flow_action_ids = []
-#         process_action_ids = []
-#         if role_alloc:
-#             flow_actions = FlowRoleAllocationAction.objects.filter(flow_id=project.flow_id, node_id=node_id,
-#                                                             role_alloction_id=role_alloc.flow_role_id, del_flag=0).first()
-#
-#             process_actions = ProcessRoleActionNew.objects.filter(flow_id=project.flow_id, node_id=node_id,
-#                                                                   role_id=role.flow_role_id, del_flag=0).first()
-#             if process_actions and process_actions.actions:
-#                 process_action_ids = json.loads(process_actions.actions)
-#             if flow_actions and flow_actions.actions:
-#                 flow_action_ids = json.loads(flow_actions.actions)
-#
-#         # 当前角色动画
-#         process_action_list = get_role_process_actions(exp, path, role_id, process_action_ids)
-#
-#         # 功能按钮
-#         # 是否有结束环节的权限
-#         # role_conf = ProjectRoleAllocation.objects.filter(project_id=exp.cur_project_id, node_id=node_id,
-#         #                                                  role_id=role_id).first()
-#         if ProjectRoleAllocation.objects.filter(project_id=exp.cur_project_id, node_id=node_id,
-#                                                 role_id=role_id, can_terminate=True).exists():
-#             can_terminate = True
-#         else:
-#             can_terminate = False
-#             # can_brought = False
-#             # if role_conf:
-#             #     if role_conf.can_terminate:
-#             #         can_terminate = True
-#             # if role_conf.can_brought:
-#             #     can_brought = True
-#         function_action_list = []
-#         function_actions = FlowAction.objects.filter(id__in=flow_action_ids, del_flag=0)
-#         # 判断按钮是否可用
-#         for item in function_actions:
-#             if can_terminate:
-#                 disable = False
-#             else:
-#                 disable = False
-#                 # 判断表达管理
-#                 if path.control_status == 2:
-#                     if role_status:
-#                         if item.cmd == const.ACTION_DOC_SHOW:
-#                             if role_status.show_status != 1:
-#                                 disable = True
-#                         if item.cmd == const.ACTION_DOC_SUBMIT:
-#                             if role_status.submit_status != 1:
-#                                 disable = True
-#                     else:
-#                         disable = True
-#                 else:
-#                     # 申请发言状态
-#                     if item.cmd == const.ACTION_ROLE_APPLY_SPEAK:
-#                         disable = True
-#                     if item.cmd == const.ACTION_DOC_APPLY_SUBMIT:
-#                         disable = True
-#                     if item.cmd == const.ACTION_DOC_APPLY_SHOW:
-#                         disable = True
-#
-#             # 入席、退席互斥
-#             if role_status.sitting_status == const.SITTING_UP_STATUS:
-#                 if item.cmd == const.ACTION_ROLE_LETOUT or item.cmd == const.ACTION_ROLE_LETIN \
-#                         or item.cmd == const.ACTION_ROLE_REQUEST_SIGN or item.cmd == const.ACTION_ROLE_SCHEDULE_REPORT \
-#                         or item.cmd == const.ACTION_ROLE_HIDE:
-#                     disable = True
-#                     # 约见
-#                     # if item.cmd == const.ACTION_ROLE_MEET and not can_brought:
-#                     #     disable = True
-#             else:
-#                 if item.cmd == const.ACTION_ROLE_SHOW:
-#                     disable = True
-#
-#                 if item.cmd == const.ACTION_ROLE_HIDE:
-#                     report_exists = ExperimentReportStatus.objects.filter(experiment_id=exp.pk, node_id=node_id,
-#                                                                           path_id=path.pk, role_id=role.pk,
-#                                                                           schedule_status=const.SCHEDULE_UP_STATUS).exists()
-#                     if report_exists:
-#                         disable = True
-#
-#                 # 起立坐下互斥
-#                 if item.cmd == const.ACTION_ROLE_STAND:
-#                     if role_status.stand_status == 1:
-#                         disable = True
-#
-#                 if item.cmd == const.ACTION_ROLE_SITDOWN:
-#                     if role_status.stand_status == 2:
-#                         disable = True
-#                 # 约见
-#                 if item.cmd == const.ACTION_ROLE_MEET:
-#                     disable = True
-#
-#             # 判断报告按钮状态
-#             if item.cmd == const.ACTION_ROLE_TOWARD_REPORT:
-#                 disable = True
-#                 report_exists = ExperimentReportStatus.objects.filter(experiment_id=exp.pk, node_id=node_id,
-#                                                                       path_id=path.pk, role_id=role.pk,
-#                                                                       schedule_status=const.SCHEDULE_OK_STATUS).exists()
-#                 if report_exists:
-#                     disable = False
-#
-#             if item.cmd == const.ACTION_ROLE_EDN_REPORT:
-#                 disable = True
-#                 report_exists = ExperimentReportStatus.objects.filter(experiment_id=exp.pk, node_id=node_id,
-#                                                                       path_id=path.pk, role_id=role.pk,
-#                                                                       schedule_status=const.SCHEDULE_UP_STATUS).exists()
-#                 if report_exists:
-#                     disable = False
-#
-#             btn = {
-#                 'id': item.id, 'name': item.name, 'cmd': item.cmd, 'disable': disable
-#             }
-#             function_action_list.append(btn)
-#
-#         resp = code.get_msg(code.SUCCESS)
-#
-#         # 三期，如果进来的是老师观察者角色， 没有任何功能按钮， tmd
-#         if role.type == const.ROLE_TYPE_OBSERVER:
-#             function_action_list = []
-#             process_action_list = []
-#
-#         resp['d'] = {'function_action_list': function_action_list,
-#                      'process_action_list': process_action_list,
-#                      'user_roles': role_list}
-#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-#     except Exception as e:
-#         logger.exception('api_experiment_node_function Exception:{0}'.format(str(e)))
-#         resp = code.get_msg(code.SYSTEM_ERROR)
-#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+def api_business_node_function(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get("node_id", None)  # 环节id
+        role_alloc_id = request.GET.get("role_alloc_id", None)  # 角色id
+
+        user_id = request.user.id
+        business = Business.objects.filter(pk=business_id).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        project = Project.objects.filter(pk=business.cur_project_id).first()
+        # 验证环节是否存在
+        node = FlowNode.objects.filter(pk=node_id).first()
+        if node is None:
+            resp = code.get_msg(code.BUSINESS_NODE_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 路径
+        path = BusinessTransPath.objects.filter(business_id=business_id).last()
+        # 判断该实验环节是否存在该角色
+        if role_alloc_id is None:
+            brases = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                 business_role_allocation__node_id=node_id,
+                                                                 business_role_allocation__project_id=business.cur_project_id,
+                                                                 path_id=path.pk)
+            role_alloc = None
+            for bras in brases:
+                bra = bras.business_role_allocation
+                btm = BusinessTeamMember.objects.filter(business=business, user_id=user_id, business_role=bra.role,
+                                                        no=bra.no, del_flag=0, project_id=business.cur_project_id)
+                if btm.exists():
+                    role_alloc = bra
+                    break;
+            if role_alloc is None:
+                resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            else:
+                role_alloc_id = role_alloc.id
+
+        role_alloc_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                        business_role_allocation_id=role_alloc_id).first()
+        if role_alloc_status is None:
+            resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 三期 - 根据上一步骤自动入席 判断是否入席
+        bps = BusinessPositionStatus.objects.filter(business_id=business_id,
+                                                    business_role_allocation__node_id=path.node_id, path_id=path.id,
+                                                    business_role_allocation_id=role_alloc_id)
+        if bps:
+            business_position_status = bps.first()
+            if business_position_status.sitting_status == 2:  # 已入席
+                role_alloc_status.sitting_status = const.SITTING_DOWN_STATUS
+
+        # 用户角色状态
+        # 当前用户可选角色
+        role_alloc_list = get_role_allocs_status_simple_by_user(business, node, path, user_id)
+
+        # 功能动作列表根据环节和角色分配过滤
+        role_alloc = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
+        flow_action_ids = []
+        process_action_ids = []
+        if role_alloc:
+            flow_actions = FlowRoleAllocationAction.objects.filter(flow_id=project.flow_id, node_id=node_id,
+                                                                   role_allocation_id=role_alloc.flow_role_alloc_id,
+                                                                   del_flag=0).first()
+
+            process_actions = ProcessRoleAllocationAction.objects.filter(flow_id=project.flow_id, node_id=node_id,
+                                                                         role_allocation_id=role_alloc.flow_role_alloc_id,
+                                                                         del_flag=0).first()
+            if process_actions and process_actions.actions:
+                process_action_ids = json.loads(process_actions.actions)
+            else:
+                process_action_ids = [58, 60, 61]
+            if flow_actions and flow_actions.actions:
+                flow_action_ids = json.loads(flow_actions.actions)
+            else:
+                flow_action_ids = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34]
+
+        # 当前角色动画
+        process_action_list = get_role_alloc_process_actions(business, path, role_alloc_id, process_action_ids)
+
+        # 功能按钮
+        # 是否有结束环节的权限
+        can_terminate = role_alloc.can_terminate
+
+        function_action_list = []
+        function_actions = FlowAction.objects.filter(id__in=flow_action_ids, del_flag=0)
+
+        print flow_action_ids
+        print function_actions
+        # 判断按钮是否可用
+        for item in function_actions:
+            if can_terminate:
+                disable = False
+            else:
+                disable = False
+                # 判断表达管理
+                if path.control_status == 2:
+                    if role_alloc_status:
+                        if item.cmd == const.ACTION_DOC_SHOW:
+                            if role_alloc_status.show_status != 1:
+                                disable = True
+                        if item.cmd == const.ACTION_DOC_SUBMIT:
+                            if role_alloc_status.submit_status != 1:
+                                disable = True
+                    else:
+                        disable = True
+                else:
+                    # 申请发言状态
+                    if item.cmd == const.ACTION_ROLE_APPLY_SPEAK:
+                        disable = True
+                    if item.cmd == const.ACTION_DOC_APPLY_SUBMIT:
+                        disable = True
+                    if item.cmd == const.ACTION_DOC_APPLY_SHOW:
+                        disable = True
+
+            # 入席、退席互斥
+            if role_alloc_status.sitting_status == const.SITTING_UP_STATUS:
+                if item.cmd == const.ACTION_ROLE_LETOUT or item.cmd == const.ACTION_ROLE_LETIN \
+                        or item.cmd == const.ACTION_ROLE_REQUEST_SIGN or item.cmd == const.ACTION_ROLE_SCHEDULE_REPORT \
+                        or item.cmd == const.ACTION_ROLE_HIDE:
+                    disable = True
+                    # 约见
+                    # if item.cmd == const.ACTION_ROLE_MEET and not can_brought:
+                    #     disable = True
+            else:
+                if item.cmd == const.ACTION_ROLE_SHOW:
+                    disable = True
+
+                if item.cmd == const.ACTION_ROLE_HIDE:
+                    report_exists = BusinessReportStatus.objects.filter(business_id=business_id,
+                                                                        business_role_allocation__node_id=node_id,
+                                                                        path_id=path.id,
+                                                                        business_role_allocation_id=role_alloc_id,
+                                                                        schedule_status=const.SCHEDULE_UP_STATUS).exists()
+                    if report_exists:
+                        disable = True
+
+                # 起立坐下互斥
+                if item.cmd == const.ACTION_ROLE_STAND:
+                    if role_alloc_status.stand_status == 1:
+                        disable = True
+
+                if item.cmd == const.ACTION_ROLE_SITDOWN:
+                    if role_alloc_status.stand_status == 2:
+                        disable = True
+                # 约见
+                if item.cmd == const.ACTION_ROLE_MEET:
+                    disable = True
+
+            # 判断报告按钮状态
+            if item.cmd == const.ACTION_ROLE_TOWARD_REPORT:
+                disable = True
+                report_exists = BusinessReportStatus.objects.filter(business_id=business_id,
+                                                                    business_role_allocation__node_id=node_id,
+                                                                    path_id=path.id,
+                                                                    business_role_allocation_id=role_alloc_id,
+                                                                    schedule_status=const.SCHEDULE_OK_STATUS).exists()
+                if report_exists:
+                    disable = False
+
+            if item.cmd == const.ACTION_ROLE_EDN_REPORT:
+                disable = True
+                report_exists = BusinessReportStatus.objects.filter(business_id=business_id,
+                                                                    business_role_allocation__node_id=node_id,
+                                                                    path_id=path.id,
+                                                                    business_role_allocation_id=role_alloc_id,
+                                                                    schedule_status=const.SCHEDULE_UP_STATUS).exists()
+                if report_exists:
+                    disable = False
+
+            btn = {
+                'id': item.id, 'name': item.name, 'cmd': item.cmd, 'disable': disable
+            }
+            function_action_list.append(btn)
+
+        resp = code.get_msg(code.SUCCESS)
+
+        # 三期，如果进来的是老师观察者角色， 没有任何功能按钮， tmd
+        if role_alloc.role.type == const.ROLE_TYPE_OBSERVER:
+            function_action_list = []
+            process_action_list = []
+
+        resp['d'] = {'function_action_list': function_action_list,
+                     'process_action_list': process_action_list,
+                     'user_role_allocs': role_alloc_list}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_experiment_node_function Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_business_node_role_docs(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get("node_id", None)  # 环节id
+        role_alloc_id = request.GET.get("role_alloc_id", None)  # 角色id
+
+        user = request.user
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        project = Project.objects.get(pk=business.cur_project_id)
+
+        # 验证环节是否存在
+        node = FlowNode.objects.filter(pk=node_id).first()
+        if node is None:
+            resp = code.get_msg(code.BUSINESS_NODE_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 路径
+        path = BusinessTransPath.objects.filter(business_id=business_id).last()
+        # 判断该实验环节是否存在该角色
+        if role_alloc_id is None:
+            brases = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                 business_role_allocation__node_id=node_id,
+                                                                 business_role_allocation__project_id=business.cur_project_id,
+                                                                 path_id=path.pk)
+            role_alloc = None
+            for bras in brases:
+                bra = bras.business_role_allocation
+                btm = BusinessTeamMember.objects.filter(business=business, user_id=user.id, business_role=bra.role,
+                                                        no=bra.no, del_flag=0, project_id=business.cur_project_id)
+                if btm.exists():
+                    role_alloc = bra
+                    break;
+            if role_alloc is None:
+                resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            else:
+                role_alloc_id = role_alloc.id
+
+        # 获取该环节角色项目所有素材
+        docs = get_node_role_alloc_docs(business, node_id, project.pk, project.flow_id, role_alloc_id)
+
+        # 前面所有环节素材
+        pre_doc_list = get_pre_node_role_alloc_docs(business, node_id, project.pk, role_alloc_id)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'operation_guides': docs['operation_guides'],
+            'project_tips_list': docs['project_tips_list'],
+            'cur_doc_list': docs['cur_doc_list'],
+            'pre_doc_list': pre_doc_list,
+            'id': business.id, 'name': business.name,
+            'flow_id': project.flow_id
+        }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_node_role_docs Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
 # Get No-Deleted Experiments
