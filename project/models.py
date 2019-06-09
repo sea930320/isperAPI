@@ -49,6 +49,7 @@ class Project(models.Model):
     def __unicode__(self):
         return self.name
 
+
 class ProjectNodeInfo(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
