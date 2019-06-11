@@ -328,10 +328,14 @@ urlpatterns += (
     url(r'^api/business/detail', business_views.api_business_detail),
     url(r'^api/business/start$', business_views.api_business_start),
     url(r'^api/business/list$', business_views.api_business_list),
+
     url(r'^api/business/node/detail$', business_views.api_business_node_detail),
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),
-    # url(r'^api/business/node/function$', business_views.api_business_node_function),
+    url(r'^api/business/node/function$', business_views.api_business_node_function),
+    url(r'^api/business/node/role/docs$', business_views.api_business_node_role_docs),
+
     url(r'^api/business/trans/path$', business_views.api_business_trans_path),
+
     url(r'^api/business/list_nodel$', business_views.api_experiment_list_nodel),
     url(r'^api/business/list_del$', business_views.api_experiment_list_del),
     url(r'^api/business/delete$', business_views.api_experiment_delete),

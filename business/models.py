@@ -142,6 +142,20 @@ class BusinessPositionStatus(models.Model):
     def __unicode__(self):
         return u""
 
+class BusinessReportStatus(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
+    position_id = models.IntegerField(verbose_name=u'占位')
+    schedule_status = models.PositiveIntegerField(choices=const.SCHEDULE_STATUS, default=1, verbose_name=u'安排状态')
+
+    class Meta:
+        db_table = "t_business_report_status"
+        verbose_name_plural = verbose_name = u"实验任务场景报告状态"
+
+    def __unicode__(self):
+        return u""
+
 class BusinessTeamMember(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
@@ -201,7 +215,6 @@ class BusinessMessageFile(models.Model):
 
     def __unicode__(self):
         return self.file.name
-
 
 class BusinessDoc(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
