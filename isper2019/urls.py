@@ -71,6 +71,10 @@ urlpatterns += (
     url(r'^api/cms/send/msg$', cms_views.api_cms_send_msg),
     url(r'^api/cms/msg/list$', cms_views.api_cms_msg_list),
     url(r'^api/cms/new/msg/num$', cms_views.api_cms_new_msg_num),
+    url(r'^api/cms/to/user/list-business$', cms_views.api_cms_to_user_list_business),
+    url(r'^api/cms/msg/list-business$', cms_views.api_cms_msg_list_business),
+    url(r'^api/cms/send/msg-business$', cms_views.api_cms_send_msg_business),
+    url(r'^api/cms/new/msg-business/num$', cms_views.api_cms_new_msg_num_business),
 )
 
 urlpatterns += (
@@ -328,6 +332,7 @@ urlpatterns += (
     url(r'^api/business/detail', business_views.api_business_detail),
     url(r'^api/business/start$', business_views.api_business_start),
     url(r'^api/business/list$', business_views.api_business_list),
+    url(r'^api/business/messages$', business_views.api_business_messages),
 
     url(r'^api/business/node/detail$', business_views.api_business_node_detail),
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),
@@ -336,11 +341,15 @@ urlpatterns += (
 
     url(r'^api/business/trans/path$', business_views.api_business_trans_path),
 
+    url(r'^api/business/file/display/list$', business_views.api_business_file_display_list),
+
     url(r'^api/business/list_nodel$', business_views.api_experiment_list_nodel),
     url(r'^api/business/list_del$', business_views.api_experiment_list_del),
     url(r'^api/business/delete$', business_views.api_experiment_delete),
     url(r'^api/business/recovery$', business_views.api_experiment_recovery),
     url(r'^api/business/result$', business_views.api_experiment_result),
+    url(r'^api/business/getUnitUserList$', business_views.get_unit_userList),
+    url(r'^api/business/addMoreTeammates$', business_views.add_more_teammates),
 )
 if settings.DEBUG:
     from django.conf.urls.static import static

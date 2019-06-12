@@ -219,7 +219,7 @@ class BusinessMessageFile(models.Model):
 class BusinessDoc(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
-    path_id = models.IntegerField(blank=True, null=True, verbose_name=u'实验路径')
+    path_id = models.IntegerField(blank=True, null=True, verbose_name=u'当前路径')
     filename = models.CharField(max_length=64, verbose_name=u'名称')
     file = models.FileField(upload_to=get_business_doc_upload_to, storage=FileStorage(), verbose_name=u'文件')
     file_type = models.PositiveSmallIntegerField(choices=const.FILE_TYPE, default=0, verbose_name=u'文件类型')
@@ -241,6 +241,32 @@ class BusinessDoc(models.Model):
     def __unicode__(self):
         return self.filename
 
+# 用户编辑模版内容
+class BusinessDocContent(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
+    doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
+    name = models.CharField(max_length=64, verbose_name=u'模板名称')
+    content = models.TextField(verbose_name=u'内容')
+    file = models.FileField(upload_to=get_business_doc_upload_to, storage=FileStorage(),
+                            blank=True, null=True, verbose_name=u'文件')
+    sign = models.CharField(max_length=32, blank=True, null=True, verbose_name=u'签名')
+    sign_status = models.PositiveIntegerField(choices=const.SIGN_STATUS, default=0, verbose_name=u'签名状态')
+    file_type = models.PositiveSmallIntegerField(choices=const.FILE_TYPE, default=0, verbose_name=u'文件类型')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    has_edited = models.BooleanField(default=False, verbose_name=u'是否已编辑')
+    created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者')
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
+    class Meta:
+        db_table = "t_business_doc_content"
+        ordering = ['-create_time']
+        verbose_name_plural = verbose_name = u"用户编辑模版内容"
+
+    def __unicode__(self):
+        return self.name
 
 class BusinessDocTeam(models.Model):
     business_team_member = models.ForeignKey(BusinessTeamMember, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -253,3 +279,21 @@ class BusinessDocTeam(models.Model):
         verbose_name_plural = verbose_name = u"BusinessDocTeam"
     def __unicode__(self):
         return u''
+
+# 实验环节文档签字记录
+class BusinessDocSign(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
+    doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    sign = models.CharField(max_length=18, blank=True, null=True, verbose_name=u'签名')
+    sign_status = models.PositiveIntegerField(choices=const.SIGN_STATUS, default=0, verbose_name=u'签名状态')
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+
+    class Meta:
+        db_table = "t_business_doc_sign"
+        ordering = ['-create_time']
+        verbose_name_plural = verbose_name = u"实验环节文档签字记录"
+
+    def __unicode__(self):
+        return u""
