@@ -348,6 +348,8 @@ urlpatterns += (
     url(r'^api/business/delete$', business_views.api_experiment_delete),
     url(r'^api/business/recovery$', business_views.api_experiment_recovery),
     url(r'^api/business/result$', business_views.api_experiment_result),
+    url(r'^api/business/getUnitUserList$', business_views.get_unit_userList),
+    url(r'^api/business/addMoreTeammates$', business_views.add_more_teammates),
 )
 if settings.DEBUG:
     from django.conf.urls.static import static

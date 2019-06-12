@@ -222,11 +222,9 @@ def get_inner_permissions(request):
         search = request.POST.get("search", None)
         company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
         company_id = company.id
-        page = int(request.POST.get("page", 1))
-        size = int(request.POST.get("size", const.ROW_SIZE))
 
         if search:
-            qs = TInnerPermission.objects.filter(name=search)
+            qs = TInnerPermission.objects.filter(name__icontains=search)
         else:
             qs = TInnerPermission.objects.all()
 
@@ -235,12 +233,6 @@ def get_inner_permissions(request):
             resp['d'] = {'results': {'data': [], 'items': []}, 'paging': {}}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         else:
-            paginator = Paginator(qs, size)
-
-            try:
-                flows = paginator.page(page)
-            except EmptyPage:
-                flows = paginator.page(1)
 
             results = {
                 'data': [{
@@ -249,22 +241,14 @@ def get_inner_permissions(request):
                     'comment': item.comment,
                     'ownPositions': [{
                         'id': pos.id,
-                        'text': pos.name
+                        'text': pos.parts.name + ' : ' + pos.name
                     }for pos in item.ownPositions.filter(parts__company_id=company_id)],
-                } for item in flows],
-                'items': [{'id': position.id, 'text': position.name} for position in TPositions.objects.filter(parts__company_id=company_id)]
-            }
-
-            paging = {
-                'count': paginator.count,
-                'has_previous': flows.has_previous(),
-                'has_next': flows.has_next(),
-                'num_pages': paginator.num_pages,
-                'cur_page': flows.number,
+                } for item in qs],
+                'items': [{'id': position.id, 'text': position.parts.name + ' : ' + position.name} for position in TPositions.objects.filter(parts__company_id=company_id)]
             }
 
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': results, 'paging': paging}
+            resp['d'] = {'results': results}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:

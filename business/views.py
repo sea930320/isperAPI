@@ -4,10 +4,11 @@
 # from django.shortcuts import
 import json
 import logging
+import random
 
-from account.models import Tuser
+from account.models import Tuser, TNotifications, TInnerPermission
 from django.core.paginator import Paginator, EmptyPage
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.http import HttpResponse
 from experiment.models import *
 from business.models import *
@@ -111,7 +112,7 @@ def api_business_create(request):
                                                    no=item.no))
                 BusinessRoleAllocation.objects.bulk_create(business_allocations)
 
-                # teammates_configuration(business.id)
+                teammates_configuration(business.id, [])
 
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
@@ -131,6 +132,98 @@ def api_business_create(request):
         logger.exception('api_business_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def teammates_configuration(business_id, seted_users_fromInnerPermission):
+
+    # check team counts
+
+    business_team_counts = list(BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
+    business = Business.objects.get(id=business_id)
+
+    company_id = None
+    target_user_counts = []
+    if business.target_part is not None:
+        target_user_counts = list(Tuser.objects.filter(tposition__parts_id=business.target_part.id, is_review=1).values('tposition__name').annotate(counts=Count('id')))
+        company_id = business.target_part.company_id
+    elif business.target_company is not None:
+        target_user_counts = list(Tuser.objects.filter(tcompany=business.target_company, is_review=1).values('tposition__name').annotate(counts=Count('id')))
+        company_id = business.target_company.id
+
+    if seted_users_fromInnerPermission:
+        for item in target_user_counts:
+            item['counts'] += sum(p['role_name'] == item['tposition__name'] for p in seted_users_fromInnerPermission)
+
+    moreResult = []
+    for item in business_team_counts:
+        matched_item = next((x for x in target_user_counts if x['tposition__name'] == item['job_type__name']), None)
+        if matched_item is None:
+            moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity']})
+        elif matched_item['counts'] < item['capacity']:
+            moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
+
+    if moreResult:
+        if len(seted_users_fromInnerPermission) != 0:
+            return
+        if TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() != 0\
+                and TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True).count() != 0:
+            newNotification = TNotifications.objects.create(
+                type='businessMoreTeammate_' + str(business_id),
+                content=str(moreResult),
+                link='business-moreTeammates',
+                role_id=5,
+                mode=0
+            )
+            newNotification.save()
+            for userID in TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True):
+                newNotification.targets.add(Tuser.objects.get(id=userID))
+        elif TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() == 0\
+                or TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True).count() == 0:
+            newNotification = TNotifications.objects.create(
+                type='businessMoreTeammate_' + str(business_id),
+                content=str(moreResult),
+                link='manager-moreTeammates',
+                role_id=3,
+                mode=0
+            )
+            newNotification.save()
+            for userItem in TCompany.objects.get(id=company_id).tcompanymanagers_set.all():
+                newNotification.targets.add(userItem.tuser)
+        return
+
+    # configuration team
+
+    targetUnitUsers = []
+    teammateList = list(BusinessRoleAllocation.objects.filter(business_id=business_id).values('role_id', 'role__job_type__name', 'no').distinct())
+    if business.target_part is not None:
+        targetUnitUsers = [{
+                'id': item.id,
+                'position': item.tposition.name,
+            } for item in Tuser.objects.filter(tposition__parts_id=business.target_part.id, is_review=1)]
+    elif business.target_company is not None:
+        targetUnitUsers = [{
+                'id': item.id,
+                'position': item.tposition.name if item.tposition else None,
+            } for item in Tuser.objects.filter(tcompany_id=company_id, is_review=1)]
+    if seted_users_fromInnerPermission:
+        for item in seted_users_fromInnerPermission:
+            targetUnitUsers.append({'position': item['role_name'], 'id': item['userId']})
+    for teamItem in teammateList:
+        selectedUser = random.choice([a for a in targetUnitUsers if a['position'] == teamItem['role__job_type__name']])
+        targetUnitUsers.pop(next((index for (index, x) in enumerate(targetUnitUsers) if x == selectedUser), None))
+        newTeammate = BusinessTeamMember.objects.create(
+            business_id=business_id,
+            user_id=selectedUser['id'],
+            business_role_id=teamItem['role_id'],
+            no=teamItem['no'],
+            del_flag=0,
+            project_id=business.project_id
+        )
+        newTeammate.save()
+
+        Business.objects.filter(id=business_id).update(status=2)
+
+    return 'team_configured'
 
 
 def api_business_list(request):
@@ -1436,6 +1529,76 @@ def api_experiment_result(request):
 
         except Exception as e:
             logger.exception('api_experiment_result Exception:{0}'.format(str(e)))
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    else:
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# get unit user list for more business teammates configuration
+def get_unit_userList(request):
+    if request.session['login_type'] in [3, 5]:
+        resp = auth_check(request, "POST")
+        if resp != {}:
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        try:
+            business_id = request.POST.get("business_id")
+            business = Business.objects.get(id=business_id)
+
+            targetUnitUsers = []
+            if business.target_part is not None:
+                targetUnitUsers = [{
+                    'id': item.id,
+                    'text': item.username,
+                } for item in Tuser.objects.filter(tposition__parts_id=business.target_part.id, is_review=1)]
+            elif business.target_company is not None:
+                targetUnitUsers = [{
+                    'id': item.id,
+                    'text': item.username,
+                } for item in Tuser.objects.filter(tcompany_id=business.target_company.id, is_review=1)]
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': targetUnitUsers}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        except Exception as e:
+            logger.exception('api_experiment_delete Exception:{0}'.format(str(e)))
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    else:
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# get unit user list for more business teammates configuration
+def add_more_teammates(request):
+    if request.session['login_type'] in [3, 5]:
+        resp = auth_check(request, "POST")
+        if resp != {}:
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        try:
+
+            business_id = request.POST.get("business_id")
+            data = eval(request.POST.get("data"))
+            for item in data:
+                if item['role_name'] == '':
+                    item['role_name'] = None
+                else:
+                    item['role_name'] = unicode(item['role_name'],"utf8")
+
+            if len(TNotifications.objects.filter(type='businessMoreTeammate_' + business_id)) != 0:
+                if teammates_configuration(business_id, data) == 'team_configured':
+                    TNotifications.objects.filter(type='businessMoreTeammate_' + business_id).delete()
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'success'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        except Exception as e:
+            logger.exception('api_experiment_delete Exception:{0}'.format(str(e)))
             resp = code.get_msg(code.SYSTEM_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     else:
