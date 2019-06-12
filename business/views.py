@@ -882,6 +882,56 @@ def api_business_node_role_docs(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_business_messages(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get("business_id")  # 实验ID
+        business = Business.objects.filter(pk=business_id).first()
+        if business:
+            paths = BusinessTransPath.objects.filter(business_id=business_id)
+            node_list = []
+            for item in paths:
+                messages = BusinessMessage.objects.filter(business_id=business_id,
+                                                          business_role_allocation__node_id=item.node_id, path_id=item.id).order_by(
+                    'timestamp')
+                message_list = []
+                for m in messages:
+                    ext = json.loads(m.ext)
+                    ext['id'] = m.id
+                    ext['opt_status'] = m.opt_status
+                    message = {
+                        'id': m.id, 'from': m.user_id, 'to': business.huanxin_id, 'msg_type': m.msg_type,
+                        'data': m.msg, 'type': 'groupchat', 'ext': ext
+                    }
+                    if m.file_id:
+                        audio = BusinessMessageFile.objects.filter(pk=m.file_id).first()
+                        if audio:
+                            message['url'] = const.WEB_HOST + audio.file.url
+                            message['filename'] = audio.file.name
+                            message['secret'] = ''
+                            message['length'] = audio.length
+
+                    message_list.append(message)
+                node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
+                node_list.append({
+                    'id': node.id, 'name': node.name, 'process_type': node.process.type,
+                    'messages': message_list, 'count': messages.count()
+                })
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': node_list}
+        else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_messages Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 # Get No-Deleted Experiments
 def api_experiment_list_nodel(request):
@@ -985,6 +1035,40 @@ def api_experiment_list_nodel(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     else:
         resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+# 实验文件展示列表
+def api_business_file_display_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get('node_id', None)
+        path_id = request.GET.get("path_id", None)  # 环节id
+
+        business = Business.objects.filter(pk=business_id).first()
+        if business:
+            doc_list = get_business_display_files(business, node_id, path_id)
+            # 分页信息
+            paging = {
+                'count': len(doc_list),
+                'has_previous': False,
+                'has_next': False,
+                'num_pages': 1,
+                'cur_page': 1,
+            }
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': doc_list, 'paging': paging}
+
+        else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_file_display_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 

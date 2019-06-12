@@ -262,3 +262,121 @@ def get_pre_node_role_alloc_docs(business, node_id, project_id, role_alloc_id):
                     'content': item.content, 'url': item.file.url, 'file_type': item.file_type
                 })
     return data
+
+
+
+def get_business_display_files(business, node_id, path_id):
+    """
+    实验文件展示列表
+    """
+    doc_list = []
+    if node_id:
+        node = FlowNode.objects.filter(pk=node_id).first()
+        if node.process.type == 2:
+            # 如果是编辑
+            # 应用模板
+            docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id, has_edited=True)
+            for d in docs:
+                r = tools.generate_code(6)
+                doc_list.append({
+                    'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
+                    'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                    'url': '{0}?{1}'.format(d.file.url, r) if d.file else None,
+                    'allow_delete': False
+                })
+
+            # 提交的文件
+            docs = BusinessDoc.objects.filter(business_id=business.pk, node_id=node_id, path_id=path_id)
+            for d in docs:
+                sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
+                doc_list.append({
+                    'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                    'signs': list(sign_list), 'url': d.file.url if d.file else None,
+                    'allow_delete': True
+                })
+
+        elif node.process.type == 3:
+            # 如果是展示
+            # 获取该环节所有素材id
+            doc_ids = list(ProjectDocRole.objects.filter(project_id=business.project_id,
+                                                         node_id=node_id).values_list('doc_id', flat=True))
+
+            if doc_ids:
+                doc_ids = list(set(doc_ids))
+
+            # 角色项目素材
+            project_docs = ProjectDoc.objects.filter(id__in=doc_ids, usage=4)
+            for item in project_docs:
+                doc_list.append({
+                    'id': item.id, 'filename': item.name, 'url': item.file.url, 'content': item.content,
+                    'file_type': item.file_type, 'has_edited': False, 'signs': [],
+                    'business_id': business.pk, 'node_id': node.pk, 'created_by': None,
+                    'role_name': '', 'node_name': node.name if node else None,
+                    'allow_delete': False
+                })
+
+            # 提交的文件
+            docs = BusinessDoc.objects.filter(business_id=business.pk, node_id=node_id, path_id=path_id)
+            for d in docs:
+                doc_list.append({
+                    'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                    'node_id': node.pk, 'created_by': None, 'business_id': business.pk,
+                    'role_name': '', 'node_name': node.name if node else None,
+                    'has_edited': False, 'signs': [], 'url': d.file.url if d.file else None,
+                    'allow_delete': True
+                })
+
+            # 若为模版，判断是否已经编辑
+            docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id, has_edited=True)
+            for d in docs:
+                r = tools.generate_code(6)
+                doc_list.append({
+                    'id': d.doc_id, 'filename': d.name, 'content': d.content,
+                    'url': '{0}?{1}'.format(d.file.url, r) if d.file else None, 'file_type': d.file_type,
+                    'has_edited': d.has_edited, 'business_id': business.pk, 'node_id': node.pk, 'created_by': None,
+                    'role_name': '', 'node_name': node.name if node else None,
+                    'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                })
+        else:
+            # 环节路径上传文件
+            business_docs = BusinessDoc.objects.filter(business_id=business.pk, node_id=node_id, path_id=path_id)
+            for item in business_docs:
+                node = FlowNode.objects.filter(pk=item.node_id).first()
+                role = ProjectRole.objects.filter(pk=item.role_id).first()
+                sign_list = BusinessDocSign.objects.filter(doc_id=item.pk).values('sign', 'sign_status')
+                doc = {
+                    'id': item.id, 'filename': item.filename, 'url': item.file.url if item.file else None,
+                    'node_id': item.node_id, 'content': item.content,
+                    'created_by': user_simple_info(item.created_by), 'role_name': role.name if role else '',
+                    'signs': list(sign_list), 'node_name': node.name if node else None,
+                    'file_type': item.file_type
+                }
+                doc_list.append(doc)
+    else:
+        # 已提交文件(不传node_id和path_id)：显示出实验环节中所有上传文件
+        business_docs = BusinessDoc.objects.filter(business_id=business.pk)
+        for item in business_docs:
+            node = FlowNode.objects.filter(pk=item.node_id).first()
+            sign_list = BusinessDocSign.objects.filter(doc_id=item.pk).values('sign', 'sign_status')
+            doc = {
+                'id': item.id, 'filename': item.filename, 'url': item.file.url if item.file else None,
+                'node_id': item.node_id, 'content': item.content,
+                'created_by': user_simple_info(item.created_by), 'role_name': '',
+                'signs': list(sign_list), 'node_name': node.name if node else None,
+                'file_type': item.file_type
+            }
+            doc_list.append(doc)
+
+        docs = BusinessDocContent.objects.filter(business_id=business.pk, has_edited=True)
+        for item in docs:
+            r = tools.generate_code(6)
+            node = FlowNode.objects.filter(pk=item.node_id).first()
+            doc_list.append({
+                'id': item.doc_id, 'filename': item.name, 'content': item.content,
+                'business_id': item.business_id, 'node_id': item.node_id, 'file_type': item.file_type,
+                'created_by': user_simple_info(item.created_by), 'role_name': '',
+                'node_name': node.name if node else None,
+                'signs': [{'sign_status': item.sign_status, 'sign': item.sign}],
+                'url': '{0}?{1}'.format(item.file.url, r) if item.file else None
+            })
+    return doc_list
