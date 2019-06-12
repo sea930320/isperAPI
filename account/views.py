@@ -7,6 +7,7 @@ import logging
 import xlrd
 import xlwt
 import uuid
+import re
 from course.models import CourseClassStudent, CourseClass
 from group.models import AllGroups
 from group.models import TGroupManagerAssistants
@@ -2175,7 +2176,9 @@ def get_own_messages(request):
         uid = request.session['_auth_user_id']
         results = [{
             'id': item.id,
-            'content': item.content,
+            'content': eval(item.content) if bool(re.search('^businessMoreTeammate_', item.type)) else item.content,
+            'moreTeammates': 1 if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
+            'business_id': item.type.split("businessMoreTeammate_", 1)[1] if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
             'link': item.link
         } for item in TNotifications.objects.filter(Q(role=role) & Q(targets__in=[uid]))]
         resp = code.get_msg(code.SUCCESS)
