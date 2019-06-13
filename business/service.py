@@ -14,7 +14,7 @@ from project.models import ProjectRole, Project, ProjectRoleAllocation, ProjectJ
 from team.models import Team, TeamMember
 from utils import code, const, query, tools
 from workflow.models import FlowRolePosition, FlowPosition, FlowNode, FlowTrans, RoleImage, RoleImageFile, \
-    FlowProcess, ProcessAction, FlowDocs, FlowNodeDocs
+    FlowProcess, ProcessAction, FlowDocs, FlowNodeDocs, FlowRoleAllocation
 from workflow.service import get_start_node
 from django.core.cache import cache
 from django.conf import settings
@@ -379,6 +379,146 @@ def get_business_display_files(business, node_id, path_id):
                 'url': '{0}?{1}'.format(item.file.url, r) if item.file else None
             })
     return doc_list
+
+
+def business_template_save(business_id, node_id, name, content):
+    """
+    保存应用模板生成文件
+    :param content: 内容
+    :param doc_id: 模板id
+    :return:
+    """
+    path = ''
+    try:
+        # 打开文档
+        document = Document()
+        # 添加文本
+        document.add_paragraph(content)
+        # 保存文件
+        media = settings.MEDIA_ROOT
+        path = u'{}/business/{}'.format(media, business_id)
+        is_exists = os.path.exists(path)
+        if not is_exists:
+            os.makedirs(path)
+        media_path = u'{}/{}-{}'.format(path, node_id, name)
+        logger.info(media_path)
+        document.save(media_path)
+
+        path = u'business/{}/{}-{}'.format(business_id, node_id, name)
+    except Exception as e:
+        logger.exception(u'business_template_save Exception:{}'.format(str(e)))
+    return path
+
+
+def get_business_templates(business, node_id, role_alloc_id, usage, pra=None):
+    doc_list = []
+    try:
+
+        """
+        实验模板
+        """
+        if role_alloc_id and pra is None:
+            bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
+            pra = ProjectRoleAllocation.objects.filter(pk=bra.project_role_alloc_id).first()
+
+        if usage and usage == '3':
+            docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id,
+                                                     business_role_allocation_id=role_alloc_id)
+            for item in docs:
+                doc_list.append({
+                    'id': item.id, 'name': item.name, 'type': '', 'usage': 3,
+                    'content': item.content, 'file_type': item.file_type,
+                    'has_edited': item.has_edited, 'from': 1,
+                    'sign_status': item.sign_status, 'sign': item.sign,
+                    'role_alloc_id': item.business_role_allocation_id, 'url': item.file.url
+                })
+        else:
+            if role_alloc_id:
+                doc_ids = ProjectDocRole.objects.filter(project_id=business.cur_project_id, node_id=node_id,
+                                                        role_id=pra.role_id, no=pra.no).values_list('doc_id', flat=True)
+            else:
+                doc_ids = ProjectDocRole.objects.filter(project_id=business.cur_project_id,
+                                                        node_id=node_id).values_list('doc_id', flat=True)
+
+            qs = ProjectDoc.objects.filter(project_id=business.cur_project_id)
+            if usage:
+                qs = qs.filter(usage=usage)
+            if node_id:
+                qs = qs.filter(id__in=doc_ids)
+            for item in qs:
+                doc_list.append({
+                    'id': item.id, 'name': item.name, 'type': item.type, 'usage': item.usage,
+                    'content': item.content, 'file_type': item.file_type,
+                    'has_edited': False, 'from': 1,
+                    'sign_status': 0,
+                    'sign': '',
+                    'role_alloc_id': None,
+                    'url': item.file.url
+                })
+
+            # 三期改bug增加------流程素材，对所有角色----------我也不知道对不对 测试说要加我就加了呗
+            # 一会儿流程素材一会儿项目素材的
+            # 我也搞不懂了，这几行代码还是先注掉吧
+            doc_ids = FlowNodeDocs.objects.filter(node_id=node_id, del_flag=0).values_list('doc_id', flat=True)
+            if doc_ids:
+                node_docs = FlowDocs.objects.filter(id__in=doc_ids, usage=usage)
+                for item in node_docs:
+                    url = ''
+                    if item.file:
+                        url = item.file.url
+                    doc_list.append({
+                        'id': item.id, 'name': item.name, 'type': item.type, 'usage': item.usage,
+                        'content': item.content, 'file_type': item.file_type,
+                        'has_edited': False, 'from': 1,
+                        'sign_status': 0,
+                        'sign': '',
+                        'role_alloc_id': None,
+                        'url': url
+                    })
+    except Exception as e:
+        logger.exception('get_business_templates Exception:{0}'.format(str(e)))
+    return doc_list
+
+
+def get_role_alloc_node_can_terminate(business, project_id, node_id, role_alloc_id):
+    if BusinessRoleAllocation.objects.filter(
+            pk=role_alloc_id,
+            project_id=project_id,
+            can_terminate=True).exists():
+        can_terminate = True
+    else:
+        can_terminate = False
+    return can_terminate
+
+
+def get_role_alloc_position(business, project, node, path, bra):
+    try:
+        fra = FlowRoleAllocation.objects.filter(bra.flow_role_alloc_id, del_flag=0).first()
+        role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node.pk,
+                                                        role_id=fra.role_id, no=fra.no, del_flag=0).first()
+        pos = None
+        if role_position:
+            pos = FlowPosition.objects.filter(pk=role_position.position_id, del_flag=0).first()
+
+        # 判断是否存在报告席，是否已走向报告
+        report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE,
+                                                 del_flag=0).first()
+        if report_pos:
+            report_exists = BusinessReportStatus.objects.filter(business_id=business.pk, business_role_allocation=bra,
+                                                                path_id=path.pk,
+                                                                schedule_status=const.SCHEDULE_UP_STATUS).exists()
+            if report_exists:
+                pos = report_pos
+        if pos:
+            data = {'position_id': pos.id, 'org_position_id': role_position.position_id,
+                    'code_position': pos.code_position, 'position': pos.position,
+                    'actor1': pos.actor1, 'actor2': pos.actor2, 'type': pos.type}
+            return data
+        else:
+            return None
+    except Exception as e:
+        logger.exception('get_role_alloc_position Exception:{0}'.format(str(e)))
+        return None
 
 
 def get_all_roles_status(bus, project, node, path):
