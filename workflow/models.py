@@ -317,6 +317,7 @@ class FlowRolePosition(models.Model):
     flow_id = models.IntegerField(verbose_name=u'流程')
     node_id = models.IntegerField(verbose_name=u'环节')
     role_id = models.IntegerField(verbose_name=u'角色')
+    no = models.IntegerField(default=1, verbose_name=u'Number')
     position_id = models.IntegerField(verbose_name=u'站位')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
 

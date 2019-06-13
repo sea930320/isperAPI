@@ -330,9 +330,10 @@ urlpatterns += (
 urlpatterns += (
     url(r'^api/business/create', business_views.api_business_create),
     url(r'^api/business/detail', business_views.api_business_detail),
-    url(r'^api/business/start$', business_views.api_business_start),
+    # url(r'^api/business/start$', business_views.api_business_start),
     url(r'^api/business/list$', business_views.api_business_list),
     url(r'^api/business/messages$', business_views.api_business_messages),
+    url(r'^api/business/templates$', business_views.api_business_templates),
 
     url(r'^api/business/node/detail$', business_views.api_business_node_detail),
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),
@@ -343,6 +344,9 @@ urlpatterns += (
 
     url(r'^api/business/file/display/list$', business_views.api_business_file_display_list),
 
+    url(r'^api/business/note/create$', business_views.api_business_note_create),
+    url(r'^api/business/note/list$', business_views.api_business_note_list),
+
     url(r'^api/business/list_nodel$', business_views.api_experiment_list_nodel),
     url(r'^api/business/list_del$', business_views.api_experiment_list_del),
     url(r'^api/business/delete$', business_views.api_experiment_delete),
@@ -350,6 +354,7 @@ urlpatterns += (
     url(r'^api/business/result$', business_views.api_experiment_result),
     url(r'^api/business/getUnitUserList$', business_views.get_unit_userList),
     url(r'^api/business/addMoreTeammates$', business_views.add_more_teammates),
+    url(r'^api/business/role/status$', business_views.api_business_role_status),
 )
 if settings.DEBUG:
     from django.conf.urls.static import static
