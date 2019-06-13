@@ -37,7 +37,7 @@ def get_role_allocs_status_by_user(business, path, user):
             roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
                                                                           business_role_allocation=roleAlloc).first()
             role_alloc_list.append({
-                'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status,
+                'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
                 'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
                 'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
                 'speak_times': 0 if path.control_status != 2 else roleAllocStatus.speak_times,
@@ -519,3 +519,77 @@ def get_role_alloc_position(business, project, node, path, bra):
     except Exception as e:
         logger.exception('get_role_alloc_position Exception:{0}'.format(str(e)))
         return None
+        
+def get_all_roles_status(bus, project, node, path):
+    """
+    所有角色
+    """
+    key = tools.make_key(const.CACHE_ALL_ROLES_STATUS, '%s:%s:%s' % (bus.pk, node.pk, path.pk), 1)
+    data = cache.get(key)
+    if data:
+        return data
+    else:
+        # 报告席
+        report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE).first()
+        report_status = ExperimentReportStatus.objects.filter(experiment_id=bus.pk, node_id=node.pk,
+                                                              path_id=path.pk,
+                                                              schedule_status=const.SCHEDULE_UP_STATUS).first()
+
+        sql = '''SELECT t.role_id,t.come_status,t.sitting_status,t.stand_status,t.vote_status,
+                t.show_status,t.speak_times,r.`name` role_name,r.flow_role_id,u.name,r.image_id,i.gender
+                from t_experiment_role_status t
+                LEFT JOIN t_project_role r ON t.role_id=r.id
+                LEFT JOIN t_user u ON t.user_id=u.id
+                LEFT JOIN t_role_image i ON i.id=r.image_id
+                WHERE t.experiment_id=%s and t.node_id=%s and t.path_id=%s''' % (bus.pk, node.pk, path.pk)
+        sql += ' order by t.sitting_status '
+        logger.info(sql)
+        role_list = query.select(sql, ['role_id', 'come_status', 'sitting_status', 'stand_status',
+                                       'vote_status', 'show_status', 'speak_times', 'role_name', 'flow_role_id',
+                                       'user_name', 'image_id', 'gender'])
+        for i in range(0, len(role_list)):
+            role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node.pk,
+                                                            role_id=role_list[i]['flow_role_id']).first()
+            actors = []
+            if role_position:
+                qs_files = RoleImageFile.objects.filter(image_id=role_list[i]['image_id'])
+                if report_pos and report_status:
+                    if role_list[i]['role_id'] == report_status.role_id:
+                        if report_pos.actor1:
+                            actor1 = qs_files.filter(direction=report_pos.actor1).first()
+                            actors.append(('/media/' + actor1.file.name) if actor1 and actor1.file else '')
+                        if report_pos.actor2:
+                            actor2 = qs_files.filter(direction=report_pos.actor2).first()
+                            actors.append(('/media/' + actor2.file.name) if actor2 and actor2.file else '')
+                        position = {'id': report_pos.id, 'position': report_pos.position,
+                                    'code_position': report_pos.code_position}
+                    else:
+                        pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
+                        if pos:
+                            if pos.actor1:
+                                actor1 = qs_files.filter(direction=pos.actor1).first()
+                                actors.append(('/media/' + actor1.file.name) if actor1 and actor1.file else '')
+                            if pos.actor2:
+                                actor2 = qs_files.filter(direction=pos.actor2).first()
+                                actors.append(('/media/' + actor2.file.name) if actor2 and actor2.file else '')
+                            position = {'id': pos.id, 'position': pos.position, 'code_position': pos.code_position}
+                        else:
+                            position = None
+                else:
+                    pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
+                    if pos:
+                        if pos.actor1:
+                            actor1 = qs_files.filter(direction=pos.actor1).first()
+                            actors.append(('/media/' + actor1.file.name) if actor1 and actor1.file else '')
+                        if pos.actor2:
+                            actor2 = qs_files.filter(direction=pos.actor2).first()
+                            actors.append(('/media/' + actor2.file.name) if actor2 and actor2.file else '')
+                        position = {'id': pos.id, 'position': pos.position, 'code_position': pos.code_position}
+                    else:
+                        position = None
+            else:
+                position = None
+            role_list[i]['position'] = position
+            role_list[i]['actors'] = actors
+        cache.set(key, role_list)
+        return role_list

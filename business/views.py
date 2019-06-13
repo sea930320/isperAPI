@@ -112,7 +112,7 @@ def api_business_create(request):
                                                    no=item.no))
                 BusinessRoleAllocation.objects.bulk_create(business_allocations)
 
-                teammates_configuration(business.id, [])
+                teammates_configuration(business.id, [], request)
 
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
@@ -134,23 +134,30 @@ def api_business_create(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
-def teammates_configuration(business_id, seted_users_fromInnerPermission):
+def teammates_configuration(business_id, seted_users_fromInnerPermission, request):
+
     # check team counts
 
     business_team_counts = list(
         BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
     business = Business.objects.get(id=business_id)
 
+    project = Project.objects.get(pk=business.project_id)
+    first_node_id = get_start_node(project.flow_id)
+    node = FlowNode.objects.get(pk=first_node_id)
+    startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
+                                                           can_take_in=1).first()
+    for item in business_team_counts:
+        if item['job_type__name'] == startRoleAlloc.role.name:
+            item['capacity'] -= 1
+
     company_id = None
     target_user_counts = []
     if business.target_part is not None:
-        target_user_counts = list(Tuser.objects.filter(tposition__parts_id=business.target_part.id, is_review=1).values(
-            'tposition__name').annotate(counts=Count('id')))
+        target_user_counts = list(Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=request.user.id)).values('tposition__name').annotate(counts=Count('id')))
         company_id = business.target_part.company_id
     elif business.target_company is not None:
-        target_user_counts = list(
-            Tuser.objects.filter(tcompany=business.target_company, is_review=1).values('tposition__name').annotate(
-                counts=Count('id')))
+        target_user_counts = list(Tuser.objects.filter(Q(tcompany=business.target_company, is_review=1) & ~Q(id=request.user.id)).values('tposition__name').annotate(counts=Count('id')))
         company_id = business.target_company.id
 
     if seted_users_fromInnerPermission:
@@ -201,22 +208,33 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     # configuration team
 
     targetUnitUsers = []
-    teammateList = list(
-        BusinessRoleAllocation.objects.filter(business_id=business_id).values('role_id', 'role__job_type__name',
-                                                                              'no').distinct())
+    teammateList = list(BusinessRoleAllocation.objects.filter(business_id=business_id).values('role_id', 'role__job_type__name', 'no').distinct())
+    teammateList.pop(next((index for (index, x) in enumerate(teammateList) if x['role_id'] == startRoleAlloc.role_id and x['no'] == startRoleAlloc.no), None))
     if business.target_part is not None:
         targetUnitUsers = [{
-            'id': item.id,
-            'position': item.tposition.name,
-        } for item in Tuser.objects.filter(tposition__parts_id=business.target_part.id, is_review=1)]
+                'id': item.id,
+                'position': item.tposition.name,
+            } for item in Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=request.user.id))]
     elif business.target_company is not None:
         targetUnitUsers = [{
-            'id': item.id,
-            'position': item.tposition.name if item.tposition else None,
-        } for item in Tuser.objects.filter(tcompany_id=company_id, is_review=1)]
+                'id': item.id,
+                'position': item.tposition.name if item.tposition else None,
+            } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(id=request.user.id))]
+
+    newTeammate = BusinessTeamMember.objects.create(
+        business_id=business_id,
+        user_id=request.user.id,
+        business_role_id=startRoleAlloc.role_id,
+        no=startRoleAlloc.no,
+        del_flag=0,
+        project_id=business.project_id
+    )
+    newTeammate.save()
+
     if seted_users_fromInnerPermission:
         for item in seted_users_fromInnerPermission:
             targetUnitUsers.append({'position': item['role_name'], 'id': item['userId']})
+
     for teamItem in teammateList:
         selectedUser = random.choice([a for a in targetUnitUsers if a['position'] == teamItem['role__job_type__name']])
         targetUnitUsers.pop(next((index for (index, x) in enumerate(targetUnitUsers) if x == selectedUser), None))
@@ -329,6 +347,12 @@ def api_business_detail(request):
 
     try:
         business_id = request.GET.get("business_id")  # 实验id
+
+        if BusinessTransPath.objects.filter(business_id=business_id).count() == 0:
+            resp = api_business_start(request)
+            if resp != 'success':
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
         business = Business.objects.filter(pk=business_id, del_flag=0).first()
         if business:
             data = get_business_detail(business)
@@ -348,7 +372,6 @@ def api_business_detail(request):
                 path_id = path.pk
                 user_role_allocs_temp = get_role_allocs_status_by_user(business, path, request.user)
                 for role_alloc_temp in user_role_allocs_temp:
-                    print role_alloc_temp['role']
                     if role_alloc_temp['role']['type'] != const.ROLE_TYPE_OBSERVER:
                         user_role_allocs.append(role_alloc_temp)
 
@@ -393,120 +416,86 @@ def api_business_detail(request):
 
 
 def api_business_start(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    business_id = request.GET.get("business_id")  # 实验id
+    business = Business.objects.filter(pk=business_id).first()  # get Business
+    logger.info('api_business_start:business_id=%s' % business_id)
+    if business is None:
+        resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+        return resp
 
-    try:
-        business_id = request.POST.get("business_id")  # get business ID
-        business = Business.objects.filter(pk=business_id).first()  # get Business
-        logger.info('api_business_start:business_id=%s' % business_id)
-        if business is None:
-            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    # get Project that this business is based on
+    project = Project.objects.get(pk=business.project_id)
+    # 验证项目中是否有未配置的跳转项目 todo
+    if not check_jump_project(project):
+        resp = code.get_msg(code.BUSINESS_JUMP_PROJECT_SETUP_ERROR)
+        return resp
+    # get First Node ID and Node by project Flow ID
+    first_node_id = get_start_node(project.flow_id)
+    node = FlowNode.objects.get(pk=first_node_id)
+    # get All Business Roles to check if all users are allocated to business Role Alloc
+    businessRoles = BusinessRole.objects.filter(business=business)  # get all Business Roles
+    for role in businessRoles:
+        for no in range(1, role.capacity + 1):
+            teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
+                                                            del_flag=0)  # get all team members with same business, role, no to check if user is allocated to this allocation
+            if teamMembers.count() == 0:
+                resp = code.get_msg(code.TEAM_MEMBER_NOT_EXIST)
+                return resp
 
-        if business.status != 1:
-            resp = code.get_msg(code.BUSINESS_HAS_STARTED)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    # teamMembers = BusinessTeamMember.objects.filter(business=business, del_flag=0)
+    # ids = list(teamMembers.values_list('user_id'))
 
-        # get Project that this business is based on
-        project = Project.objects.get(pk=business.project_id)
-        # 验证项目中是否有未配置的跳转项目 todo
-        if not check_jump_project(project):
-            resp = code.get_msg(code.BUSINESS_JUMP_PROJECT_SETUP_ERROR)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        # get First Node ID and Node by project Flow ID
-        first_node_id = get_start_node(project.flow_id)
-        node = FlowNode.objects.get(pk=first_node_id)
-        # get All Business Roles to check if all users are allocated to business Role Alloc
-        businessRoles = BusinessRole.objects.filter(business=business)  # get all Business Roles
-        for role in businessRoles:
-            for no in range(1, role.capacity + 1):
-                teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
-                                                                del_flag=0)  # get all team members with same business, role, no to check if user is allocated to this allocation
-                if teamMembers.count() == 0:
-                    resp = code.get_msg(code.TEAM_MEMBER_NOT_EXIST)
-                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    # 注册所有的群组用户到环信群组
+    # easemob_success, easemob_result = easemob.create_groups(str(business.pk), str(request.user.pk), ids)
+    # logger.info(u'easemob create_groups:{}{}'.format(easemob_success, easemob_result))
 
-        # teamMembers = BusinessTeamMember.objects.filter(business=business, del_flag=0)
-        # ids = list(teamMembers.values_list('user_id'))
+    # if easemob_success is False:
+    #     resp = code.get_msg(code.BUSINESS_START_FAILED)
+    #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        # 注册所有的群组用户到环信群组
-        # easemob_success, easemob_result = easemob.create_groups(str(business.pk), str(request.user.pk), ids)
-        # logger.info(u'easemob create_groups:{}{}'.format(easemob_success, easemob_result))
+    # get Start Role Allocation
+    startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
+                                                           can_take_in=1).first()
+    # check if this user is Start User
+    isStartUser = BusinessTeamMember.objects.filter(business=business, user=request.user,
+                                                    business_role=startRoleAlloc.role,
+                                                    no=startRoleAlloc.no).exists()
+    if not isStartUser:
+        resp = code.get_msg(code.BUSINESS_NO_ACCESS_TO_START)
+        return resp
+    # get all allocations take part in this first node of this business
+    allocations = BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1)
+    with transaction.atomic():
+        # Create Business TransPath
+        path = BusinessTransPath.objects.create(business=business, node=node,
+                                                project_id=business.project_id, task_id=node.task_id, step=1)
+        for item in allocations:
+            if item.can_brought:
+                come_status = 1
+            else:
+                come_status = 9
+            # 三期 - 不能直接创建， 在service中结束并走向下一环节的时候会创建角色状态，这里再创建一次就重复了
+            brses = BusinessRoleAllocationStatus.objects.filter(business=business, business_role_allocation=item,
+                                                                path=path)
+            if brses.count() > 0:  # 存在则更新
+                brs = brses.first()
+                brs.come_status = come_status
+                brs.save()
+            else:  # 不存在则创建
+                BusinessRoleAllocationStatus.objects.update_or_create(business=business,
+                                                                      business_role_allocation=item,
+                                                                      path=path,
+                                                                      come_status=come_status)
 
-        # if easemob_success is False:
-        #     resp = code.get_msg(code.BUSINESS_START_FAILED)
-        #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        # 环信id
+        # huanxin_id = easemob_result['data']['groupid']
+        # exp.huanxin_id = huanxin_id
+        # 设置实验环节为开始环节,改变实验状态
+        business.node = node
+        business.path_id = path.id
+        business.save()
 
-        # get Start Role Allocation
-        startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
-                                                               can_take_in=1).first()
-        # check if this user is Start User
-        isStartUser = BusinessTeamMember.objects.filter(business=business, user=request.user,
-                                                        business_role=startRoleAlloc.role,
-                                                        no=startRoleAlloc.no).exists()
-        if not isStartUser:
-            resp = code.get_msg(code.BUSINESS_NO_ACCESS_TO_START)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        # get all allocations take part in this first node of this business
-        allocations = BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1)
-        with transaction.atomic():
-            # Create Business TransPath
-            path = BusinessTransPath.objects.create(business=business, node=node,
-                                                    project_id=business.project_id, task_id=node.task_id, step=1)
-            for item in allocations:
-                if item.can_brought:
-                    come_status = 1
-                else:
-                    come_status = 9
-                # 三期 - 不能直接创建， 在service中结束并走向下一环节的时候会创建角色状态，这里再创建一次就重复了
-                brses = BusinessRoleAllocationStatus.objects.filter(business=business, business_role_allocation=item,
-                                                                    path=path)
-                if brses.count() > 0:  # 存在则更新
-                    brs = brses.first()
-                    brs.come_status = come_status
-                    brs.save()
-                else:  # 不存在则创建
-                    BusinessRoleAllocationStatus.objects.update_or_create(business=business,
-                                                                          business_role_allocation=item,
-                                                                          path=path,
-                                                                          come_status=come_status)
-
-            # 环信id
-            # huanxin_id = easemob_result['data']['groupid']
-            # exp.huanxin_id = huanxin_id
-            # 设置实验环节为开始环节,改变实验状态
-            business.node = node
-            business.path_id = path.id
-            business.status = 2
-            business.save()
-
-        # todo 优化
-        user_role_allocs = []
-        # teamMembers that I can take part in this business process
-        teamMembers = BusinessTeamMember.objects.filter(business=business, user=request.user, del_flag=0)
-        for teamMember in teamMembers:
-            role_allocs = [model_to_dict(bra) for bra in
-                           BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1,
-                                                                 role=teamMember.business_role,
-                                                                 no=teamMember.no)]
-            user_role_allocs = user_role_allocs + role_allocs
-
-        resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {
-            'node': {
-                'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': node.process.type},
-            'huanxin_id': business.huanxin_id, 'user_role_allocs': user_role_allocs, 'id': business_id,
-            'flow_id': project.flow_id, 'project_id': project.id
-        }
-        logger.info('api_business_start end:business_id=%s' % business_id)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-    except Exception as e:
-        logger.exception('api_business_start Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    return 'success'
 
 
 # 实验环节详情
@@ -755,7 +744,7 @@ def api_business_node_function(request):
                                                         no=bra.no, del_flag=0, project_id=business.cur_project_id)
                 if btm.exists():
                     role_alloc = bra
-                    break;
+                    break
             if role_alloc is None:
                 resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -812,8 +801,6 @@ def api_business_node_function(request):
         function_action_list = []
         function_actions = FlowAction.objects.filter(id__in=flow_action_ids, del_flag=0)
 
-        print flow_action_ids
-        print function_actions
         # 判断按钮是否可用
         for item in function_actions:
             if can_terminate:
@@ -1313,6 +1300,42 @@ def api_experiment_list_nodel(request):
         resp = code.get_msg(code.PERMISSION_DENIED)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
+# 实验文件展示列表
+def api_business_file_display_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get('node_id', None)
+        path_id = request.GET.get("path_id", None)  # 环节id
+
+        business = Business.objects.filter(pk=business_id).first()
+        if business:
+            doc_list = get_business_display_files(business, node_id, path_id)
+            # 分页信息
+            paging = {
+                'count': len(doc_list),
+                'has_previous': False,
+                'has_next': False,
+                'num_pages': 1,
+                'cur_page': 1,
+            }
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': doc_list, 'paging': paging}
+
+        else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_file_display_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
 # Get Deleted Experiments
 def api_experiment_list_del(request):
     if request.session['login_type'] in [2, 6]:
@@ -1738,7 +1761,7 @@ def add_more_teammates(request):
                     item['role_name'] = unicode(item['role_name'], "utf8")
 
             if len(TNotifications.objects.filter(type='businessMoreTeammate_' + business_id)) != 0:
-                if teammates_configuration(business_id, data) == 'team_configured':
+                if teammates_configuration(business_id, data, request) == 'team_configured':
                     TNotifications.objects.filter(type='businessMoreTeammate_' + business_id).delete()
 
             resp = code.get_msg(code.SUCCESS)
@@ -1752,3 +1775,29 @@ def add_more_teammates(request):
     else:
         resp = code.get_msg(code.PERMISSION_DENIED)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 实验环节用户角色状态查询
+def api_business_role_status(request):
+    resp = auth_check(request, 'GET')
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get("business_id")  # 实验任务id
+        node_id = request.GET.get("node_id")  # 环节id
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        project = Project.objects.get(pk=bus.cur_project_id)
+        path = BusinessTransPath.objects.filter(business_id=business_id).last()
+        node = FlowNode.objects.filter(pk=node_id, del_flag=0).first()
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = get_all_roles_status(bus, project, node, path)
+    except Exception as e:
+        logger.exception('experiment_role_status Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
