@@ -333,6 +333,7 @@ urlpatterns += (
     url(r'^api/business/start$', business_views.api_business_start),
     url(r'^api/business/list$', business_views.api_business_list),
     url(r'^api/business/messages$', business_views.api_business_messages),
+    url(r'^api/business/templates$', business_views.api_business_templates),
 
     url(r'^api/business/node/detail$', business_views.api_business_node_detail),
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),
@@ -342,6 +343,9 @@ urlpatterns += (
     url(r'^api/business/trans/path$', business_views.api_business_trans_path),
 
     url(r'^api/business/file/display/list$', business_views.api_business_file_display_list),
+
+    url(r'^api/business/note/create$', business_views.api_business_note_create),
+    url(r'^api/business/note/list$', business_views.api_business_note_list),
 
     url(r'^api/business/list_nodel$', business_views.api_experiment_list_nodel),
     url(r'^api/business/list_del$', business_views.api_experiment_list_del),

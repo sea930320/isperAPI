@@ -226,7 +226,7 @@ class BusinessDoc(models.Model):
     type = models.IntegerField(blank=True, null=True, verbose_name=u'文件类型')
     content = models.TextField(blank=True, null=True, verbose_name=u'内容')
     created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     sign = models.CharField(max_length=12, blank=True, null=True, verbose_name=u'签名')
     sign_status = models.BooleanField(default=False, verbose_name=u'签名状态')
@@ -253,7 +253,7 @@ class BusinessDocContent(models.Model):
     sign = models.CharField(max_length=32, blank=True, null=True, verbose_name=u'签名')
     sign_status = models.PositiveIntegerField(choices=const.SIGN_STATUS, default=0, verbose_name=u'签名状态')
     file_type = models.PositiveSmallIntegerField(choices=const.FILE_TYPE, default=0, verbose_name=u'文件类型')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
     has_edited = models.BooleanField(default=False, verbose_name=u'是否已编辑')
     created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
@@ -285,7 +285,7 @@ class BusinessDocSign(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
     doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
     sign = models.CharField(max_length=18, blank=True, null=True, verbose_name=u'签名')
     sign_status = models.PositiveIntegerField(choices=const.SIGN_STATUS, default=0, verbose_name=u'签名状态')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
@@ -294,6 +294,25 @@ class BusinessDocSign(models.Model):
         db_table = "t_business_doc_sign"
         ordering = ['-create_time']
         verbose_name_plural = verbose_name = u"实验环节文档签字记录"
+
+    def __unicode__(self):
+        return u""
+
+
+
+# 实验环节笔记
+class BusinessNotes(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
+    created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者')
+    content = models.TextField(verbose_name=u'内容')
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
+    class Meta:
+        db_table = "t_business_notes"
+        verbose_name_plural = verbose_name = u"实验环节笔记"
 
     def __unicode__(self):
         return u""
