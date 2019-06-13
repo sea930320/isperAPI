@@ -384,6 +384,7 @@ def api_business_detail(request):
 
 
 def api_business_start(request):
+    print request
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -412,6 +413,7 @@ def api_business_start(request):
         # get All Business Roles to check if all users are allocated to business Role Alloc
         businessRoles = BusinessRole.objects.filter(business=business)  # get all Business Roles
         for role in businessRoles:
+            print business, role
             for no in range(1, role.capacity + 1):
                 teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
                                                                 del_flag=0)  # get all team members with same business, role, no to check if user is allocated to this allocation
