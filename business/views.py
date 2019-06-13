@@ -170,15 +170,13 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission, reques
         if matched_item is None:
             moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity']})
         elif matched_item['counts'] < item['capacity']:
-            moreResult.append(
-                {'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
+            moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
 
     if moreResult:
         if len(seted_users_fromInnerPermission) != 0:
             return
-        if TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() != 0 \
-                and TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(
-                    tuser__isnull=False).values_list('tuser', flat=True).count() != 0:
+        if TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() != 0\
+                and TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True).count() != 0:
             newNotification = TNotifications.objects.create(
                 type='businessMoreTeammate_' + str(business_id),
                 content=str(moreResult),
@@ -187,12 +185,10 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission, reques
                 mode=0
             )
             newNotification.save()
-            for userID in TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(
-                    tuser__isnull=False).values_list('tuser', flat=True):
+            for userID in TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True):
                 newNotification.targets.add(Tuser.objects.get(id=userID))
-        elif TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() == 0 \
-                or TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(
-                    tuser__isnull=False).values_list('tuser', flat=True).count() == 0:
+        elif TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() == 0\
+                or TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True).count() == 0:
             newNotification = TNotifications.objects.create(
                 type='businessMoreTeammate_' + str(business_id),
                 content=str(moreResult),
