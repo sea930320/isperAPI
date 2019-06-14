@@ -20,6 +20,7 @@ from userManage import views as userManage_views
 from advertising import views as advertising_views
 from business import views as business_views
 from partPosition import views as partPosition_views
+from socketio import views as socketIO_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -355,6 +356,9 @@ urlpatterns += (
     url(r'^api/business/getUnitUserList$', business_views.get_unit_userList),
     url(r'^api/business/addMoreTeammates$', business_views.add_more_teammates),
     url(r'^api/business/role/status$', business_views.api_business_role_status),
+)
+urlpatterns += (
+    url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),
 )
 if settings.DEBUG:
     from django.conf.urls.static import static
