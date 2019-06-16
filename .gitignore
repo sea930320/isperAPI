@@ -110,3 +110,5 @@ media/avatars
 media/workflow
 media/files
 media/project
+
+ws_server/node_modules

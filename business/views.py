@@ -669,6 +669,7 @@ def api_business_node_messages(request):
                 # 更新扩展
                 ext = json.loads(m_ext)
                 ext['id'] = mid
+                ext['business_role_alloc'] = model_to_dict(BusinessRoleAllocation.objects.filter(pk=ext['role_alloc_id']).first())
                 if opt_status == 1:
                     ext['opt_status'] = True
                 else:

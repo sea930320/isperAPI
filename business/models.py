@@ -179,7 +179,7 @@ class BusinessMessage(models.Model):
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
     file_id = models.IntegerField(blank=True, null=True, verbose_name=u'文件')
     path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
-    user_name = models.CharField(max_length=8, blank=True, null=True, verbose_name=u'姓名')
+    user_name = models.CharField(max_length=64, blank=True, null=True, verbose_name=u'姓名')
     role_name = models.CharField(max_length=32, blank=True, null=True, verbose_name=u'角色名称')
     msg = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'消息内容')
     msg_type = models.CharField(max_length=10, verbose_name=u'消息类型')
