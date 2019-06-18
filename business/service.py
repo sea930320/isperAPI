@@ -974,22 +974,23 @@ def action_role_stand(bus, path_id, role, pos, alloc_role_id):
         return False, str(e)
 
 
-def action_role_hide(bus, node_id, path_id, role, pos):
+def action_role_hide(bus, path_id, role, pos, alloc_role_id):
     """
     退席
     :return:
     """
     try:
         with transaction.atomic():
-            BusinessRoleAllocationStatus.objects.filter(experiment_id=bus.id, node_id=node_id, path_id=path_id,
-                                                role_id=role.id).update(stand_status=2, sitting_status=1)
+            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=alloc_role_id, path_id=path_id).update(stand_status=2, sitting_status=1)
             # 占位状态
-            ExperimentPositionStatus.objects.update_or_create(experiment_id=bus.id, node_id=node_id,
-                                                              path_id=path_id, position_id=pos['position_id'],
-                                                              defaults={'sitting_status': const.SITTING_UP_STATUS,
-                                                                        'role_id': None}
-                                                              )
-            role_info = {'id': role.id, 'name': role.name, 'code_position': pos['code_position']}
+            BusinessPositionStatus.objects.update_or_create(
+                business_id=bus.id,
+                business_role_allocation_id=alloc_role_id,
+                path_id=path_id,
+                position_id=pos['position_id'],
+                defaults={'sitting_status': const.SITTING_UP_STATUS, 'business_role_allocation_id': None}
+            )
+            role_info = {'id': alloc_role_id, 'name': role.name, 'code_position': pos['code_position']}
 
         return True, role_info
     except Exception as e:

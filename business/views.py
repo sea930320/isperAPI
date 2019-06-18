@@ -2031,7 +2031,7 @@ def api_business_message_push(request):
                     resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-                result, opt = action_role_hide(bus, node_id, path.pk, role, pos)
+                result, opt = action_role_hide(bus, path.pk, role, pos, alloc_role_id)
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_SHOW:
                 if pos is None:
@@ -2044,7 +2044,8 @@ def api_business_message_push(request):
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                 # 占位状态
-                position_status = ExperimentPositionStatus.objects.filter(business_id=bus.id, node_id=node_id,
+                position_status = BusinessPositionStatus.objects.filter(
+                    business_id=bus.id, node_id=node_id,
                                                                           path_id=path.pk,
                                                                           position_id=pos['position_id'],
                                                                           sitting_status=const.SITTING_DOWN_STATUS).exists()
