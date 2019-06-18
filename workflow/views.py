@@ -75,12 +75,12 @@ def api_workflow_role_action(request):
             for item in flow_role_allocation:
                 # 流程环节角色动作
                 flow_actions = FlowRoleActionNew.objects.filter(flow_id=flow_id, node_id=item.node_id,
-                                                                role_id=item.role_id, del_flag=0).first()
+                                                                role_id=item.role_id, no=item.no, del_flag=0).first()
                 flow_action_ids = []
                 if flow_actions and flow_actions.actions:
                     flow_action_ids = json.loads(flow_actions.actions)
                 action_allocations.append({
-                    'node_id': item.node_id, 'role_id': item.role_id, 'role_name': item.role.name,
+                    'node_id': item.node_id, 'role_id': item.role_id, 'no': item.no, 'role_name': item.role.name,
                     'role_type': item.role.type, 'flow_action_ids': flow_action_ids
                 })
 
@@ -156,13 +156,13 @@ def api_workflow_role_process_action(request):
             for item in flow_role_allocation:
                 # 流程环节角色场景动画
                 actions = ProcessRoleActionNew.objects.filter(flow_id=flow_id, node_id=item.node_id,
-                                                              role_id=item.role_id, del_flag=0).first()
+                                                              role_id=item.role_id, no=item.no, del_flag=0).first()
                 process_action_ids = []
                 if actions and actions.actions:
                     process_action_ids = json.loads(actions.actions)
 
                 action_allocations.append({
-                    'node_id': item.node_id, 'role_id': item.role_id, 'role_name': item.role.name,
+                    'node_id': item.node_id, 'role_id': item.role_id, 'no': item.no, 'role_name': item.role.name,
                     'role_type': item.role.type, 'process_action_ids': process_action_ids
                 })
 
@@ -329,10 +329,10 @@ def api_workflow_role_allcation(request):
                     for r in ra_list:
                         # 占位数据
                         role_position = FlowRolePosition.objects.filter(flow_id=flow_id, node_id=item.id,
-                                                                        role_id=r.role_id, del_flag=0).first()
+                                                                        role_id=r.role_id, no=r.no, del_flag=0).first()
                         position_id = role_position.position_id if role_position else None
                         allocation_list.append({
-                            'role_id': r.role_id, 'role_name': r.role.name,
+                            'role_id': r.role_id, 'role_name': r.role.name, 'no': r.no,
                             'position_id': position_id, 'role_type': r.role.type
                         })
                 node_list.append({
@@ -724,11 +724,13 @@ def api_workflow_roles_position_setup(request):
         flow_id = request.POST.get('flow_id', None)
         node_id = request.POST.get("node_id", None)
         role_id = request.POST.get("role_id", None)
+        no = request.POST.get("no", None)
         position_id = request.POST.get("position_id", None)
         logger.info('flow_id:%s,node_id:%s,role_id:%s,position_id:%s' % (flow_id, node_id, role_id, position_id))
 
         if flow_id:
-            FlowRolePosition.objects.update_or_create(flow_id=flow_id, node_id=node_id, role_id=role_id,
+            position_id = position_id if position_id != u'' else None
+            FlowRolePosition.objects.update_or_create(flow_id=flow_id, node_id=node_id, role_id=role_id, no=no,
                                                       defaults={'position_id': position_id, 'del_flag': 0})
             resp = code.get_msg(code.SUCCESS)
         else:
@@ -778,51 +780,33 @@ def api_workflow_roles_action(request):
 
     try:
         flow_id = request.POST.get('flow_id', None)
-        node_id = request.POST.get('node_id', None)
         data = request.POST.get("data", None)  # 动作设置信息
 
+        new_actions = []
         if data and flow_id:
             flow = Flow.objects.get(pk=flow_id)
-            node = FlowNode.objects.get(pk=node_id)
             action_list = json.loads(data)
 
-            new_actions = []
             with transaction.atomic():
                 for item in action_list:
-                    obj = FlowRoleActionNew.objects.filter(flow_id=flow_id, node_id=node_id,
-                                                           role_id=item['role_id']).first()
+                    obj = FlowRoleActionNew.objects.filter(flow_id=flow_id, node_id=item['node_id'],
+                                                           role_id=item['role_id'], no=item['no']).first()
+                    node = FlowNode.objects.get(pk=item['node_id'])
+                    print json.dumps(item['flow_action_ids'])
                     if obj:
-                        if obj.actions:
-                            actions = json.loads(obj.actions)
-                        else:
-                            actions = []
-                        # 选中
-                        if item['selected']:
-                            if item['action_id'] not in actions:
-                                actions.append(item['action_id'])
-                        else:
-                            if item['action_id'] in actions:
-                                actions.remove(item['action_id'])
-                        obj.actions = actions
+                        obj.actions = json.dumps(item['flow_action_ids'])
                         obj.del_flag = const.DELETE_FLAG_NO
                         obj.save(update_fields=['actions', 'del_flag'])
 
                     else:
-                        if item['selected']:
-                            if node.process and node.process.type == 1:
-                                new_actions.append(FlowRoleActionNew(flow_id=flow_id, node_id=node_id,
-                                                                     role_id=item['role_id'],
-                                                                     actions=[item['action_id']]))
+                        if node.process and node.process.type == 1:
+                            new_actions.append(FlowRoleActionNew(flow_id=flow_id, node_id=item['node_id'],
+                                                                 role_id=item['role_id'], no=item['no'],
+                                                                 actions=json.dumps(item['flow_action_ids'])))
 
-                if new_actions:
-                    FlowRoleActionNew.objects.bulk_create(new_actions)
-
-                if flow.step < const.FLOW_STEP_5:
-                    flow.step = const.FLOW_STEP_5
-                    flow.save()
-
+            if new_actions:
+                FlowRoleActionNew.objects.bulk_create(new_actions)
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'step': flow.step}
         else:
             resp = code.get_msg(code.PARAMETER_ERROR)
 
@@ -842,39 +826,26 @@ def api_workflow_roles_process_action(request):
 
     try:
         flow_id = request.POST.get('flow_id', None)
-        node_id = request.POST.get('node_id', None)
         data = request.POST.get("data", None)  # 动画设置信息
         # logger.info(data)
         if data and flow_id:
             flow = Flow.objects.get(pk=flow_id)
-            node = FlowNode.objects.get(pk=node_id)
             action_list = json.loads(data)
             new_actions = []
             with transaction.atomic():
                 for item in action_list:
-                    obj = ProcessRoleActionNew.objects.filter(flow_id=flow_id, node_id=node_id,
-                                                              role_id=item['role_id']).first()
+                    node = FlowNode.objects.get(pk=item['node_id'])
+                    obj = ProcessRoleActionNew.objects.filter(flow_id=flow_id, node_id=item['node_id'],
+                                                              role_id=item['role_id'], no=item['no']).first()
                     if obj:
-                        if obj.actions:
-                            actions = json.loads(obj.actions)
-                        else:
-                            actions = []
-                        # 选中
-                        if item['selected']:
-                            if item['action_id'] not in actions:
-                                actions.append(item['action_id'])
-                        else:
-                            if item['action_id'] in actions:
-                                actions.remove(item['action_id'])
-                        obj.actions = actions
+                        obj.actions = json.dumps(item['process_action_ids'])
                         obj.del_flag = const.DELETE_FLAG_NO
                         obj.save(update_fields=['actions', 'del_flag'])
                     else:
-                        if item['selected']:
-                            if node.process and node.process.type == 1:
-                                new_actions.append(ProcessRoleActionNew(flow_id=flow_id, node_id=node_id,
-                                                                        role_id=item['role_id'],
-                                                                        actions=[item['action_id']]))
+                        if node.process and node.process.type == 1:
+                            new_actions.append(ProcessRoleActionNew(flow_id=flow_id, node_id=node.id,
+                                                                    role_id=item['role_id'], no=item['no'],
+                                                                    actions=json.dumps(item['process_action_ids'])))
                 if new_actions:
                     ProcessRoleActionNew.objects.bulk_create(new_actions)
 
@@ -883,7 +854,6 @@ def api_workflow_roles_process_action(request):
                     flow.save()
 
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'step': flow.step}
         else:
             resp = code.get_msg(code.PARAMETER_ERROR)
 
@@ -1668,7 +1638,8 @@ def api_workflow_list(request):
             try:
                 group = user.allgroups_set.all().first() if login_type == 2 else user.allgroups_set_assistants.all().first()  # get group that this user belongs to
                 createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
-                createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
+                createdByGMAs = [manager.id for manager in
+                                 group.groupManagerAssistants.all()]  # get all group manager assistants
             except AttributeError as ae:
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1700,7 +1671,8 @@ def api_workflow_list(request):
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
-            createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
+            createdByGMAs = [manager.id for manager in
+                             group.groupManagerAssistants.all()]  # get all group manager assistants
             companies = group.tcompany_set.all()  # get all companies
             createdByCMs = []
             createdByCMAs = []
@@ -1770,7 +1742,8 @@ def api_workflow_list(request):
             results.append({
                 'id': flow.id, 'name': flow.name, 'xml': flow.xml, 'animation1': file_info(flow.animation1),
                 'animation2': file_info(flow.animation2), 'status': flow.status, 'type_label': flow.type_label,
-                'task_label': flow.task_label, 'officeItem': flow.type_label, 'officeItem_name': OfficeItems.objects.get(id=flow.type_label).name,
+                'task_label': flow.task_label, 'officeItem': flow.type_label,
+                'officeItem_name': OfficeItems.objects.get(id=flow.type_label).name,
                 'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d') or "",
                 'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share,
                 'is_public': flow.is_public, 'created_role': flow.created_role_id

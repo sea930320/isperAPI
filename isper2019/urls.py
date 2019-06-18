@@ -20,6 +20,7 @@ from userManage import views as userManage_views
 from advertising import views as advertising_views
 from business import views as business_views
 from partPosition import views as partPosition_views
+from socketio import views as socketIO_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -197,12 +198,12 @@ urlpatterns += (
 
 urlpatterns += (
     url(r'^api/workflow/list$', workflow_views.api_workflow_list), #Jonas
-    url(r'^api/workflow/process/positions$', workflow_views.api_workflow_process_positions),
-    url(r'^api/workflow/role/action$', workflow_views.api_workflow_role_action),
-    url(r'^api/workflow/role/process/actions$', workflow_views.api_workflow_role_process_action),
+    url(r'^api/workflow/process/positions$', workflow_views.api_workflow_process_positions), #Jonas
+    url(r'^api/workflow/role/action$', workflow_views.api_workflow_role_action), #Jonas
+    url(r'^api/workflow/role/process/actions$', workflow_views.api_workflow_role_process_action), #Jonas
     url(r'^api/workflow/flow/actions$', workflow_views.api_workflow_flow_actions),
     url(r'^api/workflow/flow/draw$', workflow_views.api_workflow_flow_draw),
-    url(r'^api/workflow/role/allcation$', workflow_views.api_workflow_role_allcation),
+    url(r'^api/workflow/role/allcation$', workflow_views.api_workflow_role_allcation), #Jonas
     url(r'^api/workflow/doc/list$', workflow_views.api_workflow_doc_list),
     url(r'^api/workflow/role/list$', workflow_views.api_workflow_role_list),
     url(r'^api/workflow/node/list$', workflow_views.api_workflow_node_list),
@@ -356,6 +357,9 @@ urlpatterns += (
     url(r'^api/business/addMoreTeammates$', business_views.add_more_teammates),
     url(r'^api/business/role/status$', business_views.api_business_role_status),
     url(r'^api/business/message/push$', business_views.api_business_message_push),
+)
+urlpatterns += (
+    url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),
 )
 if settings.DEBUG:
     from django.conf.urls.static import static

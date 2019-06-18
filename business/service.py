@@ -69,7 +69,7 @@ def get_role_allocs_status_by_user(business, path, user):
             roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
                                                                           business_role_allocation=roleAlloc).first()
             role_alloc_list.append({
-                'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status,
+                'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
                 'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
                 'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
                 'speak_times': 0 if path.control_status != 2 else roleAllocStatus.speak_times,
@@ -213,20 +213,26 @@ def get_node_path_messages_on_business(business, node_id, path_id, is_paging, pa
     """
     if is_paging == 1:
         sql = '''SELECT t.id,t.user_id `from`,t.msg_type,t.msg `data`,t.ext,t.file_id,t.opt_status
-        from t_business_message t WHERE t.business_id=%s and t.node_id=%s and t.path_id=%s
+        from t_business_message t
+        LEFT JOIN t_business_role_allocation r on t.business_role_allocation_id = r.id 
+        WHERE t.business_id=%s and r.node_id=%s and t.path_id=%s
         order by timestamp desc''' % (business.pk, node_id, path_id)
-        count_sql = '''SELECT count(t.id) from t_ebusiness_message t
-        WHERE t.business_id=%s and t.node_id=%s and t.path_id=%s''' % (business.pk, node_id, path_id)
+        count_sql = '''SELECT count(t.id) from t_business_message t
+        LEFT JOIN t_business_role_allocation r on t.business_role_allocation_id = r.id 
+        WHERE t.business_id=%s and r.node_id=%s and t.path_id=%s''' % (business.pk, node_id, path_id)
         logger.info(sql)
         data = query.pagination_page(sql, ['id', 'from', 'msg_type', 'data', 'ext', 'file_id', 'opt_status'],
                                      count_sql, page, size)
         return data
     else:
         sql = '''SELECT t.id,t.user_id `from`,t.msg_type,t.msg `data`,t.ext,t.file_id,t.opt_status
-        from t_business_message t WHERE t.business_id=%s and t.node_id=%s and t.path_id=%s
+        from t_business_message t
+        LEFT JOIN t_business_role_allocation r on t.business_role_allocation_id = r.id
+        WHERE t.business_id=%s and r.node_id=%s and t.path_id=%s
         order by timestamp asc''' % (business.pk, node_id, path_id)
         logger.info(sql)
         data = query.select(sql, ['id', 'from', 'msg_type', 'data', 'ext', 'file_id', 'opt_status'])
+        print data
         return {'results': data, 'paging': None}
 
 
