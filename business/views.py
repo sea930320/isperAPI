@@ -2404,7 +2404,7 @@ def api_business_report_generate(request):
                 'create_time': busi.create_time.strftime('%Y-%m-%d'),
                 'nodes': node_list
             }
-            print "success"
+            print node_list
 
         else:
             resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
