@@ -1824,14 +1824,21 @@ def api_business_message_push(request):
                     'data:%s' % (business_id, node_id, alloc_role_id, type, cmd, param, file_id, data))
 
         user = request.user
-
-        if business_id is None or node_id is None:
+        from_obj = str(request.user.pk)
+        user_id = user.id
+        if not all(v is not None for v in [user_id, business_id, node_id, alloc_role_id]):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         bus = Business.objects.filter(pk=business_id, del_flag=0).first()
         if bus is None:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bra = BusinessRoleAllocation.objects.filter(pk=alloc_role_id, business_id=business_id,
+                                                    project_id=bus.cur_project_id).first()
+        if bra is None:
+            resp = code.get_msg(code.BUSINESS_ROLE_ALLOCATE_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         # todo 组长没有当前环节权限操作返回上一步提前结束等， 这里的判断是不是有问题
@@ -1844,13 +1851,13 @@ def api_business_message_push(request):
             resp = code.get_msg(code.BUSINESS_NODE_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        # 是否有结束环节的权限
-        can_terminate = get_role_node_can_terminate(bus, bus.cur_project_id, node_id, alloc_role_id)
-
         # 如果启动了表达管理，验证当前角色发言次数，每申请一次最多发言三次，
         # 如果是结束权限者则可发言
         role_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation_id=alloc_role_id, path_id=path.pk).first()
         logger.info('cmd:%s,control_status:%s,param:%s,type:%s' % (cmd, path.control_status, param, type))
+
+        # 是否有结束环节的权限
+        can_terminate = bra.can_terminate
 
         # if role_status is None:
         #     resp = code.get_msg(code.BUSINESS_NODE_ERROR)
@@ -1881,8 +1888,8 @@ def api_business_message_push(request):
 
         name = request.user.name
         from_obj = str(request.user.pk)
-        flow_role_id = FlowRoleAllocation.objects.get(id=role_status.business_role_allocation.flow_role_alloc_id).role_id
-        role = BusinessRole.objects.filter(flow_role_id=flow_role_id, business_id=business_id).first()
+        bra = BusinessRoleAllocation.objects.get(pk=alloc_role_id)
+        role = bra.role
         # 三期 组长没有权限也可以执行一些操作
         # 当前环节不存在该角色 除了组长
         if role is None:
@@ -2214,6 +2221,6 @@ def api_business_message_push(request):
                 brat.save(update_fields=['speak_times'])
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
-        logger.exception('api_experiment_message_push Exception:{0}'.format(str(e)))
+        logger.exception('api_business_message_push Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
