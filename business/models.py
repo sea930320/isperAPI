@@ -127,6 +127,7 @@ class BusinessRoleAllocationStatus(models.Model):
     def __unicode__(self):
         return u""
 
+
 # 实验环节占位状态
 class BusinessPositionStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
@@ -142,6 +143,7 @@ class BusinessPositionStatus(models.Model):
     def __unicode__(self):
         return u""
 
+
 class BusinessReportStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
@@ -155,6 +157,7 @@ class BusinessReportStatus(models.Model):
 
     def __unicode__(self):
         return u""
+
 
 class BusinessTeamMember(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -172,6 +175,8 @@ class BusinessTeamMember(models.Model):
 
     def __unicode__(self):
         return self.name
+
+
 # 消息
 class BusinessMessage(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -194,6 +199,7 @@ class BusinessMessage(models.Model):
     def __unicode__(self):
         return u""
 
+
 # 消息文件
 class BusinessMessageFile(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -215,6 +221,7 @@ class BusinessMessageFile(models.Model):
 
     def __unicode__(self):
         return self.file.name
+
 
 class BusinessDoc(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -240,6 +247,7 @@ class BusinessDoc(models.Model):
 
     def __unicode__(self):
         return self.filename
+
 
 # 用户编辑模版内容
 class BusinessDocContent(models.Model):
@@ -268,6 +276,7 @@ class BusinessDocContent(models.Model):
     def __unicode__(self):
         return self.name
 
+
 class BusinessDocTeam(models.Model):
     business_team_member = models.ForeignKey(BusinessTeamMember, on_delete=models.CASCADE, verbose_name=u'Business')
     business_doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
@@ -279,6 +288,7 @@ class BusinessDocTeam(models.Model):
         verbose_name_plural = verbose_name = u"BusinessDocTeam"
     def __unicode__(self):
         return u''
+
 
 # 实验环节文档签字记录
 class BusinessDocSign(models.Model):
