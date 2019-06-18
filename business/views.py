@@ -26,6 +26,7 @@ import random
 import string
 from utils.public_fun import getProjectIDByGroupManager
 from django.forms.models import model_to_dict
+from socketio.socketIO_client import SocketIO, LoggingNamespace
 
 logger = logging.getLogger(__name__)
 
@@ -1812,7 +1813,7 @@ def api_business_message_push(request):
     try:
         business_id = request.POST.get("business_id", None)
         node_id = request.POST.get("node_id", None)
-        alloc_role_id = request.POST.get("role_id", None)
+        alloc_role_id = request.POST.get("role_alloc_id", None)
         type = request.POST.get("type", None)
         msg = request.POST.get("msg", '')
         cmd = request.POST.get("cmd", None)
@@ -2180,31 +2181,37 @@ def api_business_message_push(request):
 
         # 保存消息，得到消息id
         user = request.user
-        message = ExperimentMessage()
-        if role_id:
-            message = ExperimentMessage.objects.create(business_id=exp.pk, user_id=user.pk, role_id=role_id,
-                                                       node_id=node_id, file_id=file_id, msg=msg, msg_type=type,
-                                                       path_id=path.id, user_name=name, role_name=role.name,
-                                                       ext=json.dumps(ext))
+        message = BusinessMessage()
+        if alloc_role_id:
+            bra = BusinessRoleAllocation.objects.filter(pk=alloc_role_id, business_id=business_id,
+                                                    project_id=bus.cur_project_id).first()
+            message = BusinessMessage.objects.create(business_id=business_id, user_id=user.pk,
+                                                     business_role_allocation_id=alloc_role_id,
+                                                     file_id=file_id, msg=msg, msg_type=type,
+                                                     path_id=path.id, user_name=user.name, role_name=bra.role.name,
+                                                     ext=json.dumps(ext))
         ext['id'] = message.pk
         ext['opt_status'] = False
 
-        flag, result = easemob.send_message(easemob.TARGET_TYPE_GROUP, msg_obj, from_obj, ext)
-        logger.info('flag:%s, result:%s' % (flag, result))
-        if flag:
-            resp = code.get_msg(code.SUCCESS)
-            if opt:
-                resp['d'] = opt
+        msgDict = model_to_dict(message) if message else {}
+        msgDict['ext'] = ext
+        msgDict['from'] = message.user.id
+        msgDict['type'] = 'groupchat'
+        msgDict['to'] = None
+        with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
+            socketIO.emit('message', msgDict)
+            socketIO.wait_for_callbacks(seconds=1)
+        resp = code.get_msg(code.SUCCESS)
+        if opt:
+            resp['d'] = opt
 
-            if can_terminate is False:
-                # 角色发言次数减1
-                if path.control_status == 2 and type != const.MSG_TYPE_CMD:
-                    role_status.speak_times -= 1
-                    role_status.save(update_fields=['speak_times'])
-                    clear_cache(exp.pk)
-        else:
-            ExperimentMessage.objects.filter(pk=message.pk).delete()
-            resp = code.get_msg(code.MESSAGE_SEND_FAILED)
+        if can_terminate is False:
+            # 角色发言次数减1
+            if path.control_status == 2 and type != const.MSG_TYPE_CMD:
+                brat = BusinessRoleAllocationStatus.objects.filter(business_role_allocation_id=alloc_role_id,
+                                                                   business_id=business_id, path_id=path.pk).first()
+                brat.speak_times -= 1
+                brat.save(update_fields=['speak_times'])
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_experiment_message_push Exception:{0}'.format(str(e)))

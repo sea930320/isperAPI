@@ -654,24 +654,12 @@ def get_all_roles_status(bus, project, node, path):
 
 
 def get_role_node_can_terminate(bus, project_id, node_id, alloc_role_id):
-    """
-    是否有结束环节的权限
-    """
-    prefix = '%s:%s:%s:%s' % (bus.pk, project_id, node_id, alloc_role_id)
-    key = tools.make_key(const.CACHE_ROLE_NODE_CAN_TERMINATE, prefix, 1)
-    set_cache_keys(bus.pk, key)
     try:
-        data = cache.get(key)
-        if data:
-            return data['can_terminate']
+        if BusinessRoleAllocation.objects.filter(project_id=project_id, node_id=node_id, id=alloc_role_id, can_terminate=True).exists():
+            can_terminate = True
         else:
-            if BusinessRoleAllocation.objects.filter(project_id=project_id, node_id=node_id, id=alloc_role_id, can_terminate=True).exists():
-                can_terminate = True
-            else:
-                can_terminate = False
-            data = {'can_terminate': can_terminate}
-            cache.set(key, data)
-            return can_terminate
+            can_terminate = False
+        return can_terminate
     except Exception as e:
         logger.exception('get_role_node_can_terminate Exception:{0}'.format(str(e)))
         return False
