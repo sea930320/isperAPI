@@ -130,7 +130,7 @@ class BusinessRoleAllocationStatus(models.Model):
 # 实验环节占位状态
 class BusinessPositionStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, blank=True, null=True, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
     path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
     position_id = models.IntegerField(verbose_name=u'占位')
     sitting_status = models.PositiveIntegerField(choices=const.SITTING_STATUS, default=1, verbose_name=u'入席退席状态')

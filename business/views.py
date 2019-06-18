@@ -1962,22 +1962,22 @@ def api_business_message_push(request):
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_MEET:
                 # 约见
-                result, opt = action_role_meet(bus, node_id, path.pk, role)
+                result, opt = action_role_meet(bus, path.pk, role, alloc_role_id)
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_APPLY_SPEAK:
                 # 申请发言
-                result, opt = True, {'role_id': role_id, 'role_name': role.name}
+                result, opt = True, {'role_id': alloc_role_id, 'role_name': role.name}
             elif cmd == const.ACTION_ROLE_APPLY_SPEAK_OPT:
                 # 申请发言操作结果 data = {'msg_id':1,'role_id': 1, 'result': 1}
                 data = json.loads(data)
-                result, opt = action_role_speak_opt(bus, node_id, path.pk, data)
+                result, opt = action_role_speak_opt(bus, path.pk, data)
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_DOC_APPLY_SHOW:
                 # 申请展示
-                result, opt = True, {'role_id': role_id, 'role_name': role.name}
+                result, opt = True, {'role_id': alloc_role_id, 'role_name': role.name}
             elif cmd == const.ACTION_DOC_REFRESH:
                 # 刷新文件列表
-                result, opt = True, {'role_id': role_id, 'role_name': role.name}
+                result, opt = True, {'role_id': alloc_role_id, 'role_name': role.name}
             elif cmd == const.ACTION_DOC_APPLY_SHOW_OPT:
                 # 申请展示操作结果 data = {'msg_id':1,'doc_id': 1, 'result': 1}
                 data = json.loads(data)
@@ -2008,7 +2008,7 @@ def api_business_message_push(request):
                     resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-                result, opt = action_role_sitdown(bus, node_id, path.pk, role, pos)
+                result, opt = action_role_sitdown(bus, path.pk, role, pos, alloc_role_id)
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_STAND:
                 if pos is None:
@@ -2019,7 +2019,7 @@ def api_business_message_push(request):
                     resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-                result, opt = action_role_stand(bus, node_id, path.pk, role, pos)
+                result, opt = action_role_stand(bus, path.pk, role, pos, alloc_role_id)
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_HIDE:
                 if pos is None:
