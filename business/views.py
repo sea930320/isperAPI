@@ -1887,7 +1887,6 @@ def api_business_message_push(request):
                 role_status.sitting_status = const.SITTING_DOWN_STATUS
 
         name = request.user.name
-        from_obj = str(request.user.pk)
         bra = BusinessRoleAllocation.objects.get(pk=alloc_role_id)
         role = bra.role
         # 三期 组长没有权限也可以执行一些操作
