@@ -239,6 +239,7 @@ class FlowRoleActionNew(models.Model):
     role = models.ForeignKey(FlowRole, verbose_name=u'角色')
     actions = models.CharField(max_length=128, blank=True, null=True, verbose_name=u'功能动作')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    no = models.IntegerField(default=1, verbose_name=u'Number')
 
     class Meta:
         db_table = "t_flow_role_action_new"
@@ -269,6 +270,7 @@ class ProcessRoleActionNew(models.Model):
     role = models.ForeignKey(FlowRole, verbose_name=u'角色')
     actions = models.CharField(max_length=128, blank=True, null=True, verbose_name=u'场景动画配置')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    no = models.IntegerField(default=1, verbose_name=u'Number')
 
     class Meta:
         db_table = "t_process_role_action_new"
@@ -318,7 +320,7 @@ class FlowRolePosition(models.Model):
     node_id = models.IntegerField(verbose_name=u'环节')
     role_id = models.IntegerField(verbose_name=u'角色')
     no = models.IntegerField(default=1, verbose_name=u'Number')
-    position_id = models.IntegerField(verbose_name=u'站位')
+    position_id = models.IntegerField(verbose_name=u'站位', null=True, default=None)
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
 
     class Meta:

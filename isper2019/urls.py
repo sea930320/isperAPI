@@ -198,12 +198,12 @@ urlpatterns += (
 
 urlpatterns += (
     url(r'^api/workflow/list$', workflow_views.api_workflow_list), #Jonas
-    url(r'^api/workflow/process/positions$', workflow_views.api_workflow_process_positions),
-    url(r'^api/workflow/role/action$', workflow_views.api_workflow_role_action),
-    url(r'^api/workflow/role/process/actions$', workflow_views.api_workflow_role_process_action),
+    url(r'^api/workflow/process/positions$', workflow_views.api_workflow_process_positions), #Jonas
+    url(r'^api/workflow/role/action$', workflow_views.api_workflow_role_action), #Jonas
+    url(r'^api/workflow/role/process/actions$', workflow_views.api_workflow_role_process_action), #Jonas
     url(r'^api/workflow/flow/actions$', workflow_views.api_workflow_flow_actions),
     url(r'^api/workflow/flow/draw$', workflow_views.api_workflow_flow_draw),
-    url(r'^api/workflow/role/allcation$', workflow_views.api_workflow_role_allcation),
+    url(r'^api/workflow/role/allcation$', workflow_views.api_workflow_role_allcation), #Jonas
     url(r'^api/workflow/doc/list$', workflow_views.api_workflow_doc_list),
     url(r'^api/workflow/role/list$', workflow_views.api_workflow_role_list),
     url(r'^api/workflow/node/list$', workflow_views.api_workflow_node_list),
