@@ -1991,14 +1991,14 @@ def api_business_message_push(request):
                 result, opt = action_doc_show(data['doc_id'])
             elif cmd == const.ACTION_ROLE_LETOUT:
                 # 送出 data [1, 2, 3, ...]
-                role_ids = json.loads(data)
-                result, lst = action_role_letout(bus, node, path.pk, role_ids)
+                alloc_role_ids = json.loads(data)
+                result, lst = action_role_letout(bus, node, path.pk, alloc_role_ids)
                 opt = {'data': lst}
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_LETIN:
                 # 请入 data [1, 2, 3, ...]
-                role_ids = json.loads(data)
-                result, lst = action_role_letin(bus, node_id, path.pk, role_ids)
+                alloc_role_ids = json.loads(data)
+                result, lst = action_role_letin(bus, node_id, path.pk, alloc_role_ids)
                 opt = {'data': lst}
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_SITDOWN:
@@ -2046,19 +2046,21 @@ def api_business_message_push(request):
 
                 # 占位状态
                 position_status = BusinessPositionStatus.objects.filter(
-                    business_id=bus.id, node_id=node_id,
-                                                                          path_id=path.pk,
-                                                                          position_id=pos['position_id'],
-                                                                          sitting_status=const.SITTING_DOWN_STATUS).exists()
+                    business_id=bus.id,
+                    business_role_allocation_id=alloc_role_id,
+                    path_id=path.pk,
+                    position_id=pos['position_id'],
+                    sitting_status=const.SITTING_DOWN_STATUS
+                ).exists()
                 if position_status:
                     resp = code.get_msg(code.BUSINESS_POSITION_HAS_USE)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-                result, opt = action_role_show(bus, node_id, path.pk, role, pos)
+                result, opt = action_role_show(bus, node_id, path.pk, role, pos, alloc_role_id)
                 clear_cache(bus.pk)
             elif cmd == const.ACTION_DOC_APPLY_SUBMIT:
                 # 申请提交
-                result, opt = True, {'role_id': role_id, 'role_name': role.name}
+                result, opt = True, {'role_id': alloc_role_id, 'role_name': role.name}
             elif cmd == const.ACTION_DOC_APPLY_SUBMIT_OPT:
                 # 申请提交操作结果 data = {'msg_id':1,'role_id': 1, 'result': 1}
                 data = json.loads(data)
@@ -2071,24 +2073,24 @@ def api_business_message_push(request):
                 opt = {'data': lst}
             elif cmd == const.ACTION_EXP_RESTART:
                 # 重新开始实验
-                result, opt = action_exp_restart(exp, request.user.pk)
+                # result, opt = action_exp_restart(bus, request.user.pk)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(exp.pk)
+                clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_BACK:
                 # 返回上一步
-                result, opt = action_exp_back(exp)
+                # result, opt = action_exp_back(bus)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(exp.pk)
+                clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_NODE_END:
                 # 结束环节 opt = {'next_node_id': 1, 'status': 1, 'process_type': 1},
                 # data={'tran_id': 1, 'project_id': 0}
                 data = json.loads(data)
-                result, opt = action_exp_node_end(exp, role_id, data)
+                result, opt = action_exp_node_end(bus, alloc_role_id, data)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(exp.pk)
+                clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_FINISH:
                 result, opt = action_exp_finish(exp, request.user.id)
                 if not result:
