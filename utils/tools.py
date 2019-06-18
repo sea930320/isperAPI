@@ -530,13 +530,16 @@ def filter_invalid_str(text):
         highpoints = re.compile(u'[\uD800-\uDBFF][\uDC00-\uDFFF]')
     return highpoints.sub(u'', text)
 
+
 def make_key(key, key_prefix, version):
     return ':'.join([key, str(key_prefix), str(version)])
+
 
 img_ext = ['jpg', 'png', 'bmp', 'gif', 'jpeg']
 doc_ext = ['docx']
 video_ext = ['mp4', 'avi']
 audio_ext = ['mp3', 'amr']
+
 
 def check_file_type(file):
     ext = file.split(".")[-1]

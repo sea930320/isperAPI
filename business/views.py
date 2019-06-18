@@ -13,7 +13,6 @@ from django.http import HttpResponse
 from experiment.models import *
 from business.models import *
 from business.service import *
-from experiment.service import *
 from project.models import Project, ProjectRole, ProjectRoleAllocation, ProjectDoc, ProjectDocRole
 from team.models import Team, TeamMember
 from utils import const, code, tools, easemob
@@ -112,7 +111,7 @@ def api_business_create(request):
                                                    no=item.no))
                 BusinessRoleAllocation.objects.bulk_create(business_allocations)
 
-                teammates_configuration(business.id, [], request)
+                teammates_configuration(business.id, [])
 
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
@@ -134,12 +133,11 @@ def api_business_create(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
-def teammates_configuration(business_id, seted_users_fromInnerPermission, request):
+def teammates_configuration(business_id, seted_users_fromInnerPermission):
 
     # check team counts
 
-    business_team_counts = list(
-        BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
+    business_team_counts = list(BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
     business = Business.objects.get(id=business_id)
 
     project = Project.objects.get(pk=business.project_id)
@@ -154,15 +152,19 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission, reques
     company_id = None
     target_user_counts = []
     if business.target_part is not None:
-        target_user_counts = list(Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=request.user.id)).values('tposition__name').annotate(counts=Count('id')))
+        target_user_counts = list(Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id)).values('tposition__name').annotate(counts=Count('id')))
         company_id = business.target_part.company_id
     elif business.target_company is not None:
-        target_user_counts = list(Tuser.objects.filter(Q(tcompany=business.target_company, is_review=1) & ~Q(id=request.user.id)).values('tposition__name').annotate(counts=Count('id')))
+        target_user_counts = list(Tuser.objects.filter(Q(tcompany=business.target_company, is_review=1) & ~Q(id=business.created_by_id)).values('tposition__name').annotate(counts=Count('id')))
         company_id = business.target_company.id
 
     if seted_users_fromInnerPermission:
-        for item in target_user_counts:
-            item['counts'] += sum(p['role_name'] == item['tposition__name'] for p in seted_users_fromInnerPermission)
+        for xs in seted_users_fromInnerPermission:
+            xIndex = next((index for (index, xt) in enumerate(target_user_counts) if xt['tposition__name'] == xs['role_name']), None)
+            if xIndex is None:
+                target_user_counts.append({'tposition__name': xs['role_name'], 'counts': 1})
+            else:
+                target_user_counts[xIndex]['counts'] += 1
 
     moreResult = []
     for item in business_team_counts:
@@ -210,16 +212,16 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission, reques
         targetUnitUsers = [{
                 'id': item.id,
                 'position': item.tposition.name,
-            } for item in Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=request.user.id))]
+            } for item in Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id))]
     elif business.target_company is not None:
         targetUnitUsers = [{
                 'id': item.id,
                 'position': item.tposition.name if item.tposition else None,
-            } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(id=request.user.id))]
+            } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(id=business.created_by_id))]
 
     newTeammate = BusinessTeamMember.objects.create(
         business_id=business_id,
-        user_id=request.user.id,
+        user_id=business.created_by_id,
         business_role_id=startRoleAlloc.role_id,
         no=startRoleAlloc.no,
         del_flag=0,
@@ -1758,7 +1760,7 @@ def add_more_teammates(request):
                     item['role_name'] = unicode(item['role_name'], "utf8")
 
             if len(TNotifications.objects.filter(type='businessMoreTeammate_' + business_id)) != 0:
-                if teammates_configuration(business_id, data, request) == 'team_configured':
+                if teammates_configuration(business_id, data) == 'team_configured':
                     TNotifications.objects.filter(type='businessMoreTeammate_' + business_id).delete()
 
             resp = code.get_msg(code.SUCCESS)
@@ -1798,3 +1800,412 @@ def api_business_role_status(request):
         logger.exception('experiment_role_status Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_message_push(request):
+    """
+        实验发送消息
+    """
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        node_id = request.POST.get("node_id", None)
+        alloc_role_id = request.POST.get("role_id", None)
+        type = request.POST.get("type", None)
+        msg = request.POST.get("msg", '')
+        cmd = request.POST.get("cmd", None)
+        param = request.POST.get("param", None)
+        file_id = request.POST.get("file_id", None)
+        data = request.POST.get('data', None)
+        logger.info('business_id:%s,node_id:%s,role_id:%s,type:%s,cmd:%s,param:%s,file_id:%s,'
+                    'data:%s' % (business_id, node_id, alloc_role_id, type, cmd, param, file_id, data))
+
+        user = request.user
+
+        if business_id is None or node_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # todo 组长没有当前环节权限操作返回上一步提前结束等， 这里的判断是不是有问题
+        # if exp.node_id != int(node_id):
+        #     resp = code.get_msg(code.BUSINESS_NODE_ERROR)
+        #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        path = BusinessTransPath.objects.filter(business_id=business_id).last()
+        if path is None:
+            resp = code.get_msg(code.BUSINESS_NODE_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 是否有结束环节的权限
+        can_terminate = get_role_node_can_terminate(bus, bus.cur_project_id, node_id, alloc_role_id)
+
+        # 如果启动了表达管理，验证当前角色发言次数，每申请一次最多发言三次，
+        # 如果是结束权限者则可发言
+        role_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation_id=alloc_role_id, path_id=path.pk).first()
+        logger.info('cmd:%s,control_status:%s,param:%s,type:%s' % (cmd, path.control_status, param, type))
+
+        # if role_status is None:
+        #     resp = code.get_msg(code.BUSINESS_NODE_ERROR)
+        #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if path.control_status == 2 and can_terminate is False:
+            if type == const.MSG_TYPE_TXT or type == const.MSG_TYPE_AUDIO:
+                if role_status.speak_times == 0:
+                    resp = code.get_msg(code.MESSAGE_SPEAKER_CONTROL)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            if cmd == const.ACTION_DOC_SHOW:
+                if role_status.show_status != 1:
+                    resp = code.get_msg(code.MESSAGE_SPEAKER_CONTROL)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            if cmd == const.ACTION_DOC_SUBMIT:
+                if role_status.submit_status != 1:
+                    resp = code.get_msg(code.MESSAGE_SPEAKER_CONTROL)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 三期 - 根据上一步骤自动入席 判断是否入席
+        bps = BusinessPositionStatus.objects.filter(business_id=bus.id, path_id=path.id, business_role_allocation_id=alloc_role_id)
+        if bps:
+            business_position_status = bps.first()
+            if business_position_status.sitting_status:  # 已入席
+                role_status.sitting_status = const.SITTING_DOWN_STATUS
+
+        name = request.user.name
+        from_obj = str(request.user.pk)
+        flow_role_id = FlowRoleAllocation.objects.get(id=role_status.business_role_allocation.flow_role_alloc_id).role_id
+        role = BusinessRole.objects.filter(flow_role_id=flow_role_id, business_id=business_id).first()
+        # 三期 组长没有权限也可以执行一些操作
+        # 当前环节不存在该角色 除了组长
+        if role is None:
+            resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        project = Project.objects.get(pk=bus.cur_project_id)
+        node = FlowNode.objects.filter(pk=bus.node_id, del_flag=0).first()
+
+        # 角色形象
+        image = get_role_image(bus, role.image_id)
+        if image is None:
+            resp = code.get_msg(code.BUSINESS_ROLE_IMAGE_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 角色占位
+        pos = get_role_position(bus, project, node, path, role, alloc_role_id)
+
+        time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        opt = None
+        if type == const.MSG_TYPE_TXT:
+            if node.process.type == 1:
+                if pos is None:
+                    resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                # 文本， 角色未入席不能说话
+                if role_status.sitting_status == const.SITTING_UP_STATUS:
+                    resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            msg = msg.strip()
+            if msg == '' or len(msg) > 30000:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            msg = tools.filter_invalid_str(msg)
+            msg_obj = {'type': const.MSG_TYPE_TXT, 'msg': msg}
+            ext = {'business_id': business_id, 'username': name,
+                   'alloc_id': alloc_role_id, 'role_name': role.name, 'avatar': image['avatar'],
+                   'cmd': const.ACTION_TXT_SPEAK, 'param': '', 'time': time, 'can_terminate': can_terminate,
+                   'code_position': pos['code_position'] if pos else ''}
+
+        elif type == const.MSG_TYPE_AUDIO:
+            if pos is None:
+                resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            # 音频
+            if role_status.sitting_status == const.SITTING_UP_STATUS:
+                resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            if file_id is None:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            audio = BusinessMessageFile.objects.filter(pk=file_id).first()
+            if audio is None:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            msg_obj = {'type': const.MSG_TYPE_AUDIO, 'url': (const.WEB_HOST + audio.file.url) if audio.file else '',
+                       'filename': audio.file.name, 'length': audio.length, 'secret': ''}
+
+            ext = {'business_id': business_id, 'username': name,
+                   'alloc_id': alloc_role_id, 'role_name': role.name, 'avatar': image['avatar'],
+                   'cmd': '', 'param': '', 'time': time, 'can_terminate': can_terminate,
+                   'code_position': pos['code_position'] if pos else ''}
+
+        elif type == const.MSG_TYPE_CMD:
+            # 命令
+            if cmd is None:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            result, opt = False, {}
+            # 判断
+            if cmd == const.ACTION_ROLE_BANNED:
+                # 表达管理 data = {'control_status': 1}
+                data = json.loads(data)
+                result, opt = action_role_banned(bus, node_id, path.pk, data['control_status'])
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_ROLE_MEET:
+                # 约见
+                result, opt = action_role_meet(bus, path.pk, role, alloc_role_id)
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_ROLE_APPLY_SPEAK:
+                # 申请发言
+                result, opt = True, {'role_id': alloc_role_id, 'role_name': role.name}
+            elif cmd == const.ACTION_ROLE_APPLY_SPEAK_OPT:
+                # 申请发言操作结果 data = {'msg_id':1,'role_id': 1, 'result': 1}
+                data = json.loads(data)
+                result, opt = action_role_speak_opt(bus, path.pk, data)
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_DOC_APPLY_SHOW:
+                # 申请展示
+                result, opt = True, {'role_id': alloc_role_id, 'role_name': role.name}
+            elif cmd == const.ACTION_DOC_REFRESH:
+                # 刷新文件列表
+                result, opt = True, {'role_id': alloc_role_id, 'role_name': role.name}
+            elif cmd == const.ACTION_DOC_APPLY_SHOW_OPT:
+                # 申请展示操作结果 data = {'msg_id':1,'doc_id': 1, 'result': 1}
+                data = json.loads(data)
+                result, opt = action_doc_apply_show_opt(bus, node_id, path.pk, data)
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_DOC_SHOW:
+                # 展示
+                data = json.loads(data)
+                result, opt = action_doc_show(data['doc_id'])
+            elif cmd == const.ACTION_ROLE_LETOUT:
+                # 送出 data [1, 2, 3, ...]
+                role_ids = json.loads(data)
+                result, lst = action_role_letout(bus, node, path.pk, role_ids)
+                opt = {'data': lst}
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_ROLE_LETIN:
+                # 请入 data [1, 2, 3, ...]
+                role_ids = json.loads(data)
+                result, lst = action_role_letin(bus, node_id, path.pk, role_ids)
+                opt = {'data': lst}
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_ROLE_SITDOWN:
+                if pos is None:
+                    resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                # 坐下
+                if role_status.sitting_status == const.SITTING_UP_STATUS:
+                    resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+                result, opt = action_role_sitdown(bus, path.pk, role, pos, alloc_role_id)
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_ROLE_STAND:
+                if pos is None:
+                    resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                # 起立
+                if role_status.sitting_status == const.SITTING_UP_STATUS:
+                    resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+                result, opt = action_role_stand(bus, path.pk, role, pos, alloc_role_id)
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_ROLE_HIDE:
+                if pos is None:
+                    resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                # 退席
+                if role_status.sitting_status == const.SITTING_UP_STATUS:
+                    resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+                result, opt = action_role_hide(bus, node_id, path.pk, role, pos)
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_ROLE_SHOW:
+                if pos is None:
+                    resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+                # 入席
+                if role_status.sitting_status == const.SITTING_DOWN_STATUS:
+                    resp = code.get_msg(code.BUSINESS_ROLE_HAS_IN_POSITION)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+                # 占位状态
+                position_status = ExperimentPositionStatus.objects.filter(business_id=bus.id, node_id=node_id,
+                                                                          path_id=path.pk,
+                                                                          position_id=pos['position_id'],
+                                                                          sitting_status=const.SITTING_DOWN_STATUS).exists()
+                if position_status:
+                    resp = code.get_msg(code.BUSINESS_POSITION_HAS_USE)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+                result, opt = action_role_show(bus, node_id, path.pk, role, pos)
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_DOC_APPLY_SUBMIT:
+                # 申请提交
+                result, opt = True, {'role_id': role_id, 'role_name': role.name}
+            elif cmd == const.ACTION_DOC_APPLY_SUBMIT_OPT:
+                # 申请提交操作结果 data = {'msg_id':1,'role_id': 1, 'result': 1}
+                data = json.loads(data)
+                result, opt = action_doc_apply_submit_opt(bus, node_id, path.pk, data)
+                clear_cache(bus.pk)
+            elif cmd == const.ACTION_DOC_SUBMIT:
+                # 提交 实验文件id data = [1, 2, 3, ...]
+                doc_ids = json.loads(data)
+                result, lst = action_doc_submit(doc_ids)
+                opt = {'data': lst}
+            elif cmd == const.ACTION_EXP_RESTART:
+                # 重新开始实验
+                result, opt = action_exp_restart(exp, request.user.pk)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_EXP_BACK:
+                # 返回上一步
+                result, opt = action_exp_back(exp)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_EXP_NODE_END:
+                # 结束环节 opt = {'next_node_id': 1, 'status': 1, 'process_type': 1},
+                # data={'tran_id': 1, 'project_id': 0}
+                data = json.loads(data)
+                result, opt = action_exp_node_end(exp, role_id, data)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_EXP_FINISH:
+                result, opt = action_exp_finish(exp, request.user.id)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_SUBMIT_EXPERIENCE:
+                # 提交实验心得 data = {"content": ""}
+                data = json.loads(data)
+                result, opt = action_submit_experience(exp, data['content'], request.user.id)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+            elif cmd == const.ACTION_ROLE_VOTE:
+                # 提交实验投票 data = {"status": 1}
+                data = json.loads(data)
+                result, opt = action_role_vote(exp, node_id, path, role_id, data['status'])
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_ROLE_VOTE_END:
+                # 提交实验投票结束 data = {}
+                result, opt = action_role_vote_end(exp, node_id, path)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_ROLE_REQUEST_SIGN:
+                # 要求签字 data = {"doc_id": 1, "doc_name": "xxx", "role_id": 1, "role_name": "xx"}
+                data = json.loads(data)
+                result, opt = action_role_request_sign(exp, node_id, data)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+            elif cmd == const.ACTION_ROLE_SIGN:
+                # 签字 data = {'msg_id':1,'result': 1,"doc_id": 1, "doc_name": 'xxx'}
+                data = json.loads(data)
+                sign = '{0}({1})'.format(request.user.name, role.name)
+                result, opt = action_role_sign(exp, sign, node_id, role_id, data)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_ROLE_SCHEDULE_REPORT:
+                # 安排报告 data = {"role_id": 1, "role_name": "xx"}
+                data = json.loads(data)
+                result, opt = action_role_schedule_report(exp, node_id, path.pk, data)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+
+            elif cmd == const.ACTION_ROLE_TOWARD_REPORT:
+                # 走向发言席 data = {}
+                if pos is None:
+                    resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+                result, opt = action_role_toward_report(exp, node_id, path.pk, role, pos)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_ROLE_EDN_REPORT:
+                # 走下发言席 data = {}
+                if pos is None:
+                    resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+                result, opt = action_role_end_report(exp, node_id, path.pk, role, pos)
+                if not result:
+                    return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_ROLES_EXIT:
+                # 退出实验 data = {}
+                result, lst = action_roles_exit(exp, node, path.pk, request.user.id)
+                opt = {'data': lst}
+                clear_cache(exp.pk)
+            elif cmd == const.ACTION_TRANS:
+                result, opt = True, {}
+            else:
+                logger.info('action cmd %s' % cmd)
+                resp = code.get_msg(code.MESSAGE_ACTION_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            # if not result:
+            #     raise Exception(opt)
+
+            msg_obj = {'type': const.MSG_TYPE_TXT, 'msg': msg}
+            ext = {'business_id': business_id, 'node_id': node_id, 'username': name,
+                   'role_id': role_id, 'role_name': role.name, 'avatar': image['avatar'] if image else '',
+                   'cmd': cmd, 'param': param, 'time': time, 'opt': opt, 'can_terminate': can_terminate,
+                   'code_position': pos['code_position'] if pos else ''}
+        else:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # 保存消息，得到消息id
+        user = request.user
+        message = ExperimentMessage()
+        if role_id:
+            message = ExperimentMessage.objects.create(business_id=exp.pk, user_id=user.pk, role_id=role_id,
+                                                       node_id=node_id, file_id=file_id, msg=msg, msg_type=type,
+                                                       path_id=path.id, user_name=name, role_name=role.name,
+                                                       ext=json.dumps(ext))
+        ext['id'] = message.pk
+        ext['opt_status'] = False
+
+        flag, result = easemob.send_message(easemob.TARGET_TYPE_GROUP, msg_obj, from_obj, ext)
+        logger.info('flag:%s, result:%s' % (flag, result))
+        if flag:
+            resp = code.get_msg(code.SUCCESS)
+            if opt:
+                resp['d'] = opt
+
+            if can_terminate is False:
+                # 角色发言次数减1
+                if path.control_status == 2 and type != const.MSG_TYPE_CMD:
+                    role_status.speak_times -= 1
+                    role_status.save(update_fields=['speak_times'])
+                    clear_cache(exp.pk)
+        else:
+            ExperimentMessage.objects.filter(pk=message.pk).delete()
+            resp = code.get_msg(code.MESSAGE_SEND_FAILED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_experiment_message_push Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
