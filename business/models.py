@@ -61,7 +61,7 @@ class BusinessTransPath(models.Model):
         verbose_name_plural = verbose_name = u"实验流转路径"
 
     def __unicode__(self):
-        return self.business_id
+        return self.task_id
 
 
 # 项目角色
