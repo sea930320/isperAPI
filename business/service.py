@@ -1283,12 +1283,10 @@ def action_exp_node_end(bus, alloc_role_id, data):
 
             if next_node is None:
                 # 结束实验，验证实验心得
-                experience_count = ExperimentExperience.objects.filter(experiment_id=bus.id, del_flag=0).count()
-                alloc_role_ids = ProjectRoleAllocation.objects.filter(project_id=project.pk,
-                                                                node_id=bus.node_id).values_list('role_id', flat=True)
+                experience_count = BusinessExperience.objects.filter(business_id=bus.id, del_flag=0).count()
+                role_ids = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=bus.node_id).values_list('role_id', flat=True).distinct()
                 # logger.info(role_ids)
-                user_count = MemberRole.objects.filter(experiment_id=bus.id, project_id=project.pk, del_flag=0,
-                                                       role_id__in=alloc_role_ids).values('user_id').distinct().count()
+                user_count = BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0, business_role_id__in=role_ids).values('user_id').distinct().count()
                 logger.info('user_count=%s' % user_count)
                 if experience_count < user_count:
                     resp = code.get_msg(code.EXPERIMENT_EXPERIENCE_USER_NOT_SUBMIT)
@@ -1301,25 +1299,23 @@ def action_exp_node_end(bus, alloc_role_id, data):
                 process_type = next_node.process.type
                 cur_node = FlowNode.objects.filter(pk=bus.node_id).first()
                 # 判断是否投票环节和配置
-                cur_path = ExperimentTransPath.objects.filter(experiment_id=bus.pk).last()
+                cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
                 if cur_node.process.type == const.PROCESS_VOTE_TYPE:
-                    cur_path = ExperimentTransPath.objects.filter(experiment_id=bus.pk).last()
+                    cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
 
                     if cur_path.vote_status == 1:
                         resp = code.get_msg(code.EXPERIMENT_ROLE_VOTE_NOT_END)
                         return False, resp
 
                 # 创建新环节路径
-                step = ExperimentTransPath.objects.filter(experiment_id=bus.id).count() + 1
-                path = ExperimentTransPath.objects.create(experiment_id=bus.id, node_id=next_node.pk,
-                                                          project_id=project.pk, task_id=next_node.task_id,
-                                                          step=step)
+                step = BusinessTransPath.objects.filter(business_id=bus.id).count() + 1
+                path = BusinessTransPath.objects.create(business_id=bus.id, node_id=next_node.pk, project_id=project.pk, task_id=next_node.task_id, step=step)
                 # 设置初始环节角色状态信息 按实验路径创建
-                allocation = ProjectRoleAllocation.objects.filter(project_id=project.pk, node_id=next_node.pk)
+                role_allocations = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=next_node.pk)
 
                 role_status_list = []
-                for item in allocation:
-                    if item.can_brought:
+                for role_allocation_item in role_allocations:
+                    if role_allocation_item.can_brought:
                         come_status = 1
                     else:
                         come_status = 9
@@ -1327,59 +1323,78 @@ def action_exp_node_end(bus, alloc_role_id, data):
                     #     ExperimentRoleStatus(experiment_id=exp.id, node_id=item.node_id, path_id=path.pk,
                     #                          role_id=item.role_id, come_status=come_status))
                     # 三期 - 不能直接创建， 在service中结束并走向下一环节的时候会创建角色状态，这里再创建一次就重复了
-                    ers = ExperimentRoleStatus.objects.filter(experiment_id=bus.id, node_id=item.node_id,
-                                                              path_id=path.pk,
-                                                              role_id=item.role_id)
-                    if ers:  # 存在则更新
-                        ers = ers.first()
-                        ers.come_status = come_status
-                        ers.save()
+                    bras = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=bus.id,
+                        business_role_allocation_id=role_allocation_item.id,
+                        path_id=path.pk,
+                    )
+                    if bras:  # 存在则更新
+                        bras = bras.first()
+                        bras.come_status = come_status
+                        bras.save()
                     else:  # 不存在则创建
-                        ExperimentRoleStatus.objects.update_or_create(experiment_id=bus.id, node_id=item.node_id,
-                                                                      path_id=path.pk, role_id=item.role_id,
-                                                                      come_status=come_status)
+                        BusinessRoleAllocationStatus.objects.update_or_create(
+                            business_id=bus.id,
+                            path_id=path.pk,
+                            business_role_allocation_id=role_allocation_item.id,
+                            come_status=come_status
+                        )
                 # ExperimentRoleStatus.objects.bulk_create(role_status_list)
 
                 # 设置环节中用户的角色状态
-                member_roles = MemberRole.objects.filter(experiment_id=bus.id, project_id=project.pk, del_flag=0)
-                for item in member_roles:
-                    ExperimentRoleStatus.objects.filter(experiment_id=bus.id,
-                                                        role_id=item.role_id).update(user_id=item.user_id)
+                business_team_members = BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0)
+                for item in business_team_members:
+                    # BusinessRoleAllocationStatus.objects.filter(
+                    #     business_id=bus.id,
+                    #     business_role_allocation=BusinessRoleAllocation.objects.get(role_id=item.business_role_id, no=item.no),
+                    # ).update(user_id=item.user_id)
                     # 三期 - 当上下两个环节的场景一样、角色一致，则下一个环节启动后，所有具备入席权限的角色自动在席
                     # 这样实现不行，会引入重复角色的bug
                     if cur_node.process_id == next_node.process_id:
-                        item_role = ProjectRole.objects.filter(pk=item.role_id).first()
+                        item_role = item.business_role
                         # 角色占位
                         pos = get_role_position(bus, project, next_node, path, item_role, alloc_role_id)
                         if pos:
                             # 占位状态, 如果上一环节占位存在并且已入席则创建当前环节占位数据
-                            eps = ExperimentPositionStatus.objects.filter(experiment_id=bus.id, node_id=cur_node.id,
-                                                                          path_id=cur_path.id, role_id=item.role_id)\
-                                .first()
-                            if eps and eps.sitting_status == const.SITTING_DOWN_STATUS:
-                                ExperimentPositionStatus.objects.filter(experiment_id=bus.id, node_id=next_node.pk,
-                                                                        path_id=path.id, role_id=item.role_id).update(
-                                    sitting_status=const.SITTING_DOWN_STATUS)
+                            bps = BusinessPositionStatus.objects.filter(
+                                business_id=bus.id,
+                                path_id=cur_path.id,
+                                business_role_allocation__node_id=cur_node.id,
+                                business_role_allocation__no=item.no,
+                                business_role_allocation__role_id=item.business_role_id
+                            ).first()
+                            if bps and bps.sitting_status == const.SITTING_DOWN_STATUS:
+                                BusinessPositionStatus.objects.filter(
+                                    business_id=bus.id,
+                                    path_id=path.id,
+                                    business_role_allocation__node_id=next_node.pk,
+                                    business_role_allocation__no=item.no,
+                                    business_role_allocation__role_id=item.business_role_id
+                                ).update(sitting_status=const.SITTING_DOWN_STATUS)
                             # 角色状态， 如果上一环节角色存在并且已入席则创建当前环节占位数据
-                            ers = ExperimentRoleStatus.objects.filter(experiment_id=bus.id, node_id=cur_node.id,
-                                                                      user_id=item.user_id, role_id=item.role_id,
-                                                                      path_id=cur_path.id).first()
-                            if ers and ers.sitting_status == const.SITTING_DOWN_STATUS:
-                                ExperimentRoleStatus.objects.filter(experiment_id=bus.id, node_id=next_node.pk,
-                                                                    user_id=item.user_id, role_id=item.role_id,
-                                                                    path_id=path.id).update(
-                                    sitting_status=const.SITTING_DOWN_STATUS)
+                            bras = BusinessRoleAllocationStatus.objects.filter(
+                                business_id=bus.id,
+                                business_role_allocation__node_id=cur_node.id,
+                                business_role_allocation__no=item.no,
+                                business_role_allocation__role_id=item.business_role_id,
+                                path_id=cur_path.id
+                            ).first()
+                            if bras and bras.sitting_status == const.SITTING_DOWN_STATUS:
+                                BusinessRoleAllocationStatus.objects.filter(
+                                    business_id=bus.id,
+                                    business_role_allocation__node_id=next_node.pk,
+                                    business_role_allocation__no=item.no,
+                                    business_role_allocation__role_id=item.role_id,
+                                    path_id=path.id
+                                ).update(sitting_status=const.SITTING_DOWN_STATUS)
 
                 bus.cur_project_id = project.pk
                 bus.node_id = next_node.pk
                 bus.path_id = path.pk
             bus.save()
-            bus.save()
-            bus.save()
-            bus.save()
 
             opt = {'node_id': next_node.pk if next_node else None, 'status': bus.status,
-                   'experiment_id': bus.pk, 'process_type': process_type}
+                   'business_id': bus.pk, 'process_type': process_type}
             return True, opt
     except Exception as e:
         logger.exception(u'action_exp_node_end Exception:{}'.format(str(e)))

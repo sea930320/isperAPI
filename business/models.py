@@ -187,13 +187,14 @@ class BusinessTeamMember(models.Model):
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     no = models.IntegerField(default=1, verbose_name=u'Number')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
     class Meta:
         db_table = "t_business_team_member"
         ordering = ('-create_time', )
         verbose_name_plural = verbose_name = u"BusinessTeam"
 
     def __unicode__(self):
-        return self.name
+        return str(self.id)
 
 
 # 消息
