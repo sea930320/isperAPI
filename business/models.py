@@ -312,7 +312,6 @@ class BusinessDocTeam(models.Model):
 # 实验环节文档签字记录
 class BusinessDocSign(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
-    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
     doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
     sign = models.CharField(max_length=18, blank=True, null=True, verbose_name=u'签名')
