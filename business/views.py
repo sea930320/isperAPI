@@ -2219,14 +2219,10 @@ def api_business_report_generate(request):
         user_id = request.GET.get("user_id", None)  # 用户
         user_id = user_id if user_id else request.user.id
         busi = Business.objects.filter(pk=business_id).first()
-        print "2"
         if busi:
-            print "3"
             # team = Team.objects.filter(pk=exp.team_id).first()
             project = Project.objects.filter(pk=busi.project_id).first()
-            print "4"
             flow = Flow.objects.filter(pk=project.flow_id).first()
-            print "5",business_id
             # members = BusinessTeamMember.objects.filter(business_id=business_id)
             # print members
             # course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
@@ -2243,6 +2239,7 @@ def api_business_report_generate(request):
             # 各环节提交文件信息和聊天信息
             paths = BusinessTransPath.objects.filter(business_id=busi.id)
             node_list = []
+
             for item in paths:
                 node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
                 doc_list = []
@@ -2268,14 +2265,17 @@ def api_business_report_generate(request):
                             'signs': list(sign_list), 'url': d.file.url if d.file else None
                         })
                 elif node.process.type == 3:
+                    # ---------------------- original ---------------------
                     # 如果是展示
                     # 项目上传的文件
-                    # project_docs = ProjectDoc.objects.filter(project_id=exp.project_id, usage=4)
+                    # project_docs = ProjectDoc.objects.filter(project_id=busi.project_id, usage=4)
                     # for d in project_docs:
+                    #     print "test"
                     #     doc_list.append({
                     #         'id': d.id, 'filename': d.name, 'signs': [],
                     #         'url': d.file.url, 'content': d.content, 'file_type': d.file_type,
                     #     })
+                    # ---------------------- original ---------------------
                     project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
                                                                 path_id=item.pk)
                     for d in project_docs:
@@ -2283,16 +2283,19 @@ def api_business_report_generate(request):
                             'id': d.id, 'filename': d.filename, 'signs': [],
                             'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
                         })
-                        # docs = ExperimentDocContent.objects.filter(experiment_id=experiment_id, node_id=item.node_id,
-                        #                                            has_edited=True)
-                        # for d in docs:
-                        #     doc_list.append({
-                        #         'id': d.pk, 'filename': d.name, 'content': d.content,
-                        #         'url': d.file.url if d.file else None, 'file_type': d.file_type,
-                        #         'has_edited': d.has_edited, 'experiment_id': exp.pk, 'node_id': node.pk,
-                        #         'role_name': '', 'node_name': node.name if node else None, 'created_by': None,
-                        #         'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                        #     })
+                    # ---------------------- original ---------------------
+                    # docs = BusinessDocContent.objects.filter(experiment_id=business_id, node_id=item.node_id,
+                    #                                            has_edited=True)
+                    # for d in docs:
+                    #     doc_list.append({
+                    #         'id': d.pk, 'filename': d.name, 'content': d.content,
+                    #         'url': d.file.url if d.file else None, 'file_type': d.file_type,
+                    #         'has_edited': d.has_edited, 'experiment_id': busi.pk, 'node_id': node.pk,
+                    #         'role_name': '', 'node_name': node.name if node else None, 'created_by': None,
+                    #         'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                    #     })
+                    # ---------------------- original ---------------------
+                #     --------------------------reference--------------------
                 # elif node.process.type == 5:
                 #     # 如果是投票   三期 - 增加投票结果数量汇总
                 #     vote_status_0_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
@@ -2336,6 +2339,7 @@ def api_business_report_generate(request):
                 #                    {'status': '弃权', 'num': len(vote_status_9)},
                 #                    {'status': '未投票', 'num': len(vote_status_0)}]
                 #     pass
+                #     --------------------------reference--------------------
                 else:
                     # 提交的文件
                     docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
@@ -2347,32 +2351,40 @@ def api_business_report_generate(request):
                             'signs': list(sign_list), 'url': d.file.url if d.file else None, 'file_type': d.file_type
                         })
                 # 消息
+                # ---------------- original MUST ---------------
+                roleAllocation = list(BusinessRoleAllocation.objects.filter(node_id=item.node_id).values_list('role_id'))
+                messages = BusinessMessage.objects.filter(business_id=business_id,business_role_allocation_id__in
+                                                                    =roleAllocation, path_id=item.id).order_by('timestamp')
+
                 # messages = BusinessMessage.objects.filter(business_id=business_id,
                 #                                             node_id=item.node_id, path_id=item.id).order_by('timestamp')
-                # message_list = []
-                # for m in messages:
-                #     audio = BusinessMessageFile.objects.filter(pk=m.file_id).first()
-                #     message = {
-                #         'user_name': m.user_name, 'role_name': m.role_name,
-                #         'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
-                #         'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                #     }
-                #     if audio:
-                #         message['url'] = const.WEB_HOST + audio.file.url
-                #         message['filename'] = audio.file.name
-                #         message['secret'] = ''
-                #         message['length'] = audio.length
-                #     message_list.append(message)
+                message_list = []
+                for m in messages:
+                    audio = BusinessMessageFile.objects.filter(pk=m.file_id).first()
+                    message = {
+                        'user_name': m.user_name, 'role_name': m.role_name,
+                        'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
+                        'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                    if audio:
+                        message['url'] = const.WEB_HOST + audio.file.url
+                        message['filename'] = audio.file.name
+                        message['secret'] = ''
+                        message['length'] = audio.length
+                    message_list.append(message)
+                # ---------------- original MUST ---------------
 
                 # 个人笔记
                 note = BusinessNotes.objects.filter(business_id=business_id,
                                                       node_id=item.node_id, created_by=user_id).first()
                 node_list.append({
-                    'docs': doc_list, 'id': node.id, 'node_name': node.name,
+                    'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
                     'note': note.content if note else None, 'type': node.process.type if node.process else 0,
                     'vote_status': vote_status
                 })
-            #     -------------------------------------------------------------------------------------------------------
+
+
+            #     ------------------Must Update--------------------------
             # experience = ExperimentExperience.objects.filter(business_id=busi.id, created_by=request.user.pk).first()
             # experience_data = {'status': 1, 'content': ''}
             # if experience:
@@ -2381,19 +2393,26 @@ def api_business_report_generate(request):
             #         'created_by': user_simple_info(experience.created_by),
             #         'create_time': experience.create_time.strftime('%Y-%m-%d')
             #     }
-            # ----------------------------------------------------------------------------------------------------------
+            #     ------------------Must Update---------------------------------------------------------------------
+
             resp = code.get_msg(code.SUCCESS)
             # resp['d'] = {
             #     'name': u'{0} {1}'.format(busi.id, busi.name), 'project_name': project.name,
-            #     'team_name': team.name, 'members': member_list, 'flow_name': flow.name,
-            #     'finish_time': exp.finish_time.strftime('%Y-%m-%d') if exp.finish_time else None,
+            #     'team_name': team.name,
+            # ----------- must update -----------
+            # 'members': member_list,
+            # ----------- must update -----------
+            # 'flow_name': flow.name, 'finish_time': exp.finish_time.strftime('%Y-%m-%d') if exp.finish_time else None,
             #     'start_time': exp.start_time.strftime('%Y-%m-%d') if exp.start_time else None,
             #     'end_time': exp.end_time.strftime('%Y-%m-%d') if exp.end_time else None,
             #     'create_time': exp.create_time.strftime('%Y-%m-%d'),
             #     'leader_name': leader.name if leader else None,
             #     'course_class': u'{0} {1} {2}'.format(course_class.name, course_class.no,
             #                                           course_class.term) if course_class else None,
-            #     'teacher': course_class.teacher1.name, 'nodes': node_list, 'experience': experience_data,
+            #     'teacher': course_class.teacher1.name, 'nodes': node_list,
+            # ----------- must update -----------
+            #  'experience': experience_data,
+            # ----------- must update -----------
             # }
             resp['d'] = {
                 'name': u'{0} {1}'.format(busi.id, busi.name), 'project_name': project.name,
@@ -2404,7 +2423,7 @@ def api_business_report_generate(request):
                 'create_time': busi.create_time.strftime('%Y-%m-%d'),
                 'nodes': node_list
             }
-            print node_list
+            print resp
 
         else:
             resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
