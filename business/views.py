@@ -2240,15 +2240,15 @@ def api_business_report_generate(request):
             # team = Team.objects.filter(pk=exp.team_id).first()
             project = Project.objects.filter(pk=busi.project_id).first()
             flow = Flow.objects.filter(pk=project.flow_id).first()
-            # members = BusinessTeamMember.objects.filter(business_id=business_id)
-            # print members
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id', flat=True)
             # course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
 
             # 小组成员
-            # member_list = []
-            # for uid in members:
-            #     user = Tuser.objects.get(pk=uid)
-            #     member_list.append(user.name)
+            member_list = []
+
+            for uid in members:
+                user = Tuser.objects.get(pk=int(uid))
+                member_list.append(user.name)
 
             # # 组长
             # leader = Tuser.objects.filter(pk=team.leader).first()
@@ -2393,7 +2393,7 @@ def api_business_report_generate(request):
 
                 # 个人笔记
                 note = BusinessNotes.objects.filter(business_id=business_id,
-                                                      node_id=item.node_id, created_by=user_id).first()
+                                                      node_id=item.node_id, created_by_id=user_id).first()
                 node_list.append({
                     'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
                     'note': note.content if note else None, 'type': node.process.type if node.process else 0,
@@ -2410,6 +2410,15 @@ def api_business_report_generate(request):
             #         'created_by': user_simple_info(experience.created_by),
             #         'create_time': experience.create_time.strftime('%Y-%m-%d')
             #     }
+            business = BusinessExperience.objects.filter(business_id=busi.id, created_by_id=request.user.pk).first()
+            experience_data = {'status': 1, 'content': ''}
+            if business:
+                experience_data = {
+                    'id': business.id, 'content': business.content, 'status': business.status,
+                    'created_by': user_simple_info(business.created_by_id),
+                    'create_time': business.create_time.strftime('%Y-%m-%d')
+                }
+                print experience_data
             #     ------------------Must Update---------------------------------------------------------------------
 
             resp = code.get_msg(code.SUCCESS)
@@ -2438,10 +2447,8 @@ def api_business_report_generate(request):
                 'start_time': busi.start_time.strftime('%Y-%m-%d') if busi.start_time else None,
                 'end_time': busi.end_time.strftime('%Y-%m-%d') if busi.end_time else None,
                 'create_time': busi.create_time.strftime('%Y-%m-%d'),
-                'nodes': node_list
+                'nodes': node_list, 'experience': experience_data,
             }
-            print resp
-
         else:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2458,23 +2465,18 @@ def api_business_save_experience(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
-        print "1"
         business_id = request.POST.get('business_id', None)  # 实验id
         content = request.POST.get('content', '')
         if business_id is None:
-            print "2"
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         busi = Business.objects.filter(pk=business_id, del_flag=0).first()
-        print "3"
         if busi is None:
-            print "4"
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if busi.status == 2:
-            print "5"
             if content is None or len(content) > 30000:
                 resp = code.get_msg(code.PARAMETER_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2485,7 +2487,7 @@ def api_business_save_experience(request):
                                                                                      'created_by_id': request.user.id})
             data = {
                 'id': instance.pk, 'content': instance.content, 'status': instance.status,
-                'created_by_id': user_simple_info(instance.created_by_id),
+                'created_by': user_simple_info(instance.created_by_id),
                 'create_time': instance.create_time.strftime('%Y-%m-%d')
             }
             resp = code.get_msg(code.SUCCESS)
