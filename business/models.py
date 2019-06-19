@@ -127,6 +127,7 @@ class BusinessRoleAllocationStatus(models.Model):
     def __unicode__(self):
         return u""
 
+
 # 实验环节占位状态
 class BusinessPositionStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
@@ -142,6 +143,26 @@ class BusinessPositionStatus(models.Model):
     def __unicode__(self):
         return u""
 
+
+# 实验心得
+class BusinessExperience(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'实验')
+    created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者')
+    content = models.TextField(verbose_name=u'心得')
+    status = models.PositiveSmallIntegerField(choices=const.SUBMIT_STATUS, default=1, verbose_name=u'提交状态')
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
+    class Meta:
+        db_table = "t_business_experience"
+        ordering = ['-create_time']
+        verbose_name_plural = verbose_name = u"实验心得"
+
+    def __unicode__(self):
+        return u""
+
+
 class BusinessReportStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
@@ -155,6 +176,7 @@ class BusinessReportStatus(models.Model):
 
     def __unicode__(self):
         return u""
+
 
 class BusinessTeamMember(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -172,6 +194,8 @@ class BusinessTeamMember(models.Model):
 
     def __unicode__(self):
         return self.name
+
+
 # 消息
 class BusinessMessage(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -194,6 +218,7 @@ class BusinessMessage(models.Model):
     def __unicode__(self):
         return u""
 
+
 # 消息文件
 class BusinessMessageFile(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -215,6 +240,7 @@ class BusinessMessageFile(models.Model):
 
     def __unicode__(self):
         return self.file.name
+
 
 class BusinessDoc(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -240,6 +266,7 @@ class BusinessDoc(models.Model):
 
     def __unicode__(self):
         return self.filename
+
 
 # 用户编辑模版内容
 class BusinessDocContent(models.Model):
@@ -268,6 +295,7 @@ class BusinessDocContent(models.Model):
     def __unicode__(self):
         return self.name
 
+
 class BusinessDocTeam(models.Model):
     business_team_member = models.ForeignKey(BusinessTeamMember, on_delete=models.CASCADE, verbose_name=u'Business')
     business_doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
@@ -280,10 +308,10 @@ class BusinessDocTeam(models.Model):
     def __unicode__(self):
         return u''
 
+
 # 实验环节文档签字记录
 class BusinessDocSign(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
-    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
     doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
     sign = models.CharField(max_length=18, blank=True, null=True, verbose_name=u'签名')

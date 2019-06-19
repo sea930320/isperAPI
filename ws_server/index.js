@@ -27,30 +27,30 @@ io.on('connection', function (socket) {
     socket.on('message', function (msgObject) {
         console.log(msgObject)
         // url of the view that will process
-        var url = 'http://' + host + ':' + port + '/save_message/';
-        // when the request finishes
-        xhttp.onreadystatechange = function () {
-            // it checks if the request was succeeded
-            if (this.readyState === 4 && this.status === 200) {
-                // if the value returned from the view is error
-                var resp = JSON.parse(xhttp.responseText)
-                console.log(resp)
-                if (resp['m'] == 'success') {
-                    io.emit('getMessage', {
-                        'msg_object': msgObject,
-                        'result': resp['d']
-                    });
-                }
-                // if the value returned from the view is success
-                else if (xhttp.responseText === "error")
-                    console.log("error saving message");
-            }
-        };
+        // var url = 'http://' + host + ':' + port + '/save_message/';
+        // // when the request finishes
+        // xhttp.onreadystatechange = function () {
+        //     // it checks if the request was succeeded
+        //     if (this.readyState === 4 && this.status === 200) {
+        //         // if the value returned from the view is error
+        //         var resp = JSON.parse(xhttp.responseText)
+        //         console.log(resp)
+        //         if (resp['m'] == 'success') {
+        io.emit('getMessage', {
+            'result': msgObject,
+            // 'result': resp['d']
+        });
+        // }
+        // // if the value returned from the view is success
+        // else if (xhttp.responseText === "error")
+        //     console.log("error saving message");
+        // }
+        // };
 
         // prepares to send
-        xhttp.open('POST', url, true);
+        // xhttp.open('POST', url, true);
         // sends the data to the view
-        xhttp.send(JSON.stringify(msgObject));
+        // xhttp.send(JSON.stringify(msgObject));
     });
 
 });
