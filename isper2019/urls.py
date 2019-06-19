@@ -244,6 +244,7 @@ urlpatterns += (
     url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create), #Jonas
     url(r'^api/workflow/role/allocation/remove', workflow_views.api_workflow_role_allocation_remove), #Jonas
     url(r'^api/workflow/role/allocation/bulk_update', workflow_views.api_workflow_role_allocation_bulk_update), #Jonas
+    url(r'^api/workflow/role/allocation/image_update', workflow_views.api_workflow_role_allocation_image_update), #Jonas
 )
 
 urlpatterns += (
@@ -361,6 +362,9 @@ urlpatterns += (
     url(r'^api/business/role/in/list', business_views.api_business_role_in_list),
     url(r'^api/business/role/out/list$', business_views.api_business_role_out_list),
     url(r'^api/business/docs/create$', business_views.api_business_docs_create),
+
+    url(r'^api/business/report/generate$', business_views.api_business_report_generate),
+    url(r'^api/business/experience/save$', business_views.api_business_save_experience),
 )
 urlpatterns += (
     url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),

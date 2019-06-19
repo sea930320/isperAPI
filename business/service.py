@@ -44,10 +44,11 @@ def set_cache_keys(experiment_id, item):
 
 
 def clear_cache(experiment_id):
+    pass
     """
     清除缓存
     """
-    cache.clear()
+    # cache.clear()
     # try:
     #     key = tools.make_key(const.CACHE_EXPERIMENT_KEYS, experiment_id, 1)
     #     data = cache.get(key)
@@ -581,58 +582,46 @@ def get_all_roles_status(bus, project, node, path):
     """
     所有角色
     """
-    key = tools.make_key(const.CACHE_ALL_ROLES_STATUS, '%s:%s:%s' % (bus.pk, node.pk, path.pk), 1)
-    set_cache_keys(bus.pk, key)
-    data = cache.get(key)
-    if data:
-        return data
-    else:
+    # key = tools.make_key(const.CACHE_ALL_ROLES_STATUS, '%s:%s:%s' % (bus.pk, node.pk, path.pk), 1)
+    # set_cache_keys(bus.pk, key)
+    # data = cache.get(key)
+    # if data:
+    #     return data
+    # else:
         # 报告席
-        report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE).first()
-        report_status = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation__node_id=node.pk, path_id=path.pk, schedule_status=const.SCHEDULE_UP_STATUS).first()
+    report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE).first()
+    report_status = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation__node_id=node.pk, path_id=path.pk, schedule_status=const.SCHEDULE_UP_STATUS).first()
 
-        sql = '''SELECT a.id, a.role_id, a.no, t.come_status, t.sitting_status, t.stand_status, t.vote_status,
-                t.show_status,t.speak_times,r.`name` role_name,r.flow_role_id,u.name,r.image_id,i.gender
-                from t_business_role_allocation_status t
-                LEFT JOIN t_business_role_allocation a ON t.business_role_allocation_id=a.id
-                LEFT JOIN t_business_role r ON a.role_id=r.id
-                LEFT JOIN t_business_team_member m ON a.no=m.no AND a.role_id=m.business_role_id
-                LEFT JOIN t_user u ON m.user_id=u.id
-                LEFT JOIN t_role_image i ON i.id=r.image_id
-                WHERE t.business_id=%s and a.node_id=%s and t.path_id=%s''' % (bus.pk, node.pk, path.pk)
-        sql += ' order by t.sitting_status '
-        role_list = query.select(sql, ['alloc_id', 'role_id', 'no', 'come_status', 'sitting_status', 'stand_status',
-                                       'vote_status', 'show_status', 'speak_times', 'role_name', 'flow_role_id',
-                                       'user_name', 'image_id', 'gender'])
-        for i in range(0, len(role_list)):
-            role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node.pk,
-                                                            role_id=role_list[i]['flow_role_id'],
-                                                            no=role_list[i]['no']).first()
-            actors = []
-            if role_position:
-                qs_files = RoleImageFile.objects.filter(image_id=role_list[i]['image_id'])
-                if report_pos and report_status:
-                    if role_list[i]['alloc_id'] == report_status.business_role_allocation_id:
-                        if report_pos.actor1:
-                            actor1 = qs_files.filter(direction=report_pos.actor1).first()
-                            actors.append(('/media/' + actor1.file.name) if actor1 and actor1.file else '')
-                        if report_pos.actor2:
-                            actor2 = qs_files.filter(direction=report_pos.actor2).first()
-                            actors.append(('/media/' + actor2.file.name) if actor2 and actor2.file else '')
-                        position = {'id': report_pos.id, 'position': report_pos.position,
-                                    'code_position': report_pos.code_position}
-                    else:
-                        pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
-                        if pos:
-                            if pos.actor1:
-                                actor1 = qs_files.filter(direction=pos.actor1).first()
-                                actors.append(('/media/' + actor1.file.name) if actor1 and actor1.file else '')
-                            if pos.actor2:
-                                actor2 = qs_files.filter(direction=pos.actor2).first()
-                                actors.append(('/media/' + actor2.file.name) if actor2 and actor2.file else '')
-                            position = {'id': pos.id, 'position': pos.position, 'code_position': pos.code_position}
-                        else:
-                            position = None
+    sql = '''SELECT a.id, a.role_id, a.no, t.come_status, t.sitting_status, t.stand_status, t.vote_status,
+            t.show_status,t.speak_times,r.`name` role_name,r.flow_role_id,u.name,r.image_id,i.gender
+            from t_business_role_allocation_status t
+            LEFT JOIN t_business_role_allocation a ON t.business_role_allocation_id=a.id
+            LEFT JOIN t_business_role r ON a.role_id=r.id
+            LEFT JOIN t_business_team_member m ON a.no=m.no AND a.role_id=m.business_role_id
+            LEFT JOIN t_user u ON m.user_id=u.id
+            LEFT JOIN t_role_image i ON i.id=r.image_id
+            WHERE t.business_id=%s and a.node_id=%s and t.path_id=%s''' % (bus.pk, node.pk, path.pk)
+    sql += ' order by t.sitting_status '
+    role_list = query.select(sql, ['alloc_id', 'role_id', 'no', 'come_status', 'sitting_status', 'stand_status',
+                                   'vote_status', 'show_status', 'speak_times', 'role_name', 'flow_role_id',
+                                   'user_name', 'image_id', 'gender'])
+    for i in range(0, len(role_list)):
+        role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node.pk,
+                                                        role_id=role_list[i]['flow_role_id'],
+                                                        no=role_list[i]['no']).first()
+        actors = []
+        if role_position:
+            qs_files = RoleImageFile.objects.filter(image_id=role_list[i]['image_id'])
+            if report_pos and report_status:
+                if role_list[i]['alloc_id'] == report_status.business_role_allocation_id:
+                    if report_pos.actor1:
+                        actor1 = qs_files.filter(direction=report_pos.actor1).first()
+                        actors.append(('/media/' + actor1.file.name) if actor1 and actor1.file else '')
+                    if report_pos.actor2:
+                        actor2 = qs_files.filter(direction=report_pos.actor2).first()
+                        actors.append(('/media/' + actor2.file.name) if actor2 and actor2.file else '')
+                    position = {'id': report_pos.id, 'position': report_pos.position,
+                                'code_position': report_pos.code_position}
                 else:
                     pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
                     if pos:
@@ -646,11 +635,23 @@ def get_all_roles_status(bus, project, node, path):
                     else:
                         position = None
             else:
-                position = None
-            role_list[i]['position'] = position
-            role_list[i]['actors'] = actors
-        cache.set(key, role_list)
-        return role_list
+                pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
+                if pos:
+                    if pos.actor1:
+                        actor1 = qs_files.filter(direction=pos.actor1).first()
+                        actors.append(('/media/' + actor1.file.name) if actor1 and actor1.file else '')
+                    if pos.actor2:
+                        actor2 = qs_files.filter(direction=pos.actor2).first()
+                        actors.append(('/media/' + actor2.file.name) if actor2 and actor2.file else '')
+                    position = {'id': pos.id, 'position': pos.position, 'code_position': pos.code_position}
+                else:
+                    position = None
+        else:
+            position = None
+        role_list[i]['position'] = position
+        role_list[i]['actors'] = actors
+        # clear_cache(bus.pk)key, role_list)
+    return role_list
 
 
 def get_role_node_can_terminate(bus, project_id, node_id, role_alloc_id):
@@ -666,61 +667,46 @@ def get_role_node_can_terminate(bus, project_id, node_id, role_alloc_id):
 
 
 def get_role_image(bus, image_id):
-    """
-    角色形象
-    """
-    prefix = '%s:%s' % (bus.pk, image_id)
-    key = tools.make_key(const.CACHE_ROLE_IMAGE, prefix, 1)
-    set_cache_keys(bus.pk, key)
     try:
-        data = cache.get(key)
-        if data:
+        image = RoleImage.objects.filter(pk=image_id).first()
+        if image:
+            data = {'image_id': image.pk, 'name': image.name, 'gender': image.gender,
+                    'avatar': image.avatar.url if image.avatar else ''}
             return data
         else:
-            image = RoleImage.objects.filter(pk=image_id).first()
-            if image:
-                data = {'image_id': image.pk, 'name': image.name, 'gender': image.gender,
-                        'avatar': image.avatar.url if image.avatar else ''}
-                cache.set(key, data)
-                return data
-            else:
-                return None
+            return None
     except Exception as e:
         logger.exception('get_role_image Exception:{0}'.format(str(e)))
         return None
 
 
 def get_role_position(bus, project, node, path, role, role_alloc_id):
-    """
-    角色占位
-    """
-    prefix = '%s:%s:%s:%s' % (bus.pk, project.flow_id, node.pk, role.flow_role_id)
-    key = tools.make_key(const.CACHE_ROLE_POSITION, prefix, 1)
-    set_cache_keys(bus.pk, key)
     try:
-        data = cache.get(key)
-        if data:
+        bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
+        fra = FlowRoleAllocation.objects.filter(pk=bra.flow_role_alloc_id).first()
+        role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node.pk,
+                                                        role_id=fra.role_id, no=fra.no, del_flag=0).first()
+        pos = None
+        if role_position:
+            pos = FlowPosition.objects.filter(pk=role_position.position_id, del_flag=0).first()
+
+        # 判断是否存在报告席，是否已走向报告
+        report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE,
+                                                 del_flag=0).first()
+        if report_pos:
+            report_exists = BusinessReportStatus.objects.filter(business_id=bus.pk,
+                                                                business_role_allocation_id=role_alloc_id,
+                                                                path_id=path.pk,
+                                                                schedule_status=const.SCHEDULE_UP_STATUS).exists()
+            if report_exists:
+                pos = report_pos
+        if pos:
+            data = {'position_id': pos.id, 'org_position_id': role_position.position_id,
+                    'code_position': pos.code_position, 'position': pos.position,
+                    'actor1': pos.actor1, 'actor2': pos.actor2, 'type': pos.type}
             return data
         else:
-            role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node.pk, role_id=role.flow_role_id, del_flag=0).first()
-            pos = None
-            if role_position:
-                pos = FlowPosition.objects.filter(pk=role_position.position_id, del_flag=0).first()
-
-            # 判断是否存在报告席，是否已走向报告
-            report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE, del_flag=0).first()
-            if report_pos:
-                report_exists = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=role_alloc_id, path_id=path.pk, schedule_status=const.SCHEDULE_UP_STATUS).exists()
-                if report_exists:
-                    pos = report_pos
-            if pos:
-                data = {'position_id': pos.id, 'org_position_id': role_position.position_id,
-                        'code_position': pos.code_position, 'position': pos.position,
-                        'actor1': pos.actor1, 'actor2': pos.actor2, 'type': pos.type}
-                cache.set(key, data)
-                return data
-            else:
-                return None
+            return None
     except Exception as e:
         logger.exception('get_role_position Exception:{0}'.format(str(e)))
         return None

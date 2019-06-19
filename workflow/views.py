@@ -331,9 +331,16 @@ def api_workflow_role_allcation(request):
                         role_position = FlowRolePosition.objects.filter(flow_id=flow_id, node_id=item.id,
                                                                         role_id=r.role_id, no=r.no, del_flag=0).first()
                         position_id = role_position.position_id if role_position else None
+
+                        obj = RoleImage.objects.get(pk=r.image_id) if r.image_id else None
+                        if obj:
+                            img = {'id': obj.id, 'type': obj.type.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None,
+                                   'gender': obj.gender}
+                        else:
+                            img = None
                         allocation_list.append({
                             'role_id': r.role_id, 'role_name': r.role.name, 'no': r.no,
-                            'position_id': position_id, 'role_type': r.role.type
+                            'position_id': position_id, 'role_type': r.role.type, 'image':img
                         })
                 node_list.append({
                     'id': item.id, 'name': item.name,
@@ -2372,5 +2379,30 @@ def api_workflow_role_allocation_bulk_update(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_workflow_role_allocation_remove Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_role_allocation_image_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        node_id = request.POST.get('node_id', None)
+        role_id = request.POST.get('role_id', None)
+        no = request.POST.get('no', None)
+        image_id = request.POST.get('image_id', None)
+        if not all(v is not None for v in [node_id, role_id, no, image_id]):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        FlowRoleAllocation.objects.filter(node_id=node_id, role_id=role_id, no=no).update(image_id=image_id)
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_image_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

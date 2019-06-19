@@ -151,6 +151,7 @@ class FlowRole(models.Model):
 # 环节角色分配
 class FlowRoleAllocation(models.Model):
     flow = models.ForeignKey(Flow, verbose_name=u'流程')
+    image_id = models.IntegerField(verbose_name=u'角色形象', null=True, blank=True)
     node = models.ForeignKey(FlowNode, verbose_name=u'环节')
     role = models.ForeignKey(FlowRole, verbose_name=u'角色')
     can_start = models.BooleanField(verbose_name=u'Can Start the business', default=False)
