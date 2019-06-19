@@ -1896,7 +1896,9 @@ def api_business_message_push(request):
         node = FlowNode.objects.filter(pk=bus.node_id, del_flag=0).first()
 
         # 角色形象
+        print role.image_id
         image = get_role_image(bus, role.image_id)
+        print image
         if image is None:
             resp = code.get_msg(code.BUSINESS_ROLE_IMAGE_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1965,11 +1967,11 @@ def api_business_message_push(request):
                 # 表达管理 data = {'control_status': 1}
                 data = json.loads(data)
                 result, opt = action_role_banned(bus, node_id, path.pk, data['control_status'])
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_MEET:
                 # 约见
                 result, opt = action_role_meet(bus, path.pk, role, role_alloc_id)
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_APPLY_SPEAK:
                 # 申请发言
                 result, opt = True, {'role_id': role_alloc_id, 'role_name': role.name}
@@ -1977,7 +1979,7 @@ def api_business_message_push(request):
                 # 申请发言操作结果 data = {'msg_id':1,'role_id': 1, 'result': 1}
                 data = json.loads(data)
                 result, opt = action_role_speak_opt(bus, path.pk, data)
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_DOC_APPLY_SHOW:
                 # 申请展示
                 result, opt = True, {'role_id': role_alloc_id, 'role_name': role.name}
@@ -1988,7 +1990,7 @@ def api_business_message_push(request):
                 # 申请展示操作结果 data = {'msg_id':1,'doc_id': 1, 'result': 1}
                 data = json.loads(data)
                 result, opt = action_doc_apply_show_opt(bus, node_id, path.pk, data)
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_DOC_SHOW:
                 # 展示
                 data = json.loads(data)
@@ -1998,13 +2000,13 @@ def api_business_message_push(request):
                 role_alloc_ids = json.loads(data)
                 result, lst = action_role_letout(bus, node, path.pk, role_alloc_ids)
                 opt = {'data': lst}
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_LETIN:
                 # 请入 data [1, 2, 3, ...]
                 role_alloc_ids = json.loads(data)
                 result, lst = action_role_letin(bus, node_id, path.pk, role_alloc_ids)
                 opt = {'data': lst}
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_SITDOWN:
                 if pos is None:
                     resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
@@ -2015,7 +2017,7 @@ def api_business_message_push(request):
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                 result, opt = action_role_sitdown(bus, path.pk, role, pos, role_alloc_id)
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_STAND:
                 if pos is None:
                     resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
@@ -2026,7 +2028,7 @@ def api_business_message_push(request):
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                 result, opt = action_role_stand(bus, path.pk, role, pos, role_alloc_id)
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_HIDE:
                 if pos is None:
                     resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
@@ -2037,7 +2039,7 @@ def api_business_message_push(request):
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                 result, opt = action_role_hide(bus, path.pk, role, pos, role_alloc_id)
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_SHOW:
                 if pos is None:
                     resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
@@ -2061,7 +2063,7 @@ def api_business_message_push(request):
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                 result, opt = action_role_show(bus, node_id, path.pk, role, pos, role_alloc_id)
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_DOC_APPLY_SUBMIT:
                 # 申请提交
                 result, opt = True, {'role_id': role_alloc_id, 'role_name': role.name}
@@ -2069,7 +2071,7 @@ def api_business_message_push(request):
                 # 申请提交操作结果 data = {'msg_id':1,'role_id': 1, 'result': 1}
                 data = json.loads(data)
                 result, opt = action_doc_apply_submit_opt(bus, node_id, path.pk, data)
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_DOC_SUBMIT:
                 # 提交 实验文件id data = [1, 2, 3, ...]
                 doc_ids = json.loads(data)
@@ -2080,13 +2082,13 @@ def api_business_message_push(request):
                 # result, opt = action_exp_restart(bus, request.user.pk)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_BACK:
                 # 返回上一步
                 # result, opt = action_exp_back(bus)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_NODE_END:
                 # 结束环节 opt = {'next_node_id': 1, 'status': 1, 'process_type': 1},
                 # data={'tran_id': 1, 'project_id': 0}
@@ -2094,12 +2096,12 @@ def api_business_message_push(request):
                 result, opt = action_exp_node_end(bus, role_alloc_id, data)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_FINISH:
                 result, opt = action_exp_finish(bus, request.user.id)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_SUBMIT_EXPERIENCE:
                 # 提交实验心得 data = {"content": ""}
                 data = json.loads(data)
@@ -2112,13 +2114,13 @@ def api_business_message_push(request):
                 result, opt = action_role_vote(bus, node_id, path, role_alloc_id, data['status'])
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_VOTE_END:
                 # 提交实验投票结束 data = {}
                 result, opt = action_role_vote_end(bus, node_id, path)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_REQUEST_SIGN:
                 # 要求签字 data = {"doc_id": 1, "doc_name": "xxx", "role_id": 1, "role_name": "xx"}
                 data = json.loads(data)
@@ -2132,7 +2134,7 @@ def api_business_message_push(request):
                 result, opt = action_role_sign(bus, sign, node_id, role_alloc_id, data)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_SCHEDULE_REPORT:
                 # 安排报告 data = {"role_id": 1, "role_name": "xx"}
                 data = json.loads(data)
@@ -2149,7 +2151,7 @@ def api_business_message_push(request):
                 result, opt = action_role_toward_report(bus, node_id, path.pk, bra, pos)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_EDN_REPORT:
                 # 走下发言席 data = {}
                 if pos is None:
@@ -2159,12 +2161,12 @@ def api_business_message_push(request):
                 result, opt = action_role_end_report(bus, node_id, path.pk, bra, pos)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLES_EXIT:
                 # 退出实验 data = {}
                 result, lst = action_roles_exit(bus, node, path.pk, user_id)
                 opt = {'data': lst}
-                clear_cache(bus.pk)
+                # clear_cache(bus.pk)
             elif cmd == const.ACTION_TRANS:
                 result, opt = True, {}
             else:
