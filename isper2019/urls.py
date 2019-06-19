@@ -358,6 +358,9 @@ urlpatterns += (
     url(r'^api/business/role/status$', business_views.api_business_role_status),
     url(r'^api/business/message/push$', business_views.api_business_message_push),
     url(r'^api/business/message/save', socketIO_views.save_message),
+    
+    url(r'^api/business/report/generate$', business_views.api_business_report_generate),
+    url(r'^api/business/experience/save$', business_views.api_business_save_experience),
 )
 urlpatterns += (
     url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),

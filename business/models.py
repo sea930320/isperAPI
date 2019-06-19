@@ -344,3 +344,5 @@ class BusinessNotes(models.Model):
 
     def __unicode__(self):
         return u""
+
+
