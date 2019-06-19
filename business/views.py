@@ -2238,13 +2238,14 @@ def api_business_report_generate(request):
             # team = Team.objects.filter(pk=exp.team_id).first()
             project = Project.objects.filter(pk=busi.project_id).first()
             flow = Flow.objects.filter(pk=project.flow_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id)
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id', flat=True)
             # course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
 
             # 小组成员
             member_list = []
+
             for uid in members:
-                user = Tuser.objects.get(pk=uid)
+                user = Tuser.objects.get(pk=int(uid))
                 member_list.append(user.name)
 
             # # 组长
@@ -2412,9 +2413,10 @@ def api_business_report_generate(request):
             if business:
                 experience_data = {
                     'id': business.id, 'content': business.content, 'status': business.status,
-                    'created_by': user_simple_info(business.created_by),
+                    'created_by': user_simple_info(business.created_by_id),
                     'create_time': business.create_time.strftime('%Y-%m-%d')
                 }
+                print experience_data
             #     ------------------Must Update---------------------------------------------------------------------
 
             resp = code.get_msg(code.SUCCESS)
