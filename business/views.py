@@ -2190,8 +2190,10 @@ def api_business_message_push(request):
         user = request.user
         message = BusinessMessage()
         if role_alloc_id:
-            bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id, business_id=business_id,
-                                                    project_id=bus.cur_project_id).first()
+            bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id,
+                                                        business_id=business_id,
+                                                        project_id=bus.cur_project_id
+                                                        ).first()
             message = BusinessMessage.objects.create(business_id=business_id, user_id=user.pk,
                                                      business_role_allocation_id=role_alloc_id,
                                                      file_id=file_id, msg=msg, msg_type=type,

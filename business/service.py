@@ -653,9 +653,9 @@ def get_all_roles_status(bus, project, node, path):
         return role_list
 
 
-def get_role_node_can_terminate(bus, project_id, node_id, alloc_role_id):
+def get_role_node_can_terminate(bus, project_id, node_id, role_alloc_id):
     try:
-        if BusinessRoleAllocation.objects.filter(project_id=project_id, node_id=node_id, id=alloc_role_id, can_terminate=True).exists():
+        if BusinessRoleAllocation.objects.filter(project_id=project_id, node_id=node_id, id=role_alloc_id, can_terminate=True).exists():
             can_terminate = True
         else:
             can_terminate = False
@@ -690,7 +690,7 @@ def get_role_image(bus, image_id):
         return None
 
 
-def get_role_position(bus, project, node, path, role, alloc_role_id):
+def get_role_position(bus, project, node, path, role, role_alloc_id):
     """
     角色占位
     """
@@ -710,7 +710,7 @@ def get_role_position(bus, project, node, path, role, alloc_role_id):
             # 判断是否存在报告席，是否已走向报告
             report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE, del_flag=0).first()
             if report_pos:
-                report_exists = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=alloc_role_id, path_id=path.pk, schedule_status=const.SCHEDULE_UP_STATUS).exists()
+                report_exists = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=role_alloc_id, path_id=path.pk, schedule_status=const.SCHEDULE_UP_STATUS).exists()
                 if report_exists:
                     pos = report_pos
             if pos:
@@ -744,7 +744,7 @@ def action_role_banned(bus, node_id, path_id, control_status):
         return False, str(e)
 
 
-def action_role_meet(bus, path_id, role, alloc_role_id):
+def action_role_meet(bus, path_id, role, role_alloc_id):
     """
     申请约见
     :param role_id: 角色id
@@ -753,9 +753,9 @@ def action_role_meet(bus, path_id, role, alloc_role_id):
     :return:
     """
     try:
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=alloc_role_id, path_id=path_id).update(come_status=1, stand_status=2)
+        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id, path_id=path_id).update(come_status=1, stand_status=2)
 
-        role_info = {'id': alloc_role_id, 'name': role.name}
+        role_info = {'id': role_alloc_id, 'name': role.name}
         return True, role_info
     except Exception as e:
         logger.exception(u'action_role_meet Exception:{}'.format(str(e)))
@@ -774,12 +774,12 @@ def action_role_speak_opt(bus, path_id, data):
     try:
         if 'msg_id' in data.keys():
             BusinessMessage.objects.filter(pk=data['msg_id']).update(opt_status=True)
-        alloc_role_status = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id=data['alloc_role_id']).first()
+        alloc_role_status = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id=data['role_alloc_id']).first()
         if alloc_role_status and int(data['result']) == 1:
             alloc_role_status.speak_times = const.MESSAGE_MAX_TIMES
             alloc_role_status.save(update_fields=['speak_times'])
-        role = BusinessRoleAllocation.objects.get(pk=data['alloc_role_id']).role
-        return True, {'role_id': data['alloc_role_id'], 'role_name': role.name, 'result': data['result']}
+        role = BusinessRoleAllocation.objects.get(pk=data['role_alloc_id']).role
+        return True, {'role_id': data['role_alloc_id'], 'role_name': role.name, 'result': data['result']}
     except Exception as e:
         logger.exception(u'action_role_speak_opt Exception:{}'.format(str(e)))
         return False, str(e)
@@ -797,9 +797,9 @@ def action_doc_apply_show_opt(bus, node_id, path_id, data):
     try:
         if 'msg_id' in data.keys():
             BusinessMessage.objects.filter(pk=data['msg_id']).update(opt_status=True)
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id=data['alloc_role_id']).update(show_status=data['result'])
-        role = BusinessRoleAllocation.objects.get(pk=data['alloc_role_id']).role
-        return True, {'role_id': data['alloc_role_id'], 'role_name': role.name, 'result': data['result']}
+        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id=data['role_alloc_id']).update(show_status=data['result'])
+        role = BusinessRoleAllocation.objects.get(pk=data['role_alloc_id']).role
+        return True, {'role_id': data['role_alloc_id'], 'role_name': role.name, 'result': data['result']}
     except Exception as e:
         logger.exception(u'action_doc_apply_show_opt Exception:{}'.format(str(e)))
         return False, str(e)
@@ -824,24 +824,24 @@ def action_doc_show(doc_id):
         return False, str(e)
 
 
-def action_role_letout(bus, node, path_id, alloc_role_ids):
+def action_role_letout(bus, node, path_id, role_alloc_ids):
     """
     送出
     :return:
     """
     try:
         with transaction.atomic():
-            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id__in=alloc_role_ids)\
+            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id__in=role_alloc_ids)\
                 .exclude(come_status=9).update(come_status=1, sitting_status=1, stand_status=2)
             # 报告席
             report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE).first()
 
             role_list = []
-            for alloc_role_id in alloc_role_ids:
-                role = BusinessRoleAllocation.objects.get(pk=alloc_role_id).role
-                report_exists = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=alloc_role_id, path_id=path_id, schedule_status=const.SCHEDULE_UP_STATUS).exists()
+            for role_alloc_id in role_alloc_ids:
+                role = BusinessRoleAllocation.objects.get(pk=role_alloc_id).role
+                report_exists = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=role_alloc_id, path_id=path_id, schedule_status=const.SCHEDULE_UP_STATUS).exists()
                 if report_exists:
-                    BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=alloc_role_id, path_id=path_id, schedule_status=const.SCHEDULE_UP_STATUS)\
+                    BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=role_alloc_id, path_id=path_id, schedule_status=const.SCHEDULE_UP_STATUS)\
                         .update(schedule_status=const.SCHEDULE_INIT_STATUS)
                     pos = report_pos
                 else:
@@ -852,7 +852,7 @@ def action_role_letout(bus, node, path_id, alloc_role_ids):
                 BusinessPositionStatus.objects.filter(business_id=bus.id, business_role_allocation__node_id=node.id, path_id=path_id, position_id=pos.id).update(sitting_status=1, business_role_allocation_id=None)
 
                 role_list.append({
-                    'id': alloc_role_id, 'name': role.name,
+                    'id': role_alloc_id, 'name': role.name,
                     'code_position': pos.code_position if pos else ''
                 })
         return True, role_list
@@ -861,7 +861,7 @@ def action_role_letout(bus, node, path_id, alloc_role_ids):
         return False, str(e)
 
 
-def action_role_letin(bus, node_id, path_id, alloc_role_ids):
+def action_role_letin(bus, node_id, path_id, role_alloc_ids):
     """
     请入
     :param exp: 实验
@@ -872,7 +872,7 @@ def action_role_letin(bus, node_id, path_id, alloc_role_ids):
     try:
         project = Project.objects.get(pk=bus.cur_project_id)
         role_list = []
-        alloc_role_status_list = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id__in=alloc_role_ids)
+        alloc_role_status_list = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id__in=role_alloc_ids)
         for alloc_role_status in alloc_role_status_list:
             business_role = BusinessRole.objects.filter(pk=alloc_role_status.business_role_allocation.role_id).first()
 
@@ -938,53 +938,53 @@ def action_role_letin(bus, node_id, path_id, alloc_role_ids):
         return False, str(e)
 
 
-def action_role_sitdown(bus, path_id, role, pos, alloc_role_id):
+def action_role_sitdown(bus, path_id, role, pos, role_alloc_id):
     """
     坐下
     :return:
     """
     try:
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=alloc_role_id, path_id=path_id).update(stand_status=2)
+        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id, path_id=path_id).update(stand_status=2)
 
-        role_info = {'id': alloc_role_id, 'name': role.name, 'code_position': pos['code_position']}
+        role_info = {'id': role_alloc_id, 'name': role.name, 'code_position': pos['code_position']}
         return True, role_info
     except Exception as e:
         logger.exception(u'action_role_sitdown Exception:{}'.format(str(e)))
         return False, str(e)
 
 
-def action_role_stand(bus, path_id, role, pos, alloc_role_id):
+def action_role_stand(bus, path_id, role, pos, role_alloc_id):
     """
     起立
     :return:
     """
     try:
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=alloc_role_id, path_id=path_id).update(stand_status=1)
+        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id, path_id=path_id).update(stand_status=1)
 
-        role_info = {'id': alloc_role_id, 'name': role.name, 'code_position': pos['code_position']}
+        role_info = {'id': role_alloc_id, 'name': role.name, 'code_position': pos['code_position']}
         return True, role_info
     except Exception as e:
         logger.exception(u'action_role_stand Exception:{}'.format(str(e)))
         return False, str(e)
 
 
-def action_role_hide(bus, path_id, role, pos, alloc_role_id):
+def action_role_hide(bus, path_id, role, pos, role_alloc_id):
     """
     退席
     :return:
     """
     try:
         with transaction.atomic():
-            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=alloc_role_id, path_id=path_id).update(stand_status=2, sitting_status=1)
+            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id, path_id=path_id).update(stand_status=2, sitting_status=1)
             # 占位状态
             BusinessPositionStatus.objects.update_or_create(
                 business_id=bus.id,
-                business_role_allocation_id=alloc_role_id,
+                business_role_allocation_id=role_alloc_id,
                 path_id=path_id,
                 position_id=pos['position_id'],
                 defaults={'sitting_status': const.SITTING_UP_STATUS, 'business_role_allocation_id': None}
             )
-            role_info = {'id': alloc_role_id, 'name': role.name, 'code_position': pos['code_position']}
+            role_info = {'id': role_alloc_id, 'name': role.name, 'code_position': pos['code_position']}
 
         return True, role_info
     except Exception as e:
@@ -992,7 +992,7 @@ def action_role_hide(bus, path_id, role, pos, alloc_role_id):
         return False, str(e)
 
 
-def action_role_show(bus, node_id, path_id, role, pos, alloc_role_id):
+def action_role_show(bus, node_id, path_id, role, pos, role_alloc_id):
     """
     入席
     :return:
@@ -1001,20 +1001,20 @@ def action_role_show(bus, node_id, path_id, role, pos, alloc_role_id):
         # 角色状态
         BusinessRoleAllocationStatus.objects.filter(
             business_id=bus.id,
-            business_role_allocation_id=alloc_role_id,
+            business_role_allocation_id=role_alloc_id,
             path_id=path_id
         ).update(stand_status=2, sitting_status=2)
 
         alloc_role_status = BusinessRoleAllocationStatus.objects.filter(
             business_id=bus.id,
-            business_role_allocation_id=alloc_role_id,
+            business_role_allocation_id=role_alloc_id,
             path_id=path_id,
         ).first()
 
         # 占位状态
         BusinessPositionStatus.objects.update_or_create(
             business_id=bus.id,
-            business_role_allocation_id=alloc_role_id,
+            business_role_allocation_id=role_alloc_id,
             path_id=path_id,
             position_id=pos['position_id'],
             defaults={'sitting_status': const.SITTING_DOWN_STATUS}
@@ -1063,10 +1063,10 @@ def action_doc_apply_submit_opt(bus, node_id, path_id, data):
         BusinessRoleAllocationStatus.objects.filter(
             business_id=bus.id,
             path_id=path_id,
-            business_role_allocation_id=data['alloc_role_id']
+            business_role_allocation_id=data['role_alloc_id']
         ).update(submit_status=data['result'])
-        role = BusinessRoleAllocation.objects.get(pk=data['alloc_role_id']).role
-        return True, {'role_id': data['alloc_role_id'], 'role_name': role.name, 'result': data['result']}
+        role = BusinessRoleAllocation.objects.get(pk=data['role_alloc_id']).role
+        return True, {'role_id': data['role_alloc_id'], 'role_name': role.name, 'result': data['result']}
     except Exception as e:
         logger.exception(u'action_doc_apply_submit_opt Exception:{}'.format(str(e)))
         return False, str(e)
@@ -1256,7 +1256,7 @@ def action_doc_submit(doc_ids):
 #         return False, resp
 
 
-def action_exp_node_end(bus, alloc_role_id, data):
+def action_exp_node_end(bus, role_alloc_id, data):
     """
     结束实验环节
     :param tran_id: 环节流转id
@@ -1266,7 +1266,7 @@ def action_exp_node_end(bus, alloc_role_id, data):
     """
     try:
         # 当前项目环节权限判断
-        if not BusinessRoleAllocation.objects.filter(pk=alloc_role_id, project_id=bus.cur_project_id, can_terminate=True).exists():
+        if not BusinessRoleAllocation.objects.filter(pk=role_alloc_id, project_id=bus.cur_project_id, can_terminate=True).exists():
             resp = code.get_msg(code.PERMISSION_DENIED)
             return False, resp
         else:
@@ -1354,7 +1354,7 @@ def action_exp_node_end(bus, alloc_role_id, data):
                     if cur_node.process_id == next_node.process_id:
                         item_role = item.business_role
                         # 角色占位
-                        pos = get_role_position(bus, project, next_node, path, item_role, alloc_role_id)
+                        pos = get_role_position(bus, project, next_node, path, item_role, role_alloc_id)
                         if pos:
                             # 占位状态, 如果上一环节占位存在并且已入席则创建当前环节占位数据
                             bps = BusinessPositionStatus.objects.filter(
