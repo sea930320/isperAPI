@@ -109,6 +109,7 @@ venv.bak/
 media/avatars
 media/workflow
 media/files
+!media/files/*.swf
 media/project
 
 ws_server/node_modules
