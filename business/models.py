@@ -11,7 +11,7 @@ from workflow.models import FlowNode
 
 
 def get_business_doc_upload_to(instance, filename):
-    return u'business/{}/{}'.format(instance.experiment_id, filename)
+    return u'business/{}/{}'.format(instance.business_id, filename)
 
 
 # 实验任务

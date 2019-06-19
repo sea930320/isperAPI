@@ -1197,7 +1197,7 @@ def api_business_note_create(request):
 
 
 # Get No-Deleted Experiments
-def api_experiment_list_nodel(request):
+def api_business_list_nodel(request):
     if request.session['login_type'] in [2, 6]:
         resp = auth_check(request, "GET")
         if resp != {}:
@@ -1337,7 +1337,7 @@ def api_business_file_display_list(request):
 
 
 # Get Deleted Experiments
-def api_experiment_list_del(request):
+def api_business_list_del(request):
     if request.session['login_type'] in [2, 6]:
         resp = auth_check(request, "GET")
         if resp != {}:
@@ -1442,7 +1442,7 @@ def api_experiment_list_del(request):
 
 
 # Delete Business
-def api_experiment_delete(request):
+def api_business_delete(request):
     if request.session['login_type'] in [2, 6]:
         resp = auth_check(request, "POST")
         if resp != {}:
@@ -1469,7 +1469,7 @@ def api_experiment_delete(request):
 
 
 # Recovery Business
-def api_experiment_recovery(request):
+def api_business_recovery(request):
     if request.session['login_type'] in [2, 6]:
         resp = auth_check(request, "POST")
         if resp != {}:
@@ -1496,7 +1496,7 @@ def api_experiment_recovery(request):
 
 
 # 实验结果
-def api_experiment_result(request):
+def api_business_result(request):
     if request.session['login_type'] in [2, 6]:
         resp = auth_check(request, "GET")
         if resp != {}:
@@ -2224,5 +2224,177 @@ def api_business_message_push(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_business_message_push Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 待请入角色列表
+def api_business_role_in_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get("node_id", None)  # 环节id
+        role_alloc_id = request.GET.get("role_alloc_id", 0)  # 角色id
+
+        bus = Business.objects.filter(pk=business_id).first()
+
+        # 判断实验是否存在以及实验当前环节是否是node_id
+        if bus and bus.node_id == int(node_id):
+            project = Project.objects.filter(pk=bus.cur_project_id).first()
+            path = BusinessTransPath.objects.filter(business_id=business_id).last()
+
+            role_alloc_ids = BusinessRoleAllocationStatus.objects.filter(
+                business_id=business_id,
+                business_role_allocation__node_id=bus.node_id,
+                path_id=path.pk,
+                sitting_status=1
+            ).exclude(come_status=9).values_list('business_role_allocation_id', flat=True)
+            role_alloc_list = []
+            for id in role_alloc_ids:
+                if id == int(role_alloc_id):
+                    continue
+
+                bra = BusinessRoleAllocation.objects.get(pk=id)
+                br = BusinessRole.objects.get(pk=bra.role_id)
+                role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, no=bra.no, role_id=br.flow_role_id, del_flag=0).first()
+                if role_position:
+                    pos_status = BusinessPositionStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation_id=id,
+                        path_id=path.pk,
+                        position_id=role_position.position_id
+                    ).first()
+
+                    if pos_status and pos_status.sitting_status == const.SITTING_DOWN_STATUS:
+                        continue
+
+                    pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
+                    if pos:
+                        code_position = pos.code_position
+                    else:
+                        continue
+                else:
+                    continue
+                role_alloc_list.append({
+                    'id': bra.id, 'name': br.name, 'code_position': code_position
+                })
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = role_alloc_list
+        elif bus is None:
+            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
+        else:
+            resp = code.get_msg(code.EXPERIMENT_NODE_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_experiment_role_in_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 待请出角色列表
+def api_business_role_out_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get("node_id", None)  # 环节id
+        role_alloc_id = request.GET.get("role_alloc_id", 0)  # 角色id
+
+        bus = Business.objects.filter(pk=business_id).first()
+        if bus and bus.node_id == int(node_id):
+            project = Project.objects.filter(pk=bus.cur_project_id).first()
+            path = BusinessTransPath.objects.filter(business_id=business_id).last()
+
+            role_alloc_ids = BusinessRoleAllocationStatus.objects.filter(
+                business_id=business_id,
+                business_role_allocation__node_id=bus.node_id,
+                path_id=path.pk,
+                sitting_status=2
+            ).exclude(come_status=9).values_list('business_role_allocation_id', flat=True)
+
+            role_alloc_list = []
+            for id in role_alloc_ids:
+                if id == int(role_alloc_id):
+                    continue
+
+                bra = BusinessRoleAllocation.objects.get(pk=id)
+                br = BusinessRole.objects.get(pk=bra.role_id)
+                role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, no=bra.no, role_id=br.flow_role_id, del_flag=0).first()
+
+                if role_position:
+                    pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
+                    if pos:
+                        code_position = pos.code_position
+                    else:
+                        continue
+                else:
+                    continue
+                role_alloc_list.append({
+                    'id': bra.id, 'name': br.name, 'code_position': code_position
+                })
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = role_alloc_list
+        elif bus is None:
+            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
+        else:
+            resp = code.get_msg(code.EXPERIMENT_NODE_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_experiment_role_out_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 实验中上传文件
+def api_business_docs_create(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        upload_file = request.FILES["file"]  # 文件
+        business_id = request.POST.get("business_id")  # 实验
+        node_id = request.POST.get("node_id")  # 环节
+        role_alloc_id = request.POST.get("role_alloc_id", None)  # 角色id
+        cmd = request.POST.get('cmd', None)
+        logger.info('business_id:%s,node_id:%s,role_id:%s,cmd:%s' % (business_id, node_id, role_alloc_id, cmd))
+        path = BusinessTransPath.objects.filter(business_id=business_id).last()
+        if path is None:
+            resp = code.get_msg(code.EXPERIMENT_NODE_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if len(upload_file.name) > 60:
+            resp = code.get_msg(code.UPLOAD_FILE_NAME_TOOLONG_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        file_type = tools.check_file_type(upload_file.name)
+        doc = BusinessDoc.objects.create(
+            filename=upload_file.name,
+            file=upload_file,
+            business_id=business_id,
+            node_id=node_id,
+            business_role_allocation_id=role_alloc_id,
+            path_id=path.id,
+            file_type=file_type,
+            created_by=request.user
+        )
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'id': doc.id, 'filename': doc.filename, 'file': doc.file.url if doc.file else None,
+            'business_id': doc.business_id, 'node_id': doc.node_id, 'file_type': file_type,
+            'created_by': user_simple_info(doc.created_by_id)
+        }
+        clear_cache(business_id)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_experiment_docs_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
