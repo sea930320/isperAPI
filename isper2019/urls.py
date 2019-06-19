@@ -244,6 +244,7 @@ urlpatterns += (
     url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create), #Jonas
     url(r'^api/workflow/role/allocation/remove', workflow_views.api_workflow_role_allocation_remove), #Jonas
     url(r'^api/workflow/role/allocation/bulk_update', workflow_views.api_workflow_role_allocation_bulk_update), #Jonas
+    url(r'^api/workflow/role/allocation/image_update', workflow_views.api_workflow_role_allocation_image_update), #Jonas
 )
 
 urlpatterns += (
