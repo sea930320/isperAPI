@@ -2426,10 +2426,61 @@ def api_business_report_generate(request):
             print resp
 
         else:
-            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('api_experiment_report_genetate Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def api_business_save_experience(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        print "1"
+        business_id = request.POST.get('business_id', None)  # 实验id
+        content = request.POST.get('content', '')
+        if business_id is None:
+            print "2"
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        busi = Business.objects.filter(pk=business_id, del_flag=0).first()
+        print "3"
+        if busi is None:
+            print "4"
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if busi.status == 2:
+            print "5"
+            if content is None or len(content) > 30000:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            instance, flag = BusinessExperience.objects.update_or_create(business_id=business_id,
+                                                                           created_by_id=request.user.id,
+                                                                           defaults={'content': content,
+                                                                                     'created_by_id': request.user.id})
+            data = {
+                'id': instance.pk, 'content': instance.content, 'status': instance.status,
+                'created_by_id': user_simple_info(instance.created_by_id),
+                'create_time': instance.create_time.strftime('%Y-%m-%d')
+            }
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = data
+        elif busi.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
