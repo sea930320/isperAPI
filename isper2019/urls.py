@@ -344,8 +344,6 @@ urlpatterns += (
 
     url(r'^api/business/trans/path$', business_views.api_business_trans_path),
 
-    url(r'^api/business/file/display/list$', business_views.api_business_file_display_list),
-
     url(r'^api/business/note/create$', business_views.api_business_note_create),
     url(r'^api/business/note/list$', business_views.api_business_note_list),
 
@@ -362,6 +360,9 @@ urlpatterns += (
     url(r'^api/business/role/in/list', business_views.api_business_role_in_list),
     url(r'^api/business/role/out/list$', business_views.api_business_role_out_list),
     url(r'^api/business/docs/create$', business_views.api_business_docs_create),
+    url(r'^api/business/file/display/list$', business_views.api_business_file_display_list),
+    url(r'^api/business/role/report/list$', business_views.api_business_role_schedule_report_list),
+    url(r'^api/business/request/sign/roles$', business_views.api_business_request_sign_roles),
 
     url(r'^api/business/report/generate$', business_views.api_business_report_generate),
     url(r'^api/business/experience/save$', business_views.api_business_save_experience),

@@ -76,7 +76,7 @@ def api_business_create(request):
                 )
                 business_roles = []
                 for item in roles:
-                    business_roles.append(BusinessRole(business=business, image_id=item.image_id, name=item.name,
+                    business_roles.append(BusinessRole(business=business, name=item.name,
                                                        type=item.type, flow_role_id=item.flow_role_id,
                                                        project_role_id=item.id, project_id=project_id,
                                                        category=item.category, capacity=item.capacity,
@@ -943,7 +943,7 @@ def api_business_node_role_docs(request):
                                                         no=bra.no, del_flag=0, project_id=business.cur_project_id)
                 if btm.exists():
                     role_alloc = bra
-                    break;
+                    break
             if role_alloc is None:
                 resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1024,39 +1024,6 @@ def api_business_messages(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-# 实验文件展示列表
-def api_business_file_display_list(request):
-    resp = auth_check(request, "GET")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-    try:
-        business_id = request.GET.get('business_id', None)  # 实验id
-        node_id = request.GET.get('node_id', None)
-        path_id = request.GET.get("path_id", None)  # 环节id
-
-        business = Business.objects.filter(pk=business_id).first()
-        if business:
-            doc_list = get_business_display_files(business, node_id, path_id)
-            # 分页信息
-            paging = {
-                'count': len(doc_list),
-                'has_previous': False,
-                'has_next': False,
-                'num_pages': 1,
-                'cur_page': 1,
-            }
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': doc_list, 'paging': paging}
-
-        else:
-            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-    except Exception as e:
-        logger.exception('api_business_file_display_list Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 # 实验所属项目素材查询
 def api_business_templates(request):
@@ -1298,41 +1265,6 @@ def api_business_list_nodel(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     else:
         resp = code.get_msg(code.PERMISSION_DENIED)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-# 实验文件展示列表
-def api_business_file_display_list(request):
-    resp = auth_check(request, "GET")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-    try:
-        business_id = request.GET.get('business_id', None)  # 实验id
-        node_id = request.GET.get('node_id', None)
-        path_id = request.GET.get("path_id", None)  # 环节id
-
-        business = Business.objects.filter(pk=business_id).first()
-        if business:
-            doc_list = get_business_display_files(business, node_id, path_id)
-            # 分页信息
-            paging = {
-                'count': len(doc_list),
-                'has_previous': False,
-                'has_next': False,
-                'num_pages': 1,
-                'cur_page': 1,
-            }
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': doc_list, 'paging': paging}
-
-        else:
-            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-    except Exception as e:
-        logger.exception('api_business_file_display_list Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
@@ -1898,7 +1830,7 @@ def api_business_message_push(request):
         node = FlowNode.objects.filter(pk=bus.node_id, del_flag=0).first()
 
         # 角色形象
-        image = get_role_image(bus, role.image_id)
+        image = get_role_image(bra.flow_role_alloc_id)
         if image is None:
             resp = code.get_msg(code.BUSINESS_ROLE_IMAGE_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2398,6 +2330,128 @@ def api_business_docs_create(request):
         logger.exception('api_experiment_docs_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 实验文件展示列表
+def api_business_file_display_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get('node_id', None)
+        path_id = request.GET.get("path_id", None)  # 环节id
+
+        bus = Business.objects.filter(pk=business_id).first()
+        if bus:
+            doc_list = get_business_display_files(bus, node_id, path_id)
+            # 分页信息
+            paging = {
+                'count': len(doc_list),
+                'has_previous': False,
+                'has_next': False,
+                'num_pages': 1,
+                'cur_page': 1,
+            }
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': doc_list, 'paging': paging}
+
+        else:
+            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_experiment_file_display_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 待安排报告角色列表
+def api_business_role_schedule_report_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get("node_id")  # 环节id
+        bus = Business.objects.filter(pk=business_id).first()
+
+        # 判断实验是否存在以及实验当前环节是否是node_id
+        if bus and bus.node_id == int(node_id):
+            path = BusinessTransPath.objects.filter(business_id=business_id).last()
+
+            role_alloc_ids = BusinessReportStatus.objects.filter(
+                business_id=business_id,
+                business_role_allocation__node_id=bus.node_id,
+                path_id=path.pk
+            ).exclude(schedule_status=0).values_list('business_role_allocation_id', flat=True)
+
+            role_alloc_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation__node_id=node_id, path_id=path.pk)
+            role_list = []
+            for item in role_alloc_status:
+                if item.business_role_allocation_id not in role_alloc_ids:
+                    role = BusinessRoleAllocation.objects.filter(pk=item.business_role_allocation_id).first().role
+                    if role.name != const.ROLE_TYPE_OBSERVER:
+                        role_list.append({'id': item.business_role_allocation_id, 'name': role.name})
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = role_list
+
+        elif bus is None:
+            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
+        else:
+            resp = code.get_msg(code.EXPERIMENT_NODE_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_experiment_wait_report_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 实验环节用户可签字角色查询
+def api_business_request_sign_roles(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get("node_id", None)  # 环节id
+        role_alloc_id = request.GET.get("role_alloc_id", 0)  # 角色id
+        bus = Business.objects.filter(pk=business_id).first()
+
+        # 判断实验是否存在以及实验当前环节是否是node_id
+        if bus and bus.node_id == int(node_id):
+            path = BusinessTransPath.objects.filter(business_id=business_id).last()
+
+            role_alloc_status_list = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation__node_id=bus.node_id, path_id=path.pk, sitting_status=2)
+            role_list = []
+            for item in role_alloc_status_list:
+                if item.business_role_allocation_id == int(role_alloc_id):
+                    continue
+
+                role = BusinessRoleAllocation.objects.get(pk=item.business_role_allocation_id).role
+                # 三期 老师以实验指导登录进来，老师只观察只给一个观察者的角色;
+                # 老师以实验者登录进来，要去掉老师的观察者角色
+                if role.name != const.ROLE_TYPE_OBSERVER:
+                    role_list.append({'id': item.business_role_allocation_id, 'name': role.name})
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = role_list
+        elif bus is None:
+            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
+        else:
+            logger.info('=====================2422======================')
+            resp = code.get_msg(code.EXPERIMENT_NODE_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_experiment_request_sign_roles Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_business_report_generate(request):
     print "1"

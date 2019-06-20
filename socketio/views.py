@@ -10,10 +10,8 @@ from account.models import Tuser, TNotifications, TInnerPermission
 from django.core.paginator import Paginator, EmptyPage
 from django.db.models import Q, Count
 from django.http import HttpResponse
-from experiment.models import *
 from business.models import *
 from business.service import *
-from experiment.service import *
 from project.models import Project, ProjectRole, ProjectRoleAllocation, ProjectDoc, ProjectDocRole
 from team.models import Team, TeamMember
 from utils import const, code, tools, easemob
@@ -121,22 +119,25 @@ def save_message(request):
             if bps.sitting_status:
                 bps.sitting_status = const.SITTING_DOWN_STATUS
         pos = None
-        # pos = get_role_position(business, project, node, path, role)
+        project = Project.objects.get(pk=business.cur_project_id)
+        node = FlowNode.objects.filter(pk=business.node_id, del_flag=0).first()
+        role = bra.role
+        pos = get_role_position(business, project, node, path, role, role_alloc_id)
         time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         opt = None
-        # image = get_role_image(business, bra.role.image_id)
-        # if image is None:
-        #     resp = code.get_msg(code.EXPERIMENT_ROLE_IMAGE_NOT_EXIST)
-        #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        image = get_role_image(bra.flow_role_alloc_id)
+        if image is None:
+            resp = code.get_msg(code.EXPERIMENT_ROLE_IMAGE_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         if type == const.MSG_TYPE_TXT:
             if node.process.type == 1:
-                # if pos is None:
-                #     resp = code.get_msg(code.EXPERIMENT_ROLE_POSITION_NOT_EXIST)
-                #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-                #     # 文本， 角色未入席不能说话
-                # if brat.sitting_status == const.SITTING_UP_STATUS:
-                #     resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
-                #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                if pos is None:
+                    resp = code.get_msg(code.EXPERIMENT_ROLE_POSITION_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                    # 文本， 角色未入席不能说话
+                if brat.sitting_status == const.SITTING_UP_STATUS:
+                    resp = code.get_msg(code.MESSAGE_SITTING_UP_CANNOT_SPEAKER)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
                 msg = msg.strip()
                 if msg == '' or len(msg) > 30000:
                     resp = code.get_msg(code.PARAMETER_ERROR)
@@ -144,7 +145,7 @@ def save_message(request):
                 msg = tools.filter_invalid_str(msg)
                 msg_obj = {'type': const.MSG_TYPE_TXT, 'msg': msg}
                 ext = {'business_id': business_id, 'node_id': node_id, 'username': user.name,
-                       'role_alloc_id': role_alloc_id, 'role_name': bra.role.name,  # 'avatar': image['avatar'],
+                       'role_alloc_id': role_alloc_id, 'role_name': bra.role.name, 'avatar': image['avatar'],
                        'cmd': const.ACTION_TXT_SPEAK, 'param': '', 'time': time, 'can_terminate': can_terminate,
                        'code_position': pos['code_position'] if pos else ''}
                 ext['business_role_alloc'] = model_to_dict(

@@ -302,123 +302,6 @@ def get_pre_node_role_alloc_docs(business, node_id, project_id, role_alloc_id):
     return data
 
 
-def get_business_display_files(business, node_id, path_id):
-    """
-    实验文件展示列表
-    """
-    doc_list = []
-    if node_id:
-        node = FlowNode.objects.filter(pk=node_id).first()
-        if node.process.type == 2:
-            # 如果是编辑
-            # 应用模板
-            docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id, has_edited=True)
-            for d in docs:
-                r = tools.generate_code(6)
-                doc_list.append({
-                    'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
-                    'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                    'url': '{0}?{1}'.format(d.file.url, r) if d.file else None,
-                    'allow_delete': False
-                })
-
-            # 提交的文件
-            docs = BusinessDoc.objects.filter(business_id=business.pk, node_id=node_id, path_id=path_id)
-            for d in docs:
-                sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                doc_list.append({
-                    'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                    'signs': list(sign_list), 'url': d.file.url if d.file else None,
-                    'allow_delete': True
-                })
-
-        elif node.process.type == 3:
-            # 如果是展示
-            # 获取该环节所有素材id
-            doc_ids = list(ProjectDocRole.objects.filter(project_id=business.project_id,
-                                                         node_id=node_id).values_list('doc_id', flat=True))
-
-            if doc_ids:
-                doc_ids = list(set(doc_ids))
-
-            # 角色项目素材
-            project_docs = ProjectDoc.objects.filter(id__in=doc_ids, usage=4)
-            for item in project_docs:
-                doc_list.append({
-                    'id': item.id, 'filename': item.name, 'url': item.file.url, 'content': item.content,
-                    'file_type': item.file_type, 'has_edited': False, 'signs': [],
-                    'business_id': business.pk, 'node_id': node.pk, 'created_by': None,
-                    'role_name': '', 'node_name': node.name if node else None,
-                    'allow_delete': False
-                })
-
-            # 提交的文件
-            docs = BusinessDoc.objects.filter(business_id=business.pk, node_id=node_id, path_id=path_id)
-            for d in docs:
-                doc_list.append({
-                    'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                    'node_id': node.pk, 'created_by': None, 'business_id': business.pk,
-                    'role_name': '', 'node_name': node.name if node else None,
-                    'has_edited': False, 'signs': [], 'url': d.file.url if d.file else None,
-                    'allow_delete': True
-                })
-
-            # 若为模版，判断是否已经编辑
-            docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id, has_edited=True)
-            for d in docs:
-                r = tools.generate_code(6)
-                doc_list.append({
-                    'id': d.doc_id, 'filename': d.name, 'content': d.content,
-                    'url': '{0}?{1}'.format(d.file.url, r) if d.file else None, 'file_type': d.file_type,
-                    'has_edited': d.has_edited, 'business_id': business.pk, 'node_id': node.pk, 'created_by': None,
-                    'role_name': '', 'node_name': node.name if node else None,
-                    'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                })
-        else:
-            # 环节路径上传文件
-            business_docs = BusinessDoc.objects.filter(business_id=business.pk, node_id=node_id, path_id=path_id)
-            for item in business_docs:
-                node = FlowNode.objects.filter(pk=item.node_id).first()
-                role = ProjectRole.objects.filter(pk=item.role_id).first()
-                sign_list = BusinessDocSign.objects.filter(doc_id=item.pk).values('sign', 'sign_status')
-                doc = {
-                    'id': item.id, 'filename': item.filename, 'url': item.file.url if item.file else None,
-                    'node_id': item.node_id, 'content': item.content,
-                    'created_by': user_simple_info(item.created_by), 'role_name': role.name if role else '',
-                    'signs': list(sign_list), 'node_name': node.name if node else None,
-                    'file_type': item.file_type
-                }
-                doc_list.append(doc)
-    else:
-        # 已提交文件(不传node_id和path_id)：显示出实验环节中所有上传文件
-        business_docs = BusinessDoc.objects.filter(business_id=business.pk)
-        for item in business_docs:
-            node = FlowNode.objects.filter(pk=item.node_id).first()
-            sign_list = BusinessDocSign.objects.filter(doc_id=item.pk).values('sign', 'sign_status')
-            doc = {
-                'id': item.id, 'filename': item.filename, 'url': item.file.url if item.file else None,
-                'node_id': item.node_id, 'content': item.content,
-                'created_by': user_simple_info(item.created_by), 'role_name': '',
-                'signs': list(sign_list), 'node_name': node.name if node else None,
-                'file_type': item.file_type
-            }
-            doc_list.append(doc)
-
-        docs = BusinessDocContent.objects.filter(business_id=business.pk, has_edited=True)
-        for item in docs:
-            r = tools.generate_code(6)
-            node = FlowNode.objects.filter(pk=item.node_id).first()
-            doc_list.append({
-                'id': item.doc_id, 'filename': item.name, 'content': item.content,
-                'business_id': item.business_id, 'node_id': item.node_id, 'file_type': item.file_type,
-                'created_by': user_simple_info(item.created_by), 'role_name': '',
-                'node_name': node.name if node else None,
-                'signs': [{'sign_status': item.sign_status, 'sign': item.sign}],
-                'url': '{0}?{1}'.format(item.file.url, r) if item.file else None
-            })
-    return doc_list
-
-
 def business_template_save(business_id, node_id, name, content):
     """
     保存应用模板生成文件
@@ -593,13 +476,14 @@ def get_all_roles_status(bus, project, node, path):
     report_status = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation__node_id=node.pk, path_id=path.pk, schedule_status=const.SCHEDULE_UP_STATUS).first()
 
     sql = '''SELECT a.id, a.role_id, a.no, t.come_status, t.sitting_status, t.stand_status, t.vote_status,
-            t.show_status,t.speak_times,r.`name` role_name,r.flow_role_id,u.name,r.image_id,i.gender
+            t.show_status,t.speak_times,r.`name` role_name,r.flow_role_id,u.name,f.image_id,i.gender
             from t_business_role_allocation_status t
             LEFT JOIN t_business_role_allocation a ON t.business_role_allocation_id=a.id
             LEFT JOIN t_business_role r ON a.role_id=r.id
+            LEFT JOIN t_flow_role_allocation f ON a.flow_role_alloc_id=f.id
             LEFT JOIN t_business_team_member m ON a.no=m.no AND a.role_id=m.business_role_id
             LEFT JOIN t_user u ON m.user_id=u.id
-            LEFT JOIN t_role_image i ON i.id=r.image_id
+            LEFT JOIN t_role_image i ON i.id=f.image_id
             WHERE t.business_id=%s and a.node_id=%s and t.path_id=%s''' % (bus.pk, node.pk, path.pk)
     sql += ' order by t.sitting_status '
     role_list = query.select(sql, ['alloc_id', 'role_id', 'no', 'come_status', 'sitting_status', 'stand_status',
@@ -635,6 +519,7 @@ def get_all_roles_status(bus, project, node, path):
                     else:
                         position = None
             else:
+                print role_position.position_id
                 pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
                 if pos:
                     if pos.actor1:
@@ -666,7 +551,8 @@ def get_role_node_can_terminate(bus, project_id, node_id, role_alloc_id):
         return False
 
 
-def get_role_image(bus, image_id):
+def get_role_image(fra_id):
+    image_id = FlowRoleAllocation.objects.get(pk=fra_id).image_id
     try:
         image = RoleImage.objects.filter(pk=image_id).first()
         if image:
@@ -864,7 +750,7 @@ def action_role_letin(bus, node_id, path_id, role_alloc_ids):
 
             if business_role:
                 role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, role_id=business_role.flow_role_id).first()
-                image = RoleImage.objects.filter(pk=business_role.image_id).first()
+                image = RoleImage.objects.filter(pk=FlowRoleAllocation.objects.get(pk=alloc_role_status.business_role_allocation.flow_role_alloc_id).image_id).first()
 
             else:
                 continue
@@ -1006,7 +892,7 @@ def action_role_show(bus, node_id, path_id, role, pos, role_alloc_id):
             defaults={'sitting_status': const.SITTING_DOWN_STATUS}
         )
 
-        image = RoleImage.objects.filter(pk=role.image_id).first()
+        image = RoleImage.objects.filter(pk=FlowRoleAllocation.objects.get(pk=BusinessRoleAllocation.objects.get(pk=role_alloc_id).flow_role_alloc_id).image_id).first()
         qs_files = RoleImageFile.objects.filter(image=image)
         actors = []
         if pos['actor1']:
@@ -1521,13 +1407,11 @@ def action_role_request_sign(bus, node_id, data):
     :return:
     """
     try:
-        obj = BusinessDocSign.objects.filter(business_id=bus.pk, business_role_allocation_id=data['role_alloc_id'],
-                                               doc_id=data['doc_id']).first()
+        obj = BusinessDocSign.objects.filter(business_id=bus.pk, business_role_allocation_id=data['role_alloc_id'], doc_id=data['doc_id']).first()
         if obj:
             return False, code.get_msg(code.BUSINESS_HAS_REQUEST_SIGN_ERROR)
         else:
-            BusinessDocSign.objects.create(business_id=bus.pk,business_role_allocation_id=data['role_alloc_id'],
-                                             doc_id=data['doc_id'])
+            BusinessDocSign.objects.create(business_id=bus.pk, business_role_allocation_id=data['role_alloc_id'], doc_id=data['doc_id'])
 
         doc = BusinessDoc.objects.filter(id=data['doc_id']).first()
         opt = {"doc_id": doc.pk, "doc_name": doc.filename, 'url': doc.file.url, 'file_type': doc.file_type,
@@ -1581,9 +1465,13 @@ def action_role_schedule_report(bus, node_id, path_id, data):
         # 占位状态
         BusinessPositionStatus.objects.update_or_create(business_id=bus.pk, path_id=path_id, position_id=position.pk)
         # 报告状态
-        BusinessReportStatus.objects.update_or_create(business_id=bus.pk, path_id=path_id,
-                                                      business_role_allocation_id=data['role_alloc_id'], position_id=position.pk,
-                                                        defaults={'schedule_status': const.SCHEDULE_OK_STATUS})
+        BusinessReportStatus.objects.update_or_create(
+            business_id=bus.pk,
+            path_id=path_id,
+            business_role_allocation_id=data['role_alloc_id'],
+            position_id=position.pk,
+            defaults={'schedule_status': const.SCHEDULE_OK_STATUS}
+        )
         opt = {
             'role_alloc_id': data['role_alloc_id'], 'role_name': data['role_name'],
             'schedule_status': const.SCHEDULE_OK_STATUS,
@@ -1628,9 +1516,12 @@ def action_role_toward_report(bus, node_id, path_id, bra, pos):
                            'code_position': pos['code_position']}
         role_alloc_id = bra.id
         # 2判断报告席占位是否占用
-        report_position_status = BusinessPositionStatus.objects.filter(business_id=bus.pk,
-                                                                    business_role_allocation_id=role_alloc_id,
-                                                                    path_id=path_id, position_id=report_pos.pk).first()
+        report_position_status = BusinessPositionStatus.objects.filter(
+            business_id=bus.pk,
+            business_role_allocation_id=role_alloc_id,
+            path_id=path_id,
+            position_id=report_pos.pk
+        ).first()
         if report_position_status is None:
             return False, code.get_msg(code.BUSINESS_ROLE_REPORT_ERROR)
 
@@ -1638,9 +1529,11 @@ def action_role_toward_report(bus, node_id, path_id, bra, pos):
             return False, code.get_msg(code.BUSINESS_POSITION_HAS_USE)
 
         # 3判断是否安排了发言；
-        report_status = BusinessReportStatus.objects.filter(business_id=bus.pk,
-                                                                    business_role_allocation_id=role_alloc_id,
-                                                                    path_id=path_id).first()
+        report_status = BusinessReportStatus.objects.filter(
+            business_id=bus.pk,
+            business_role_allocation_id=role_alloc_id,
+            path_id=path_id
+        ).first()
         if report_status is None or report_status.schedule_status == const.SCHEDULE_INIT_STATUS:
             return False, code.get_msg(code.BUSINESS_ROLE_REPORT_SCHEDULE_ERROR)
         if report_status.schedule_status == const.SCHEDULE_UP_STATUS:
@@ -1683,7 +1576,7 @@ def action_role_toward_report(bus, node_id, path_id, bra, pos):
             sitting_status=const.SITTING_DOWN_STATUS,
             business_role_allocation_id=role_alloc_id)
 
-        image = RoleImage.objects.filter(pk=bra.role.image_id).first()
+        image = RoleImage.objects.filter(pk=FlowRoleAllocation.objects.get(pk=bra.flow_role_alloc_id).image_id).first()
         qs_files = RoleImageFile.objects.filter(image=image)
         actors = []
         if report_pos.actor1:
@@ -1764,7 +1657,7 @@ def action_role_end_report(bus, node_id, path_id, bra, pos):
                 business_role_allocation_id=None)
 
         brast = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id, path_id=path_id).first()
-        image = RoleImage.objects.filter(pk=bra.role.image_id).first()
+        image = RoleImage.objects.filter(pk=FlowRoleAllocation.objects.get(pk=bra.flow_role_alloc_id).image_id).first()
         qs_files = RoleImageFile.objects.filter(image=image)
         actors = []
         if origin_pos.actor1:
@@ -1876,3 +1769,120 @@ def action_roles_vote_status(bus, node_id, path):
     sql += ' and r.name != \'' + const.ROLE_TYPE_OBSERVER + '\''
     role_status_list = query.select(sql, ['role_alloc_id', 'vote_status', 'role_name', 'user_name'])
     return role_status_list
+
+
+def get_business_display_files(bus, node_id, path_id):
+    """
+    实验文件展示列表
+    """
+    doc_list = []
+    if node_id:
+        node = FlowNode.objects.filter(pk=node_id).first()
+        if node.process.type == 2:
+            # 如果是编辑
+            # 应用模板
+            docs = BusinessDocContent.objects.filter(business_id=bus.pk, node_id=node_id, has_edited=True)
+            for d in docs:
+                r = tools.generate_code(6)
+                doc_list.append({
+                    'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
+                    'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                    'url': '{0}?{1}'.format(d.file.url, r) if d.file else None,
+                    'allow_delete': False
+                })
+
+            # 提交的文件
+            docs = BusinessDoc.objects.filter(business_id=bus.pk, node_id=node_id, path_id=path_id)
+            for d in docs:
+                sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
+                doc_list.append({
+                    'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                    'signs': list(sign_list), 'url': d.file.url if d.file else None,
+                    'allow_delete': True
+                })
+
+        elif node.process.type == 3:
+            # 如果是展示
+            # 获取该环节所有素材id
+            doc_ids = list(ProjectDocRole.objects.filter(project_id=bus.project_id,
+                                                         node_id=node_id).values_list('doc_id', flat=True))
+
+            if doc_ids:
+                doc_ids = list(set(doc_ids))
+
+            # 角色项目素材
+            project_docs = ProjectDoc.objects.filter(id__in=doc_ids, usage=4)
+            for item in project_docs:
+                doc_list.append({
+                    'id': item.id, 'filename': item.name, 'url': item.file.url, 'content': item.content,
+                    'file_type': item.file_type, 'has_edited': False, 'signs': [],
+                    'business_id': bus.pk, 'node_id': node.pk, 'created_by': None,
+                    'role_name': '', 'node_name': node.name if node else None,
+                    'allow_delete': False
+                })
+
+            # 提交的文件
+            docs = BusinessDoc.objects.filter(business_id=bus.pk, node_id=node_id, path_id=path_id)
+            for d in docs:
+                doc_list.append({
+                    'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                    'node_id': node.pk, 'created_by': None, 'business_id': bus.pk,
+                    'role_name': '', 'node_name': node.name if node else None,
+                    'has_edited': False, 'signs': [], 'url': d.file.url if d.file else None,
+                    'allow_delete': True
+                })
+
+            # 若为模版，判断是否已经编辑
+            docs = BusinessDocContent.objects.filter(business_id=bus.pk, node_id=node_id, has_edited=True)
+            for d in docs:
+                r = tools.generate_code(6)
+                doc_list.append({
+                    'id': d.doc_id, 'filename': d.name, 'content': d.content,
+                    'url': '{0}?{1}'.format(d.file.url, r) if d.file else None, 'file_type': d.file_type,
+                    'has_edited': d.has_edited, 'business_id': bus.pk, 'node_id': node.pk, 'created_by': None,
+                    'role_name': '', 'node_name': node.name if node else None,
+                    'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                })
+        else:
+            # 环节路径上传文件
+            bus_docs = BusinessDoc.objects.filter(business_id=bus.pk, node_id=node_id, path_id=path_id)
+            for item in bus_docs:
+                node = FlowNode.objects.filter(pk=item.node_id).first()
+                role = item.business_role_allocation.role
+                sign_list = BusinessDocSign.objects.filter(doc_id=item.pk).values('sign', 'sign_status')
+                doc = {
+                    'id': item.id, 'filename': item.filename, 'url': item.file.url if item.file else None,
+                    'business_id': item.business_id, 'node_id': item.node_id, 'content': item.content,
+                    'created_by': user_simple_info(item.created_by_id), 'role_name': role.name if role else '',
+                    'signs': list(sign_list), 'node_name': node.name if node else None,
+                    'file_type': item.file_type
+                }
+                doc_list.append(doc)
+    else:
+        # 已提交文件(不传node_id和path_id)：显示出实验环节中所有上传文件
+        bus_docs = BusinessDoc.objects.filter(business_id=bus.pk)
+        for item in bus_docs:
+            node = FlowNode.objects.filter(pk=item.node_id).first()
+            sign_list = BusinessDocSign.objects.filter(doc_id=item.pk).values('sign', 'sign_status')
+            doc = {
+                'id': item.id, 'filename': item.filename, 'url': item.file.url if item.file else None,
+                'business_id': item.business_id, 'node_id': item.node_id, 'content': item.content,
+                'created_by': user_simple_info(item.created_by_id), 'role_name': '',
+                'signs': list(sign_list), 'node_name': node.name if node else None,
+                'file_type': item.file_type
+            }
+            doc_list.append(doc)
+
+        docs = BusinessDocContent.objects.filter(business_id=bus.pk, has_edited=True)
+        for item in docs:
+            r = tools.generate_code(6)
+            node = FlowNode.objects.filter(pk=item.node_id).first()
+            doc_list.append({
+                'id': item.doc_id, 'filename': item.name, 'content': item.content,
+                'business_id': item.business_id, 'node_id': item.node_id, 'file_type': item.file_type,
+                'created_by': user_simple_info(item.created_by_id), 'role_name': '',
+                'node_name': node.name if node else None,
+                'signs': [{'sign_status': item.sign_status, 'sign': item.sign}],
+                'url': '{0}?{1}'.format(item.file.url, r) if item.file else None
+            })
+    return doc_list
