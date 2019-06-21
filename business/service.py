@@ -719,14 +719,16 @@ def action_role_letout(bus, node, path_id, role_alloc_ids):
 
             role_list = []
             for role_alloc_id in role_alloc_ids:
-                role = BusinessRoleAllocation.objects.get(pk=role_alloc_id).role
+                bra = BusinessRoleAllocation.objects.get(pk=role_alloc_id)
+                no = bra.no
+                role = bra.role
                 report_exists = BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=role_alloc_id, path_id=path_id, schedule_status=const.SCHEDULE_UP_STATUS).exists()
                 if report_exists:
                     BusinessReportStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=role_alloc_id, path_id=path_id, schedule_status=const.SCHEDULE_UP_STATUS)\
                         .update(schedule_status=const.SCHEDULE_INIT_STATUS)
                     pos = report_pos
                 else:
-                    role_position = FlowRolePosition.objects.filter(node_id=node.pk, role_id=role.flow_role_id).first()
+                    role_position = FlowRolePosition.objects.filter(node_id=node.pk, role_id=role.flow_role_id, no=no).first()
                     pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
 
                 # 占位状态更新
@@ -755,10 +757,12 @@ def action_role_letin(bus, node_id, path_id, role_alloc_ids):
         role_list = []
         alloc_role_status_list = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id, business_role_allocation_id__in=role_alloc_ids)
         for alloc_role_status in alloc_role_status_list:
-            business_role = BusinessRole.objects.filter(pk=alloc_role_status.business_role_allocation.role_id).first()
+            item_role_id = alloc_role_status.business_role_allocation.role_id
+            item_no = alloc_role_status.business_role_allocation.no
+            business_role = BusinessRole.objects.filter(pk=item_role_id).first()
 
             if business_role:
-                role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, role_id=business_role.flow_role_id).first()
+                role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, role_id=business_role.flow_role_id, no=item_no).first()
                 image = RoleImage.objects.filter(pk=FlowRoleAllocation.objects.get(pk=alloc_role_status.business_role_allocation.flow_role_alloc_id).image_id).first()
 
             else:
