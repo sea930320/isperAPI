@@ -9,10 +9,8 @@ from account import views as account_views
 from cms import views as cms_views
 from api import views as api_views
 from course import views as course_views
-# from experiment import views as experiment_views
 from project import views as project_views
 from system import views as system_views
-from team import views as team_views
 from workflow import views as workflow_views
 from group import views as group_views
 from dictionary import views as dictionary_views
@@ -93,64 +91,6 @@ urlpatterns += (
     url(r'^api/course/student/save$', course_views.api_course_student_save),
     url(r'^api/course/share$', course_views.api_course_share),
 )
-#
-# urlpatterns += (
-#     url(r'^api/experiment/template/new$', experiment_views.api_experiment_template_new),
-#     url(r'^api/experiment/template/create$', experiment_views.api_experiment_template_create),
-#     url(r'^api/experiment/template/sign$', experiment_views.api_experiment_template_sign),
-#     url(r'^api/experiment/templates$', experiment_views.api_experiment_templates),
-#     url(r'^api/experiment/template/detail$', experiment_views.api_experiment_templates_detail),
-#     url(r'^api/experiment/file/display/list$', experiment_views.api_experiment_file_display_list),
-#     url(r'^api/experiment/doc/detail$', experiment_views.api_experiment_doc_detail),
-#
-#     url(r'^api/experiment/start$', experiment_views.api_experiment_start),
-#     url(r'^api/experiment/delete$', experiment_views.api_experiment_delete),
-#     url(r'^api/experiment/update$', experiment_views.api_experiment_update),
-#     url(r'^api/experiment/list$', experiment_views.api_experiment_list),
-#     url(r'^api/experiment/detail$', experiment_views.api_experiment_detail),
-#
-#     url(r'^api/experiment/node/detail$', experiment_views.api_experiment_node_detail),
-#     url(r'^api/experiment/node/role/docs$', experiment_views.api_experiment_node_role_docs),
-#     url(r'^api/experiment/node/function$', experiment_views.api_experiment_node_function),
-#     url(r'^api/experiment/role/out/list$', experiment_views.api_experiment_role_out_list),
-#     url(r'^api/experiment/role/in/list$', experiment_views.api_experiment_role_in_list),
-#     url(r'^api/experiment/note/list$', experiment_views.api_experiment_note_list),
-#     url(r'^api/experiment/note/create$', experiment_views.api_experiment_note_create),
-#     url(r'^api/experiment/note/detail$', experiment_views.api_experiment_note_detail),
-#     url(r'^api/experiment/role/status$', experiment_views.api_experiment_role_status),
-#
-#     url(r'^api/experiment/docs/create$', experiment_views.api_experiment_docs_create),
-#     url(r'^api/experiment/docs/delete', experiment_views.api_experiment_docs_delete),
-#     url(r'^api/experiment/create$', experiment_views.api_experiment_create),
-#     url(r'^api/experiment/message/push$', experiment_views.api_experiment_message_push),
-#     url(r'^api/experiment/message/upload$', experiment_views.api_experiment_message_upload),
-#     url(r'^api/experiment/node/messages$', experiment_views.api_experiment_node_messages),
-#     url(r'^api/experiment/messages$', experiment_views.api_experiment_messages),
-#
-#     url(r'^api/experiment/experience/save$', experiment_views.api_experiment_save_experience),
-#     url(r'^api/experiment/experience/list$', experiment_views.api_experiment_experience_list),
-#     url(r'^api/experiment/experience/detail$', experiment_views.api_experiment_experience_detail),
-#     url(r'^api/experiment/trans/path$', experiment_views.api_experiment_trans_path),
-#     url(r'^api/experiment/node/path$', experiment_views.api_experiment_node_path),
-#     url(r'^api/experiment/node/path/messages$', experiment_views.api_experiment_path_messages),
-#
-#     url(r'^api/experiment/node/docs$', experiment_views.api_experiment_node_docs),
-#     url(r'^api/experiment/jump/start$', experiment_views.api_experiment_jump_start),
-#     url(r'^api/experiment/role/report/list$', experiment_views.api_experiment_role_schedule_report_list),
-#     url(r'^api/experiment/request/sign/roles$', experiment_views.api_experiment_request_sign_roles),
-#     url(r'^api/experiment/node/vote/status$', experiment_views.api_experiment_vote_status),
-#
-#     url(r'^api/experiment/report/generate$', experiment_views.api_experiment_report_generate),
-#     url(r'^api/experiment/result$', experiment_views.api_experiment_result),
-#
-#     url(r'^api/experiment/teacher/list$', experiment_views.api_experiment_teacher_list),
-#     url(r'^api/experiment/evaluate/list$', experiment_views.api_experiment_evaluate_list),
-#     url(r'^api/experiment/evaluate$', experiment_views.api_experiment_evaluate),
-#     url(r'^api/experiment/node/evaluate', experiment_views.api_experiment_node_evaluate),
-#     url(r'^api/experiment/evaluate/user/list', experiment_views.api_experiment_evaluate_user_list),
-#     url(r'^api/experiment/node/list', experiment_views.api_experiment_node_list),
-#     url(r'^api/experiment/evaluate/detail', experiment_views.api_experiment_evaluate_detail),
-# )
 
 urlpatterns += (
     url(r'^api/project/create$', project_views.api_project_create), # Jonas
@@ -179,21 +119,6 @@ urlpatterns += (
 urlpatterns += (
     url(r'^api/file/upload$', system_views.api_file_upload),
     url(r'^api/system/app/version$', system_views.api_file_upload),
-)
-
-urlpatterns += (
-    url(r'^api/team/leader/set$', team_views.api_team_leader_set),
-    url(r'^api/team/member/add$', team_views.api_team_member_add),
-    url(r'^api/team/member/join$', team_views.api_team_member_join),
-    url(r'^api/team/member/delete$', team_views.api_team_member_delete),
-    url(r'^api/team/delete$', team_views.api_team_delete),
-    url(r'^api/team/member$', team_views.api_team_member),
-    url(r'^api/team/create$', team_views.api_team_create),
-    url(r'^api/team/create/v3$', team_views.api_team_create_v3),
-    url(r'^api/team/open$', team_views.api_team_open),
-    url(r'^api/team/my$', team_views.api_team_my),
-    url(r'^api/team/other$', team_views.api_team_other),
-    url(r'^api/team/list$', team_views.api_team_list),
 )
 
 urlpatterns += (

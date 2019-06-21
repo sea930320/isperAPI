@@ -1976,7 +1976,7 @@ def api_business_message_push(request):
                 if pos is None:
                     resp = code.get_msg(code.BUSINESS_ROLE_POSITION_NOT_EXIST)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+                print (role_status.sitting_status, model_to_dict(role_status))
                 # 入席
                 if role_status.sitting_status == const.SITTING_DOWN_STATUS:
                     resp = code.get_msg(code.BUSINESS_ROLE_HAS_IN_POSITION)
@@ -2324,7 +2324,7 @@ def api_business_docs_create(request):
             'business_id': doc.business_id, 'node_id': doc.node_id, 'file_type': file_type,
             'created_by': user_simple_info(doc.created_by_id)
         }
-        clear_cache(business_id)
+        # clear_cache(business_id)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_experiment_docs_create Exception:{0}'.format(str(e)))
@@ -2730,4 +2730,3 @@ def api_business_save_experience(request):
         logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-

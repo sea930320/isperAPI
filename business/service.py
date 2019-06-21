@@ -141,7 +141,13 @@ def get_user_with_node_on_business(business, user):
 
 def get_business_detail(business):
     project = Project.objects.filter(pk=business.cur_project_id).first()
-    team_dict = [model_to_dict(member) for member in BusinessTeamMember.objects.filter(business=business, del_flag=0)]
+    team_dict = [{
+        'id': member.user_id,
+        'name': member.user.name,
+        'username': member.user.username,
+        'type': member.user.type,
+        'gender': member.user.gender,
+    } for member in BusinessTeamMember.objects.filter(business=business, del_flag=0)]
     # 项目信息
 
     if project:
@@ -519,7 +525,6 @@ def get_all_roles_status(bus, project, node, path):
                     else:
                         position = None
             else:
-                print role_position.position_id
                 pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
                 if pos:
                     if pos.actor1:
