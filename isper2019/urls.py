@@ -288,6 +288,7 @@ urlpatterns += (
     url(r'^api/business/file/display/list$', business_views.api_business_file_display_list),
     url(r'^api/business/role/report/list$', business_views.api_business_role_schedule_report_list),
     url(r'^api/business/request/sign/roles$', business_views.api_business_request_sign_roles),
+    url(r'^api/business/post/create$', business_views.api_business_post_create),
 
     url(r'^api/business/report/generate$', business_views.api_business_report_generate),
     url(r'^api/business/experience/save$', business_views.api_business_save_experience),

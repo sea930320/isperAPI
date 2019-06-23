@@ -27,6 +27,9 @@ import string
 from utils.public_fun import getProjectIDByGroupManager
 from django.forms.models import model_to_dict
 from socketio.socketIO_client import SocketIO, LoggingNamespace
+import codecs
+import pypandoc
+from system.models import UploadFile
 
 logger = logging.getLogger(__name__)
 
@@ -135,10 +138,10 @@ def api_business_create(request):
 
 
 def teammates_configuration(business_id, seted_users_fromInnerPermission):
-
     # check team counts
 
-    business_team_counts = list(BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
+    business_team_counts = list(
+        BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
     business = Business.objects.get(id=business_id)
 
     project = Project.objects.get(pk=business.project_id)
@@ -153,15 +156,21 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     company_id = None
     target_user_counts = []
     if business.target_part is not None:
-        target_user_counts = list(Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id)).values('tposition__name').annotate(counts=Count('id')))
+        target_user_counts = list(Tuser.objects.filter(
+            Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id)).values(
+            'tposition__name').annotate(counts=Count('id')))
         company_id = business.target_part.company_id
     elif business.target_company is not None:
-        target_user_counts = list(Tuser.objects.filter(Q(tcompany=business.target_company, is_review=1) & ~Q(id=business.created_by_id)).values('tposition__name').annotate(counts=Count('id')))
+        target_user_counts = list(Tuser.objects.filter(
+            Q(tcompany=business.target_company, is_review=1) & ~Q(id=business.created_by_id)).values(
+            'tposition__name').annotate(counts=Count('id')))
         company_id = business.target_company.id
 
     if seted_users_fromInnerPermission:
         for xs in seted_users_fromInnerPermission:
-            xIndex = next((index for (index, xt) in enumerate(target_user_counts) if xt['tposition__name'] == xs['role_name']), None)
+            xIndex = next(
+                (index for (index, xt) in enumerate(target_user_counts) if xt['tposition__name'] == xs['role_name']),
+                None)
             if xIndex is None:
                 target_user_counts.append({'tposition__name': xs['role_name'], 'counts': 1})
             else:
@@ -173,13 +182,15 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         if matched_item is None:
             moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity']})
         elif matched_item['counts'] < item['capacity']:
-            moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
+            moreResult.append(
+                {'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
 
     if moreResult:
         if len(seted_users_fromInnerPermission) != 0:
             return
-        if TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() != 0\
-                and TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True).count() != 0:
+        if TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() != 0 \
+                and TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(
+                    tuser__isnull=False).values_list('tuser', flat=True).count() != 0:
             newNotification = TNotifications.objects.create(
                 type='businessMoreTeammate_' + str(business_id),
                 content=str(moreResult),
@@ -188,10 +199,12 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
                 mode=0
             )
             newNotification.save()
-            for userID in TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True):
+            for userID in TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(
+                    tuser__isnull=False).values_list('tuser', flat=True):
                 newNotification.targets.add(Tuser.objects.get(id=userID))
-        elif TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() == 0\
-                or TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(tuser__isnull=False).values_list('tuser', flat=True).count() == 0:
+        elif TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).count() == 0 \
+                or TInnerPermission.objects.get(id=1).ownPositions.filter(parts__company_id=company_id).filter(
+                    tuser__isnull=False).values_list('tuser', flat=True).count() == 0:
             newNotification = TNotifications.objects.create(
                 type='businessMoreTeammate_' + str(business_id),
                 content=str(moreResult),
@@ -207,18 +220,22 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     # configuration team
 
     targetUnitUsers = []
-    teammateList = list(BusinessRoleAllocation.objects.filter(business_id=business_id).values('role_id', 'role__job_type__name', 'no').distinct())
-    teammateList.pop(next((index for (index, x) in enumerate(teammateList) if x['role_id'] == startRoleAlloc.role_id and x['no'] == startRoleAlloc.no), None))
+    teammateList = list(
+        BusinessRoleAllocation.objects.filter(business_id=business_id).values('role_id', 'role__job_type__name',
+                                                                              'no').distinct())
+    teammateList.pop(next((index for (index, x) in enumerate(teammateList) if
+                           x['role_id'] == startRoleAlloc.role_id and x['no'] == startRoleAlloc.no), None))
     if business.target_part is not None:
         targetUnitUsers = [{
-                'id': item.id,
-                'position': item.tposition.name,
-            } for item in Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id))]
+            'id': item.id,
+            'position': item.tposition.name,
+        } for item in Tuser.objects.filter(
+            Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id))]
     elif business.target_company is not None:
         targetUnitUsers = [{
-                'id': item.id,
-                'position': item.tposition.name if item.tposition else None,
-            } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(id=business.created_by_id))]
+            'id': item.id,
+            'position': item.tposition.name if item.tposition else None,
+        } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(id=business.created_by_id))]
 
     newTeammate = BusinessTeamMember.objects.create(
         business_id=business_id,
@@ -673,7 +690,8 @@ def api_business_node_messages(request):
                 # 更新扩展
                 ext = json.loads(m_ext)
                 ext['id'] = mid
-                ext['business_role_alloc'] = model_to_dict(BusinessRoleAllocation.objects.filter(pk=ext['role_alloc_id']).first())
+                ext['business_role_alloc'] = model_to_dict(
+                    BusinessRoleAllocation.objects.filter(pk=ext['role_alloc_id']).first())
                 if opt_status == 1:
                     ext['opt_status'] = True
                 else:
@@ -1080,6 +1098,7 @@ def api_business_templates(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 # 个人笔记列表
 def api_business_note_list(request):
     resp = auth_check(request, "GET")
@@ -1097,7 +1116,7 @@ def api_business_note_list(request):
             note_list = []
             for item in nodes:
                 note = BusinessNotes.objects.filter(business_id=business_id, node_id=item.id,
-                                                      created_by_id=request.user.id, del_flag=0).first()
+                                                    created_by_id=request.user.id, del_flag=0).first()
                 can_edit = True if business.node_id == item.id else False
                 if note:
                     note_dict = {'id': note.id, 'content': note.content}
@@ -1120,6 +1139,7 @@ def api_business_note_list(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 # 创建实验笔记
 def api_business_note_create(request):
     resp = auth_check(request, "POST")
@@ -1136,9 +1156,9 @@ def api_business_note_create(request):
             # 验证实验环节是否在该环节
             if business.node_id == int(node_id):
                 note, created = BusinessNotes.objects.update_or_create(business_id=business_id,
-                                                                         node_id=node_id,
-                                                                         created_by_id=request.user.id,
-                                                                         defaults={'content': content})
+                                                                       node_id=node_id,
+                                                                       created_by_id=request.user.id,
+                                                                       defaults={'content': content})
 
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
@@ -1156,11 +1176,6 @@ def api_business_note_create(request):
         logger.exception('api_business_note_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-
-
-
 
 
 # Get No-Deleted Experiments
@@ -1791,7 +1806,9 @@ def api_business_message_push(request):
 
         # 如果启动了表达管理，验证当前角色发言次数，每申请一次最多发言三次，
         # 如果是结束权限者则可发言
-        role_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation_id=role_alloc_id, path_id=path.pk).first()
+        role_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                  business_role_allocation_id=role_alloc_id,
+                                                                  path_id=path.pk).first()
         logger.info('cmd:%s,control_status:%s,param:%s,type:%s' % (cmd, path.control_status, param, type))
 
         # 是否有结束环节的权限
@@ -1818,7 +1835,8 @@ def api_business_message_push(request):
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         # 三期 - 根据上一步骤自动入席 判断是否入席
-        bps = BusinessPositionStatus.objects.filter(business_id=bus.id, path_id=path.id, business_role_allocation_id=role_alloc_id)
+        bps = BusinessPositionStatus.objects.filter(business_id=bus.id, path_id=path.id,
+                                                    business_role_allocation_id=role_alloc_id)
         if bps:
             business_position_status = bps.first()
             if business_position_status.sitting_status:  # 已入席
@@ -2014,13 +2032,13 @@ def api_business_message_push(request):
                 # result, opt = action_exp_restart(bus, request.user.pk)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_BACK:
                 # 返回上一步
                 # result, opt = action_exp_back(bus)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_NODE_END:
                 # 结束环节 opt = {'next_node_id': 1, 'status': 1, 'process_type': 1},
                 # data={'tran_id': 1, 'project_id': 0}
@@ -2028,12 +2046,12 @@ def api_business_message_push(request):
                 result, opt = action_exp_node_end(bus, role_alloc_id, data)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_EXP_FINISH:
                 result, opt = action_exp_finish(bus, request.user.id)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_SUBMIT_EXPERIENCE:
                 # 提交实验心得 data = {"content": ""}
                 data = json.loads(data)
@@ -2046,13 +2064,13 @@ def api_business_message_push(request):
                 result, opt = action_role_vote(bus, node_id, path, role_alloc_id, data['status'])
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_VOTE_END:
                 # 提交实验投票结束 data = {}
                 result, opt = action_role_vote_end(bus, node_id, path)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_REQUEST_SIGN:
                 # 要求签字 data = {"doc_id": 1, "doc_name": "xxx", "role_id": 1, "role_name": "xx"}
                 data = json.loads(data)
@@ -2066,7 +2084,7 @@ def api_business_message_push(request):
                 result, opt = action_role_sign(bus, sign, node_id, role_alloc_id, data)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_SCHEDULE_REPORT:
                 # 安排报告 data = {"role_id": 1, "role_name": "xx"}
                 data = json.loads(data)
@@ -2083,7 +2101,7 @@ def api_business_message_push(request):
                 result, opt = action_role_toward_report(bus, node_id, path.pk, bra, pos)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLE_EDN_REPORT:
                 # 走下发言席 data = {}
                 if pos is None:
@@ -2093,7 +2111,7 @@ def api_business_message_push(request):
                 result, opt = action_role_end_report(bus, node_id, path.pk, bra, pos)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
-                # clear_cache(bus.pk)
+                    # clear_cache(bus.pk)
             elif cmd == const.ACTION_ROLES_EXIT:
                 # 退出实验 data = {}
                 result, lst = action_roles_exit(bus, node, path.pk, user_id)
@@ -2191,7 +2209,8 @@ def api_business_role_in_list(request):
 
                 bra = BusinessRoleAllocation.objects.get(pk=id)
                 br = BusinessRole.objects.get(pk=bra.role_id)
-                role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, no=bra.no, role_id=br.flow_role_id, del_flag=0).first()
+                role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, no=bra.no,
+                                                                role_id=br.flow_role_id, del_flag=0).first()
                 if role_position:
                     pos_status = BusinessPositionStatus.objects.filter(
                         business_id=business_id,
@@ -2257,7 +2276,8 @@ def api_business_role_out_list(request):
 
                 bra = BusinessRoleAllocation.objects.get(pk=id)
                 br = BusinessRole.objects.get(pk=bra.role_id)
-                role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, no=bra.no, role_id=br.flow_role_id, del_flag=0).first()
+                role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node_id, no=bra.no,
+                                                                role_id=br.flow_role_id, del_flag=0).first()
 
                 if role_position:
                     pos = FlowPosition.objects.filter(pk=role_position.position_id).first()
@@ -2388,7 +2408,9 @@ def api_business_role_schedule_report_list(request):
                 path_id=path.pk
             ).exclude(schedule_status=0).values_list('business_role_allocation_id', flat=True)
 
-            role_alloc_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation__node_id=node_id, path_id=path.pk)
+            role_alloc_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                            business_role_allocation__node_id=node_id,
+                                                                            path_id=path.pk)
             role_list = []
             for item in role_alloc_status:
                 if item.business_role_allocation_id not in role_alloc_ids:
@@ -2427,7 +2449,9 @@ def api_business_request_sign_roles(request):
         if bus and bus.node_id == int(node_id):
             path = BusinessTransPath.objects.filter(business_id=business_id).last()
 
-            role_alloc_status_list = BusinessRoleAllocationStatus.objects.filter(business_id=business_id, business_role_allocation__node_id=bus.node_id, path_id=path.pk, sitting_status=2)
+            role_alloc_status_list = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                                 business_role_allocation__node_id=bus.node_id,
+                                                                                 path_id=path.pk, sitting_status=2)
             role_list = []
             for item in role_alloc_status_list:
                 if item.business_role_allocation_id == int(role_alloc_id):
@@ -2468,7 +2492,8 @@ def api_business_report_generate(request):
             # team = Team.objects.filter(pk=exp.team_id).first()
             project = Project.objects.filter(pk=busi.project_id).first()
             flow = Flow.objects.filter(pk=project.flow_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id', flat=True)
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id',
+                                                                                                         flat=True)
             # course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
 
             # 小组成员
@@ -2493,7 +2518,7 @@ def api_business_report_generate(request):
                     # 如果是编辑
                     # 应用模板
                     contents = BusinessDocContent.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                                   has_edited=True)
+                                                                 has_edited=True)
                     for d in contents:
                         doc_list.append({
                             'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
@@ -2502,7 +2527,7 @@ def api_business_report_generate(request):
                         })
                     # 提交的文件
                     docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                        path_id=item.pk)
+                                                      path_id=item.pk)
                     for d in docs:
                         sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
                         doc_list.append({
@@ -2522,25 +2547,25 @@ def api_business_report_generate(request):
                     #     })
                     # ---------------------- original ---------------------
                     project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                                path_id=item.pk)
+                                                              path_id=item.pk)
                     for d in project_docs:
                         doc_list.append({
                             'id': d.id, 'filename': d.filename, 'signs': [],
                             'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
                         })
-                    # ---------------------- original ---------------------
-                    # docs = BusinessDocContent.objects.filter(experiment_id=business_id, node_id=item.node_id,
-                    #                                            has_edited=True)
-                    # for d in docs:
-                    #     doc_list.append({
-                    #         'id': d.pk, 'filename': d.name, 'content': d.content,
-                    #         'url': d.file.url if d.file else None, 'file_type': d.file_type,
-                    #         'has_edited': d.has_edited, 'experiment_id': busi.pk, 'node_id': node.pk,
-                    #         'role_name': '', 'node_name': node.name if node else None, 'created_by': None,
-                    #         'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                    #     })
-                    # ---------------------- original ---------------------
-                #     --------------------------reference--------------------
+                        # ---------------------- original ---------------------
+                        # docs = BusinessDocContent.objects.filter(experiment_id=business_id, node_id=item.node_id,
+                        #                                            has_edited=True)
+                        # for d in docs:
+                        #     doc_list.append({
+                        #         'id': d.pk, 'filename': d.name, 'content': d.content,
+                        #         'url': d.file.url if d.file else None, 'file_type': d.file_type,
+                        #         'has_edited': d.has_edited, 'experiment_id': busi.pk, 'node_id': node.pk,
+                        #         'role_name': '', 'node_name': node.name if node else None, 'created_by': None,
+                        #         'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                        #     })
+                        # ---------------------- original ---------------------
+                # --------------------------reference--------------------
                 # elif node.process.type == 5:
                 #     # 如果是投票   三期 - 增加投票结果数量汇总
                 #     vote_status_0_temp = ExperimentRoleStatus.objects.filter(experiment_id=experiment_id,
@@ -2588,7 +2613,7 @@ def api_business_report_generate(request):
                 else:
                     # 提交的文件
                     docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                        path_id=item.id)
+                                                      path_id=item.id)
                     for d in docs:
                         sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
                         doc_list.append({
@@ -2597,9 +2622,10 @@ def api_business_report_generate(request):
                         })
                 # 消息
                 # ---------------- original MUST ---------------
-                roleAllocation = list(BusinessRoleAllocation.objects.filter(node_id=item.node_id).values_list('role_id'))
-                messages = BusinessMessage.objects.filter(business_id=business_id,business_role_allocation_id__in
-                                                                    =roleAllocation, path_id=item.id).order_by('timestamp')
+                roleAllocation = list(
+                    BusinessRoleAllocation.objects.filter(node_id=item.node_id).values_list('role_id'))
+                messages = BusinessMessage.objects.filter(business_id=business_id, business_role_allocation_id__in
+                =roleAllocation, path_id=item.id).order_by('timestamp')
 
                 # messages = BusinessMessage.objects.filter(business_id=business_id,
                 #                                             node_id=item.node_id, path_id=item.id).order_by('timestamp')
@@ -2621,15 +2647,14 @@ def api_business_report_generate(request):
 
                 # 个人笔记
                 note = BusinessNotes.objects.filter(business_id=business_id,
-                                                      node_id=item.node_id, created_by_id=user_id).first()
+                                                    node_id=item.node_id, created_by_id=user_id).first()
                 node_list.append({
                     'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
                     'note': note.content if note else None, 'type': node.process.type if node.process else 0,
                     'vote_status': vote_status
                 })
 
-
-            #     ------------------Must Update--------------------------
+            # ------------------Must Update--------------------------
             # experience = ExperimentExperience.objects.filter(business_id=busi.id, created_by=request.user.pk).first()
             # experience_data = {'status': 1, 'content': ''}
             # if experience:
@@ -2647,7 +2672,7 @@ def api_business_report_generate(request):
                     'create_time': business.create_time.strftime('%Y-%m-%d')
                 }
                 print experience_data
-            #     ------------------Must Update---------------------------------------------------------------------
+            # ------------------Must Update---------------------------------------------------------------------
 
             resp = code.get_msg(code.SUCCESS)
             # resp['d'] = {
@@ -2710,9 +2735,9 @@ def api_business_save_experience(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             instance, flag = BusinessExperience.objects.update_or_create(business_id=business_id,
-                                                                           created_by_id=request.user.id,
-                                                                           defaults={'content': content,
-                                                                                     'created_by_id': request.user.id})
+                                                                         created_by_id=request.user.id,
+                                                                         defaults={'content': content,
+                                                                                   'created_by_id': request.user.id})
             data = {
                 'id': instance.pk, 'content': instance.content, 'status': instance.status,
                 'created_by': user_simple_info(instance.created_by_id),
@@ -2721,6 +2746,67 @@ def api_business_save_experience(request):
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = data
         elif busi.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_post_create(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)  # 实验id
+        node_id = request.POST.get('node_id', None)
+        post_name = request.POST.get("post_name", None)  # 名称
+        post_content = request.POST.get("post_content", None)  # 名称
+
+        if not all(v is not None for v in [business_id, node_id, post_name, post_content]):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if int(business.node_id) != int(node_id):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if business.status == 2:
+            post_name = post_name.strip()
+            post_content = post_content.strip()
+            if len(post_name) == 0 or len(post_name) > 32 or len(post_content) == 0:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            saved_data_id = str(business.id) + '-' + str(node_id)
+            html_file = saved_data_id + '.html'
+            docx_file = saved_data_id + '.docx'
+            html_filename = 'media/files/business/' + html_file
+            docx_file_name = 'media/files/business/' + docx_file
+
+            f = codecs.open(html_filename, "a+", "utf-8")
+            f.write(post_content)
+            f.close()
+            pypandoc.convert_file(html_filename, 'docx', outputfile=docx_file_name)
+            docxObj = UploadFile.objects.create(filename=docx_file, file='files/business/' + docx_file,
+                                                created_by=request.user.id)
+            htmlObj = UploadFile.objects.create(filename=html_file, file='files/business/' + html_file,
+                                                created_by=request.user.id)
+            instance, flag = BusinessPost.objects.update_or_create(business_id=business_id, node_id=node_id,
+                                                                   defaults={'name': post_name, 'content': post_content,
+                                                                             'docx_id': docxObj.id,
+                                                                             'html_id': htmlObj.id,
+                                                                             'created_by': request.user})
+            resp = code.get_msg(code.SUCCESS)
+        elif business.status == 1:
             resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
         else:
             resp = code.get_msg(code.BUSINESS_HAS_FINISHED)

@@ -346,4 +346,22 @@ class BusinessNotes(models.Model):
     def __unicode__(self):
         return u""
 
+class BusinessPost(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
+    name = models.CharField(max_length=64, verbose_name=u'名称')
+    content = models.TextField(verbose_name=u'内容',blank=True, null=True)
+    docx_id = models.IntegerField(blank=True, null=True, verbose_name=u'文件路径1')
+    html_id = models.IntegerField(blank=True, null=True, verbose_name=u'文件路径2')
+    file_type = models.CharField(max_length=10, verbose_name=u'文件类型')
+    created_by = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'创建者')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
 
+    class Meta:
+        db_table = "t_business_post"
+        ordering = ['-create_time']
+        verbose_name_plural = verbose_name = u"公告"
+
+    def __unicode__(self):
+        return self.name

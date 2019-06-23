@@ -485,7 +485,7 @@ def api_project_update(request):
                 obj.save()
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {'results': 'success'}
-                cache.clear()
+                # cache.clear()
 
             else:
                 resp = code.get_msg(code.PARAMETER_ERROR)
