@@ -76,7 +76,9 @@ PROCESS_TYPE = (
     (3, u'展示'),
     (4, u'心得'),
     (5, u'投票'),
-    (6, u'跳转')
+    (6, u'跳转'),
+    (7, u'公示'),
+
 )
 PROCESS_FLASH_TYPE = 1
 PROCESS_EDIT_TYPE = 2
