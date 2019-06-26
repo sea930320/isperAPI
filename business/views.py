@@ -1562,7 +1562,7 @@ def api_business_message_push(request):
 
         # 角色形象
         image = get_role_image(bra.flow_role_alloc_id)
-        if image is None:
+        if image is None and type != const.MSG_TYPE_CMD:
             resp = code.get_msg(code.BUSINESS_ROLE_IMAGE_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
