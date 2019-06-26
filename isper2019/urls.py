@@ -276,7 +276,6 @@ urlpatterns += (
     url(r'^api/business/list_del$', business_views.api_business_list_del),
     url(r'^api/business/delete$', business_views.api_business_delete),
     url(r'^api/business/recovery$', business_views.api_business_recovery),
-    url(r'^api/business/result$', business_views.api_business_result),
     url(r'^api/business/getUnitUserList$', business_views.get_unit_userList),
     url(r'^api/business/addMoreTeammates$', business_views.add_more_teammates),
     url(r'^api/business/role/status$', business_views.api_business_role_status),
@@ -291,6 +290,8 @@ urlpatterns += (
 
     url(r'^api/business/report/generate$', business_views.api_business_report_generate),
     url(r'^api/business/experience/save$', business_views.api_business_save_experience),
+
+    url(r'^api/business/vote/getInitVoteData$', business_views.api_vote_get_init_data),
 )
 urlpatterns += (
     url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),

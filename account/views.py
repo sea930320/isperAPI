@@ -26,7 +26,7 @@ from django.http import HttpResponse
 from account.models import Tuser, TCompany, TClass, LoginLog, WorkLog, TRole, TCompanyManagerAssistants, TPermission, \
     TAction, \
     TNotifications
-from experiment.models import Experiment
+from business.models import *
 from team.models import TeamMember
 from utils import code, const, query, easemob, tools, config
 from utils.public_fun import loginLog
@@ -249,12 +249,12 @@ def api_account_login(request):
                             'part_name': part.name if part else ''
                         }
                     resp['d']['manager_info'] = manager_info
-                    if user.last_experiment_id:
-                        last_exp = Experiment.objects.get(pk=user.last_experiment_id)
-                    else:
-                        last_exp = Experiment()
-                    resp['d']['last_experiment_status'] = last_exp.status
-                    resp['d']['last_experiment_name'] = last_exp.name
+                    # if user.last_experiment_id:
+                    #     last_exp = Business.objects.get(pk=user.last_experiment_id)
+                    # else:
+                    #     last_exp = Business()
+                    # resp['d']['last_experiment_status'] = last_exp.status
+                    # resp['d']['last_experiment_name'] = last_exp.name
                     loginLog(loginType=login_type, userID=user.id, ip=get_client_ip(request))
                 except ObjectDoesNotExist:
                     resp = code.get_msg(code.PERMISSION_DENIED)
@@ -2178,6 +2178,11 @@ def get_own_messages(request):
             'id': item.id,
             'content': eval(item.content) if bool(re.search('^businessMoreTeammate_', item.type)) else item.content,
             'moreTeammates': 1 if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
+            'businessInfo': {
+                'title': item.type.split("businessMoreTeammate_", 1)[1] + ' ' + Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().name,
+                'created_by': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().created_by.name,
+                'created_time': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S')
+            } if bool(re.search('^businessMoreTeammate_', item.type)) else {},
             'business_id': item.type.split("businessMoreTeammate_", 1)[1] if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
             'link': item.link
         } for item in TNotifications.objects.filter(Q(role=role) & Q(targets__in=[uid]))]

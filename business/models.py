@@ -328,7 +328,6 @@ class BusinessDocSign(models.Model):
         return u""
 
 
-
 # 实验环节笔记
 class BusinessNotes(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
@@ -347,3 +346,47 @@ class BusinessNotes(models.Model):
         return u""
 
 
+class VoteItem(models.Model):
+    content = models.TextField(verbose_name=u'Vote Content')
+    voted_count = models.IntegerField(default=0, verbose_name=u'Vote Count')
+    voted_users = models.ManyToManyField(Tuser, verbose_name=u'Voted Users')
+
+    class Meta:
+        db_table = "t_voteItem"
+        verbose_name_plural = verbose_name = u"voteItem"
+
+    def __unicode__(self):
+        return self.content
+
+
+class VoteMember(models.Model):
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Vote User ID')
+    voted = models.IntegerField(verbose_name=u'Vote Done')
+
+    class Meta:
+        db_table = "t_voteMember"
+        verbose_name_plural = verbose_name = u"voteMember"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+
+class Vote(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business ID')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'Node ID')
+    mode = models.IntegerField(verbose_name=u'Vote Mode')
+    title = models.TextField(verbose_name=u'Vote Title')
+    description = models.TextField(verbose_name=u'Vote Description')
+    method = models.IntegerField(verbose_name=u'Vote Method')
+    end_time = models.DateTimeField(verbose_name=u'Vote End Time')
+    max_vote = models.IntegerField(verbose_name=u'Vote Max Count')
+    lost_vote = models.IntegerField(verbose_name=u'Vote Lost Count')
+    items = models.ManyToManyField(VoteItem, verbose_name=u'Vote Items')
+    members = models.ManyToManyField(VoteMember, verbose_name=u'Vote Members')
+
+    class Meta:
+        db_table = "t_vote"
+        verbose_name_plural = verbose_name = u"vote"
+
+    def __unicode__(self):
+        return self.title
