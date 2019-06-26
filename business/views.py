@@ -1200,7 +1200,7 @@ def api_business_list_nodel(request):
                     'id': item.id, 'name': str(item.id) + ' ' + item.name, 'project_name': project_name,
                     'workflow_name': workflow_name, 'officeItem': item.officeItem.name,
                     'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
-                    'end_time': item.update_time.strftime('%Y-%m-%d') if item.update_time else None,
+                    'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
                 }
                 results.append(bus)
@@ -1266,7 +1266,7 @@ def api_business_list_del(request):
                     'id': item.id, 'name': str(item.id) + ' ' + item.name, 'project_name': project_name,
                     'workflow_name': workflow_name, 'officeItem': item.officeItem.name,
                     'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
-                    'end_time': item.update_time.strftime('%Y-%m-%d') if item.update_time else None,
+                    'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
                 }
                 results.append(bus)
