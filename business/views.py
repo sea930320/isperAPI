@@ -2752,10 +2752,51 @@ def api_business_save_experience(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
+        logger.exception('api_business_save_experience Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_business_post(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get('business_id', None)  # 实验id
+        node_id = request.GET.get('node_id', None)
+        print business_id
+        if not all(v is not None for v in [business_id, node_id]):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        print business
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if int(business.node_id) != int(node_id):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        print business.node_id
+        if business.status == 2:
+            businessPost = BusinessPost.objects.filter(business_id=business_id, node_id=node_id).first()
+            if businessPost is None:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            print businessPost
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = model_to_dict(businessPost)
+        elif business.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_post_info Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def api_business_post_create(request):
     resp = auth_check(request, "POST")
@@ -2800,11 +2841,15 @@ def api_business_post_create(request):
                                                 created_by=request.user.id)
             htmlObj = UploadFile.objects.create(filename=html_file, file='files/business/' + html_file,
                                                 created_by=request.user.id)
-            instance, flag = BusinessPost.objects.update_or_create(business_id=business_id, node_id=node_id,
-                                                                   defaults={'name': post_name, 'content': post_content,
-                                                                             'docx_id': docxObj.id,
-                                                                             'html_id': htmlObj.id,
-                                                                             'created_by': request.user})
+            bp = BusinessPost.objects.filter(business_id=business_id, node_id=node_id)
+            if bp.first():
+                bp.update(name=post_name, content=post_content, docx_id=docxObj.id, html_id=htmlObj.id,
+                          created_by=request.user)
+            else:
+                BusinessPost.objects.create(business_id=business_id, node_id=node_id, name=post_name,
+                                            content=post_content, docx_id=docxObj.id, html_id=htmlObj.id,
+                                            created_by=request.user)
+
             resp = code.get_msg(code.SUCCESS)
         elif business.status == 1:
             resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
@@ -2814,5 +2859,29 @@ def api_business_post_create(request):
 
     except Exception as e:
         logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_business_post_info(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        post_id = request.GET.get('id', None)  # 实验id
+        if post_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        businessPost = BusinessPost.objects.filter(pk=post_id).first()
+        if businessPost is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = model_to_dict(businessPost)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_post_info Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

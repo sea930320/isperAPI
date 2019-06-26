@@ -22,6 +22,7 @@ from utils import query, code, public_fun, tools
 from django.core.cache import cache
 from utils.permission import permission_check
 from django.forms.models import model_to_dict
+from business.models import Business, BusinessPost
 
 logger = logging.getLogger(__name__)
 
@@ -798,7 +799,7 @@ def api_project_list(request):
             qs = qs.filter(name__icontains=search)
 
         user = request.user
-
+        businessPosts = []
         if request.session['login_type'] != 1:
             if request.session['login_type'] in [2, 6]:
                 groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
@@ -883,6 +884,11 @@ def api_project_list(request):
                         (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
                         (Q(created_by__in=createdByCMAs) & Q(created_role_id=7))
                     )
+                projectIDs = qs.values_list('pk', flat=True)
+                businessIDs = Business.objects.filter(
+                    Q(del_flag=0, project_id__in=projectIDs) | Q(del_flag=0, cur_project_id__in=projectIDs)).filter(status=9).values_list('pk', flat=True)
+                postQs = BusinessPost.objects.filter(business_id__in=businessIDs).order_by('-update_time')[:6]
+                businessPosts = [model_to_dict(post) for post in postQs]
                 if office_id and by_method == 'office':
                     qs = qs.filter(officeItem_id=int(office_id))
                 today = datetime.today()
@@ -965,7 +971,7 @@ def api_project_list(request):
             'page_size': size
         }
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'results': results, 'paging': paging}
+        resp['d'] = {'results': results, 'paging': paging, 'business_posts': businessPosts}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
