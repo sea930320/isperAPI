@@ -171,6 +171,7 @@ def get_business_detail(business):
     business_role_allocs = BusinessRoleAllocation.objects.filter(business=business, project_id=business.cur_project_id,
                                                                  can_take_in=True)
     for bra in business_role_allocs:
+        image = get_role_image(bra.flow_role_alloc_id)
         try:
             teamMember = BusinessTeamMember.objects.filter(business=business, del_flag=0,
                                                            project_id=business.cur_project_id, business_role=bra.role,
@@ -179,7 +180,10 @@ def get_business_detail(business):
             teamMember = None
         role_allocs.append({
             'id': bra.id, 'name': bra.role.name, 'type': bra.role.type,
-            'user_id': teamMember.user_id if teamMember else None
+            'node_id': bra.node_id,
+            'user_id': teamMember.user_id if teamMember else None,
+            'user_name': teamMember.user.name if teamMember else None,
+            'image': image,
         })
     data = {
         'id': business.id, 'show_nickname': business.show_nickname, 'entire_graph': project.entire_graph,
