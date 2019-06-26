@@ -1270,7 +1270,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
                                     business_id=bus.id,
                                     business_role_allocation__node_id=next_node.pk,
                                     business_role_allocation__no=item.no,
-                                    business_role_allocation__role_id=item.role_id,
+                                    business_role_allocation__role_id=item.business_role_id,
                                     path_id=path.id
                                 ).update(sitting_status=const.SITTING_DOWN_STATUS)
 
