@@ -292,9 +292,12 @@ urlpatterns += (
     url(r'^api/business/post/detail', business_views.api_business_post_info),
 
     url(r'^api/business/report/generate$', business_views.api_business_report_generate),
+    url(r'^api/business/report/export', business_views.api_business_report_export),
+    url(r'^api/business/experience/list$', business_views.api_business_experience_list),
     url(r'^api/business/experience/save$', business_views.api_business_save_experience),
 
     url(r'^api/business/vote/getInitVoteData$', business_views.api_vote_get_init_data),
+    url(r'^api/business/templates$', business_views.api_business_templates),
 )
 urlpatterns += (
     url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),
