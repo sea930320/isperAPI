@@ -265,7 +265,8 @@ def api_project_roles_detail(request):
                     has_jump_project = True
 
             project = {'id': obj.id, 'name': obj.name, 'level': obj.level, 'purpose': obj.purpose,
-                       'flow_id': flow.pk, 'flow_name': flow.name, 'type': obj.type,
+                       'flow_id': flow.pk, 'flow_name': flow.name,
+                       'type': obj.officeItem.name if obj.officeItem else '',
                        'ability_target': obj.ability_target, 'has_jump_project': has_jump_project}
             # 项目流程节点
             project_nodes = []
@@ -805,7 +806,8 @@ def api_project_list(request):
                 groupInfo = json.loads(public_fun.getGroupByGroupManagerID(request.session['login_type'], user.id))
                 group = AllGroups.objects.get(id=groupInfo['group_id'])
                 createdByGMs = [manager.id for manager in group.groupManagers.all()]  # get all group managers
-                createdByGMAs = [manager.id for manager in group.groupManagerAssistants.all()]  # get all group manager assistants
+                createdByGMAs = [manager.id for manager in
+                                 group.groupManagerAssistants.all()]  # get all group manager assistants
                 companies = group.tcompany_set.all()  # get all companies
                 createdByCMs = []
                 createdByCMAs = []
@@ -838,6 +840,8 @@ def api_project_list(request):
                         createdByCMs.append(companyManager.tuser.id)
                     for companyAssistant in companyAssistants:
                         createdByCMAs.append(companyAssistant.id)
+                print createdByCMs
+                print createdByCMAs
                 qs = qs.filter(
                     (Q(created_by=user.id) & Q(created_role_id=request.session['login_type'])) |
                     ((Q(created_by__in=createdByCMs) & Q(created_role_id=3) & Q(is_company_share=1)) |
@@ -886,16 +890,19 @@ def api_project_list(request):
                     )
                 projectIDs = qs.values_list('pk', flat=True)
                 businessIDs = Business.objects.filter(
-                    Q(del_flag=0, project_id__in=projectIDs) | Q(del_flag=0, cur_project_id__in=projectIDs)).filter(status=9).values_list('pk', flat=True)
+                    Q(del_flag=0, project_id__in=projectIDs) | Q(del_flag=0, cur_project_id__in=projectIDs)).filter(
+                    status=9).values_list('pk', flat=True)
                 postQs = BusinessPost.objects.filter(business_id__in=businessIDs).order_by('-update_time')[:6]
                 businessPosts = [model_to_dict(post) for post in postQs]
                 if office_id and by_method == 'office':
                     qs = qs.filter(officeItem_id=int(office_id))
                 today = datetime.today()
                 if user.tposition and user.tposition.parts:
-                    query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user])) | (Q(is_open=5) & Q(target_parts=user.tposition.parts))
+                    query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (
+                    Q(is_open=4) & Q(target_users__in=[user])) | (Q(is_open=5) & Q(target_parts=user.tposition.parts))
                 else:
-                    query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (Q(is_open=4) & Q(target_users__in=[user]))
+                    query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (
+                    Q(is_open=4) & Q(target_users__in=[user]))
                 qs = qs.exclude(Q(is_open=2)).filter(query)
 
         qs = qs.filter(del_flag=0)
@@ -957,7 +964,8 @@ def api_project_list(request):
                 'is_group_share': project.is_group_share,
                 'is_company_share': project.is_company_share, 'share_able': shareAble, 'edit_able': editAble,
                 'delete_able': deleteAble, 'current_share': currentShare,
-                'target_parts': {'value': project.target_parts.id, 'text': project.target_parts.name} if project.target_parts_id else {},
+                'target_parts': {'value': project.target_parts.id,
+                                 'text': project.target_parts.name} if project.target_parts_id else {},
                 'use_to': {'value': project.use_to.id, 'text': project.use_to.name} if project.use_to else {}
             })
 

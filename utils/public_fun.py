@@ -42,46 +42,55 @@ def get_map(data, id):
 # get group and company ID
 def getGroupByGroupManagerID(loginType, userID):
     res = {}
-    # Group Manager
-    if loginType == 2:
-        # Group Manager
-        try:
+    try:
+        user = Tuser.objects.get(id=userID)
+        if loginType == 2:
             res['login_type'] = 'G'
-            user = Tuser.objects.get(id=userID)
-            # Group ID
             group = user.allgroups_set.all().first()
-            res['group_id'] = group.id
-            groupManagers = group.groupManagers.all()
-            groupManagersIDs = []
-            for groupManager in groupManagers:
-                groupManagersIDs.append(groupManager.id)
-            companies_group = TCompany.objects.filter(group_id=res['group_id'])
-            companies = []
-            for company_id in companies_group:
-                companies.append(company_id.id)
-            res['companies'] = companies
-            res['groupManagers'] = groupManagersIDs
-        except AttributeError as ae:
-            resp = code.get_msg(code.PERMISSION_DENIED)
-        return json.dumps(res)
+        elif loginType == 6:
+            res['login_type'] = 'GA'
+            group = user.allgroups_set_assistants.all().first()
+        else:
+            return False
+        res['group_id'] = group.id
+        groupManagers = group.groupManagers.all()
+        groupManagerAssistants = group.groupManagerAssistants.all()
+        groupManagersIDs = []
+        groupManagerAssistantsIDs = []
+        for groupManager in groupManagers:
+            groupManagersIDs.append(groupManager.id)
+        for groupManagerAssistant in groupManagerAssistants:
+            groupManagerAssistantsIDs.append(groupManagerAssistant.id)
+        companies_group = TCompany.objects.filter(group_id=res['group_id'])
+        companies = []
+        for company_id in companies_group:
+            companies.append(company_id.id)
+        res['companies'] = companies
+        res['groupManagers'] = groupManagersIDs
+        res['groupManagerAssistants'] = groupManagersIDs
+    except AttributeError as ae:
+        resp = code.get_msg(code.PERMISSION_DENIED)
+    return json.dumps(res)
 
 
 def getGroupByCompanyManagerID(loginType, userID):
     res = {}
-    # Company Manager
+    user = Tuser.objects.get(id=userID)
     if loginType == 3:
-        # Company Manager
         res['login_type'] = 'C'
-        user = Tuser.objects.get(id=userID)
-        # Company ID
         company_id = user.tcompanymanagers_set.get().tcompany.id
-        # Group ID
-        groupID = TCompany.objects.get(id=company_id).group.id
-        companies = []
-        companies.append(company_id)
-        # Companies Lists
-        res['companies'] = companies
-        res['group_id'] = groupID
+    elif loginType == 7:
+        res['login_type'] = 'CA'
+        company_id = user.t_company_set_assistants.all().first().id
+    else:
+        return False
+    # Group ID
+    groupID = TCompany.objects.get(id=company_id).group.id
+    companies = []
+    companies.append(company_id)
+    # Companies Lists
+    res['companies'] = companies
+    res['group_id'] = groupID
     return json.dumps(res)
 
 
