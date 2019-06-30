@@ -133,7 +133,8 @@ def api_project_docs_detail(request):
                                                     del_flag=const.DELETE_FLAG_NO).exists()
                 if is_exists:
                     has_jump_project = True
-            project = {'id': obj.id, 'name': obj.name, 'level': obj.level, 'type': obj.type, 'purpose': obj.purpose,
+            project = {'id': obj.id, 'name': obj.name, 'level': obj.level,
+                       'type': obj.officeItem.name if obj.officeItem else '', 'purpose': obj.purpose,
                        'flow_id': flow.pk, 'flow_name': flow.name, 'ability_target': obj.ability_target,
                        'has_jump_project': has_jump_project}
             # 项目流程节点
@@ -899,10 +900,11 @@ def api_project_list(request):
                 today = datetime.today()
                 if user.tposition and user.tposition.parts:
                     query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (
-                    Q(is_open=4) & Q(target_users__in=[user])) | (Q(is_open=5) & Q(target_parts=user.tposition.parts))
+                        Q(is_open=4) & Q(target_users__in=[user])) | (
+                            Q(is_open=5) & Q(target_parts=user.tposition.parts))
                 else:
                     query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (
-                    Q(is_open=4) & Q(target_users__in=[user]))
+                        Q(is_open=4) & Q(target_users__in=[user]))
                 qs = qs.exclude(Q(is_open=2)).filter(query)
 
         qs = qs.filter(del_flag=0)
@@ -953,7 +955,8 @@ def api_project_list(request):
                 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
                 'course_name': project.course.name, 'reference': project.reference,
                 'public_status': project.public_status, 'level': project.level,
-                'entire_graph': project.entire_graph, 'type': project.type, 'can_redo': project.can_redo,
+                'entire_graph': project.entire_graph, 'type': project.officeItem.name if project.officeItem else '',
+                'can_redo': project.can_redo,
                 'is_open': project.is_open,
                 'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time,
                 'created_by': user_simple_info(project.created_by.id),
@@ -1189,7 +1192,8 @@ def api_project_jump_detail(request):
                     has_jump_project = True
 
             project = {'id': obj.id, 'name': obj.name, 'level': obj.level, 'purpose': obj.purpose,
-                       'flow_id': flow.pk, 'flow_name': flow.name, 'type': obj.type,
+                       'flow_id': flow.pk, 'flow_name': flow.name,
+                       'type': obj.officeItem.name if obj.officeItem else '',
                        'ability_target': obj.ability_target, 'has_jump_project': has_jump_project}
             # 项目流程节点
             project_nodes = []
@@ -1232,7 +1236,6 @@ def api_project_jump_setup(request):
     try:
         project_id = request.POST.get("project_id")  # 项目ID
         data = request.POST.get("data")  # 分配json数据
-        logger.info(data)
 
         if data is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
@@ -1240,12 +1243,10 @@ def api_project_jump_setup(request):
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
         if obj:
             # 如已创建实验，不能修改
-            is_exists = Experiment.objects.filter(project_id=project_id, del_flag=0).exists()
+            is_exists = Business.objects.filter(project_id=project_id, del_flag=0).exists()
             if is_exists:
                 resp = code.get_msg(code.PROJECT_JUMP_HAS_USE)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-            cache.clear()
 
             resp = code.get_msg(code.SUCCESS)
             data = json.loads(data)
