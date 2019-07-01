@@ -2688,12 +2688,9 @@ def api_business_post(request):
         print business.node_id
         if business.status == 2:
             businessPost = BusinessPost.objects.filter(business_id=business_id, node_id=node_id).first()
-            if businessPost is None:
-                resp = code.get_msg(code.PARAMETER_ERROR)
-                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             print businessPost
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = model_to_dict(businessPost)
+            resp['d'] = model_to_dict(businessPost) if businessPost else {}
         elif business.status == 1:
             resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
         else:
