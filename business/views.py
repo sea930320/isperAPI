@@ -3019,3 +3019,86 @@ def api_vote_finish_mode_3(request):
         logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_business_jump_start(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id")
+        project_id = request.POST.get("project_id")  # 项目ID
+        role_alloc_id = request.POST.get("role_alloc_id")
+
+        business = Business.objects.get(pk=business_id).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        project = Project.objects.get(pk=project_id).first()
+        if project is None:
+            resp = code.get_msg(code.PROJECT_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        roles = ProjectRole.objects.filter(project_id=project_id)
+        if roles.exists() is False:
+            resp = code.get_msg(code.PROJECT_ROLE_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        with transaction.atomic():
+            if project.created_role_id in [3, 7]:
+                company_id = project.created_by.tcompanymanagers_set.get().tcompany.id if project.created_role_id == 3 else project.created_by.t_company_set_assistants.get().id if project.created_role_id == 7 else None
+            business_roles = []
+            for item in roles:
+                business_roles.append(BusinessRole(business=business, name=item.name,
+                                                   type=item.type, flow_role_id=item.flow_role_id,
+                                                   project_role_id=item.id, project_id=project_id,
+                                                   category=item.category, capacity=item.capacity,
+                                                   job_type=item.job_type))
+            BusinessRole.objects.bulk_create(business_roles)
+
+            # 复制流程角色分配设置
+            business_allocations = []
+            allocations = ProjectRoleAllocation.objects.filter(project_id=project_id)
+            for item in allocations:
+                # 将角色分配中的role_id设置为ProjectRole id
+                role = BusinessRole.objects.filter(business=business, project_role_id=item.role_id).first()
+                projectRole = ProjectRole.objects.filter(pk=item.role_id).first()
+                if projectRole is None:
+                    continue
+                flow_role_alloc = FlowRoleAllocation.objects.filter(flow_id=project.flow_id, node_id=item.node_id,
+                                                                    role_id=projectRole.flow_role_id,
+                                                                    no=item.no).first()
+                if flow_role_alloc is None:
+                    continue
+                if role:
+                    business_allocations.append(
+                        BusinessRoleAllocation(business=business, node=FlowNode.objects.get(pk=item.node_id),
+                                               project_id=project_id,
+                                               project_role_alloc_id=item.id,
+                                               flow_role_alloc_id=flow_role_alloc.id,
+                                               role=role,
+                                               can_start=item.can_start,
+                                               can_terminate=item.can_terminate,
+                                               can_brought=item.can_brought,
+                                               can_take_in=item.can_take_in,
+                                               no=item.no))
+            BusinessRoleAllocation.objects.bulk_create(business_allocations)
+
+            teammates_configuration(business.id, [])
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {
+                'id': business.id, 'name': u'{0} {1}'.format(business.id, business.name),
+                'project_id': business.project_id,
+                'show_nickname': business.show_nickname, 'start_time': business.start_time,
+                'end_time': business.end_time, 'status': business.status,
+                'created_by': user_simple_info(business.created_by.id) if business.created_by else '',
+                'node_id': business.node.id if business.node else '',
+                'create_time': business.create_time.strftime('%Y-%m-%d')
+            }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

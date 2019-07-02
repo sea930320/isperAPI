@@ -300,6 +300,8 @@ urlpatterns += (
     url(r'^api/business/templates$', business_views.api_business_templates),
     url(r'^api/business/vote/saveVoteData$', business_views.api_vote_save_vote_data),
     url(r'^api/business/vote/finishVote$', business_views.api_vote_finish_mode_3),
+
+    url(r'^api/business/jump/start', business_views.api_business_jump_start),
 )
 urlpatterns += (
     url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),
