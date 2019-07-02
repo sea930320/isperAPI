@@ -151,7 +151,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
     business = Business.objects.get(id=business_id)
 
-    project = Project.objects.get(pk=business.project_id)
+    project = Project.objects.get(pk=business.cur_project_id)
     first_node_id = get_start_node(project.flow_id)
     node = FlowNode.objects.get(pk=first_node_id)
     startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
@@ -250,7 +250,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         business_role_id=startRoleAlloc.role_id,
         no=startRoleAlloc.no,
         del_flag=0,
-        project_id=business.project_id
+        project_id=business.cur_project_id
     )
     newTeammate.save()
 
@@ -267,7 +267,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
             business_role_id=teamItem['role_id'],
             no=teamItem['no'],
             del_flag=0,
-            project_id=business.project_id
+            project_id=business.cur_project_id
         )
         newTeammate.save()
 
@@ -288,8 +288,7 @@ def api_business_list(request):
         status = int(request.GET.get("status", 1))  # 实验状态
 
         user = request.user
-        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id',
-                                                                                                  flat=True)
+        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id', flat=True).distinct()
         qs = Business.objects.filter(
             Q(del_flag=0, pk__in=bussinessIDsInTeam) | Q(created_by=request.user))
 
@@ -310,7 +309,7 @@ def api_business_list(request):
         results = []
 
         for item in businesses:
-            team_dict = [model_to_dict(member) for member in BusinessTeamMember.objects.filter(business_id=item.id)]
+            team_dict = [model_to_dict(member) for member in BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id)]
 
             project = Project.objects.filter(pk=item.project_id).first()
             if project:
@@ -459,7 +458,7 @@ def api_business_start(request):
     businessRoles = BusinessRole.objects.filter(business=business)  # get all Business Roles
     for role in businessRoles:
         for no in range(1, role.capacity + 1):
-            teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
+            teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no, project_id=business.cur_project_id,
                                                             del_flag=0)  # get all team members with same business, role, no to check if user is allocated to this allocation
             if teamMembers.count() == 0:
                 resp = code.get_msg(code.TEAM_MEMBER_NOT_EXIST)
@@ -482,6 +481,7 @@ def api_business_start(request):
     # check if this user is Start User
     isStartUser = BusinessTeamMember.objects.filter(business=business, user=request.user,
                                                     business_role=startRoleAlloc.role,
+                                                    project_id=business.cur_project_id,
                                                     no=startRoleAlloc.no).exists()
     if not isStartUser:
         resp = code.get_msg(code.BUSINESS_NO_ACCESS_TO_START)
@@ -1214,8 +1214,7 @@ def api_business_list_nodel(request):
             results = []
 
             for item in business:
-                teamMembers = list(
-                    BusinessTeamMember.objects.filter(business_id=item.id).values_list('user__name', flat=True))
+                teamMembers = list(BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id).values_list('user__name', flat=True))
                 project = Project.objects.get(pk=item.project_id)
                 project_name = project.name
                 workflow_name = Flow.objects.get(pk=project.flow_id).name
@@ -1281,8 +1280,7 @@ def api_business_list_del(request):
             results = []
 
             for item in business:
-                teamMembers = list(
-                    BusinessTeamMember.objects.filter(business_id=item.id).values_list('user__name', flat=True))
+                teamMembers = list(BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id).values_list('user__name', flat=True))
                 project = Project.objects.get(pk=item.project_id)
                 project_name = project.name
                 workflow_name = Flow.objects.get(pk=project.flow_id).name
@@ -2208,7 +2206,7 @@ def api_business_report_generate(request):
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
             flow = Flow.objects.filter(pk=project.flow_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id',
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id',
                                                                                                          flat=True)
 
             # 小组成员
@@ -2396,7 +2394,7 @@ def api_business_report_export(request):
 
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id',
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id',
                                                                                                          flat=True)
 
             # 小组成员
@@ -2797,6 +2795,7 @@ def api_vote_get_init_data(request):
     try:
         business_id = request.POST.get('business_id', None)
         node_id = request.POST.get('node_id', None)
+        role = int(request.POST.get('role', None))
         if business_id is None or node_id is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2812,6 +2811,14 @@ def api_vote_get_init_data(request):
                 node_id=node_id
             ).first()
 
+            if role == 0:
+                if vote is None:
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 2, 'data': "还没进行表决设置，请等待"}
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                else:
+                    return am_i_vote_member(request, None)
+
             if vote is None:
                 data = {
                     'node_members': [{
@@ -2822,8 +2829,8 @@ def api_vote_get_init_data(request):
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {'status': 1, 'data': data}
             elif vote.end_time > timezone.now():
-                resp = code.get_msg(code.SUCCESS)
-                resp['d'] = {'status': 2, 'data': "Waiting until add voteItem" if vote.mode == 4 else "Waiting until end vote"}
+                statusMsg = "参与人员在输入表决选项，请等待" if vote.mode == 4 else "参与人员在投票，请等待"
+                return am_i_vote_member(request, statusMsg)
             elif vote.mode == 4:
                 data = {
                     'title': vote.title,
@@ -2949,8 +2956,8 @@ def api_vote_save_vote_data(request):
                 newMember.save()
                 newVote.members.add(newMember)
 
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'status': 2, 'data': "Waiting until add voteItem" if voteMode == 4 else "Waiting until end vote"}
+            statusMsg = "参与人员在输入表决选项，请等待" if vote.mode == 4 else "参与人员在投票，请等待"
+            return am_i_vote_member(request, statusMsg)
         elif bus.status == 1:
             resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
         else:
@@ -3100,5 +3107,71 @@ def api_business_jump_start(request):
 
     except Exception as e:
         logger.exception('api_business_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+#
+def am_i_vote_member(request, statusMsg):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            vote = Vote.objects.filter(
+                business_id=business_id,
+                node_id=node_id
+            ).first()
+            if not vote.members.filter(user_id=request.user.pk).exists():
+                resp = code.get_msg(code.SUCCESS)
+                resp['d'] = {'status': 2, 'data': "您不能参与表决" if statusMsg is None else statusMsg}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            elif vote.members.get(user_id=request.user.pk).voted == 1:
+                resp = code.get_msg(code.SUCCESS)
+                resp['d'] = {'status': 2, 'data': "您已经输入了表决选项" if vote.mode == 4 else "您已经进行表决"}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            elif vote.end_time <= timezone.now():
+                resp = code.get_msg(code.SUCCESS)
+                resp['d'] = {'status': 2, 'data': "输入表决选项的时间已经过了" if vote.mode == 4 else "表决时间已经过了"}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            elif vote.mode == 4:
+                resp = code.get_msg(code.SUCCESS)
+                data = {
+                    'title': vote.title,
+                    'description': vote.description,
+                }
+                resp['d'] = {'status': 6, 'data': data}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            else:
+                resp = code.get_msg(code.SUCCESS)
+                data = {
+                    'title': vote.title,
+                    'description': vote.description,
+                    'mode': vote.mode,
+                    'method': vote.method,
+                    'max_vote': vote.max_vote,
+                    'items': [{
+                        'value': item.pk,
+                        'text': item.content,
+                    } for item in vote.items.all()]
+                }
+                resp['d'] = {'status': 7, 'data': data}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('am_i_vote_member Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
