@@ -3019,3 +3019,69 @@ def api_vote_finish_mode_3(request):
         logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_business_template_new(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+        name = request.POST.get('name', '')
+        content = request.POST.get('content', '')
+        role_id = request.POST.get('role_id', None)
+
+        if None in (business_id, node_id, name):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        exp = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if exp:
+            name = '%s.docx' % name
+            path = business_template_save(business_id, node_id, name, content)
+            BusinessDocContent.objects.create(business_id=business_id, node_id=node_id, business_role_allocation_id=role_id,
+                                                content=content, name=name, created_by=request.user,
+                                                file_type=1, file=path, has_edited=True)
+
+            clear_cache(exp.pk)
+            resp = code.get_msg(code.SUCCESS)
+        else:
+            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_experiment_template_new Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_template_create(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    business_id = request.POST.get('business_id', None)  # 实验id
+    node_id = request.POST.get('node_id', None)  # 环节id
+    doc_id = request.POST.get('doc_id', None)  # 模板素材id
+    content = request.POST.get('content', '')  # 内容
+
+    if None in (business_id, node_id, doc_id):
+        resp = code.get_msg(code.PARAMETER_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        exp = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if exp:
+            doc = BusinessDocContent.objects.filter(pk=doc_id).first()
+            path = business_template_save(business_id, node_id, doc.name, content)
+            BusinessDocContent.objects.filter(pk=doc_id).update(content=content, created_by=request.user.id, file=path, has_edited=True)
+
+            clear_cache(exp.pk)
+            resp = code.get_msg(code.SUCCESS)
+        else:
+            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_experiment_template_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

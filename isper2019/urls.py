@@ -262,6 +262,9 @@ urlpatterns += (
     url(r'^api/business/messages$', business_views.api_business_messages),
     url(r'^api/business/templates$', business_views.api_business_templates),
 
+    url(r'^api/business/template/new$', business_views.api_business_template_new),              # added by ser
+    url(r'^api/business/template/create$', business_views.api_business_create),                 # added by ser
+
     url(r'^api/business/node/detail$', business_views.api_business_node_detail),
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),
     url(r'^api/business/node/function$', business_views.api_business_node_function),
