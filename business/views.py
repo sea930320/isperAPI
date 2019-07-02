@@ -2669,13 +2669,11 @@ def api_business_post(request):
     try:
         business_id = request.GET.get('business_id', None)  # 实验id
         node_id = request.GET.get('node_id', None)
-        print business_id
         if not all(v is not None for v in [business_id, node_id]):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         business = Business.objects.filter(pk=business_id, del_flag=0).first()
-        print business
         if business is None:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2683,10 +2681,8 @@ def api_business_post(request):
         if int(business.node_id) != int(node_id):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        print business.node_id
         if business.status == 2:
             businessPost = BusinessPost.objects.filter(business_id=business_id, node_id=node_id).first()
-            print businessPost
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = model_to_dict(businessPost) if businessPost else {}
         elif business.status == 1:
@@ -2711,7 +2707,6 @@ def api_business_post_create(request):
         node_id = request.POST.get('node_id', None)
         post_name = request.POST.get("post_name", None)  # 名称
         post_content = request.POST.get("post_content", None)  # 名称
-
         if not all(v is not None for v in [business_id, node_id, post_name, post_content]):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

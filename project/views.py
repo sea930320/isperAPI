@@ -578,12 +578,27 @@ def api_project_detail(request):
         if obj:
             flow = Flow.objects.get(pk=obj.flow_id)
             # 项目角色
-            sql = '''SELECT t.id,t.type,t.`name` role_name,t.max,t.min,t.category,t.image_id,
-            i.`name` image_name, concat('/media/', i.`avatar`) image_url
-            from t_project_role t LEFT JOIN t_role_image i ON t.image_id=i.id
-            WHERE t.type != \'''' + const.ROLE_TYPE_OBSERVER + '''\' and t.project_id={0}'''.format(project_id)
-            project_roles = query.select(sql, ['id', 'type', 'role_name', 'max', 'min', 'category', 'image_id',
-                                               'image_name', 'image_url'])
+            # sql = '''SELECT t.id,t.type,t.`name` role_name,t.max,t.min,t.category,t.image_id,
+            # i.`name` image_name, concat('/media/', i.`avatar`) image_url
+            # from t_project_role t LEFT JOIN t_role_image i ON t.image_id=i.id
+            # WHERE t.type != \'''' + const.ROLE_TYPE_OBSERVER + '''\' and t.project_id={0}'''.format(project_id)
+            # project_roles = query.select(sql, ['id', 'type', 'role_name', 'max', 'min', 'category', 'image_id',
+            #                                    'image_name', 'image_url'])
+            qs = ProjectRoleAllocation.objects.filter(project_id=project_id)
+            pras = []
+            for pra in qs:
+                role = ProjectRole.objects.filter(pk=pra.role_id).first()
+                fra = FlowRoleAllocation.objects.filter(flow_id=obj.flow_id, node_id=pra.node_id,
+                                                        role_id=role.flow_role_id, no=pra.no).first()
+                image = RoleImage.objects.filter(pk=fra.image_id).first() if fra.image_id else None
+                pras.append({
+                    'id': pra.id, 'role_id': pra.role_id, 'type': role.type, 'name': role.name,
+                    'image_id': fra.image_id,
+                    'image_name': image.name if image else None,
+                    'image_url': '/media/' + image.avatar if image else None,
+                    'no': pra.no, 'can_take_in': pra.can_take_in, 'can_terminate': pra.can_terminate,
+                    'can_start': pra.can_start, 'can_brought': pra.can_brought, 'node_id': pra.node_id
+                })
             # 项目素材
             project_docs = ProjectDoc.objects.filter(project_id=project_id)
             doc_list = []
@@ -608,13 +623,13 @@ def api_project_detail(request):
                     has_jump_project = True
             resp['d'] = {
                 'flow_id': obj.flow_id, 'flow_name': flow.name, 'name': obj.name,
-                'all_role': obj.all_role, 'course': obj.course,
+                'all_role': obj.all_role, 'course': model_to_dict(obj.course) if obj.course else None,
                 'reference': obj.reference, 'public_status': obj.public_status, 'level': obj.level,
                 'entire_graph': obj.entire_graph, 'can_redo': obj.can_redo, 'is_open': obj.is_open,
                 'ability_target': obj.ability_target, 'start_time': start_time, 'has_jump_project': has_jump_project,
                 'end_time': end_time, 'intro': obj.intro, 'purpose': obj.purpose,
                 'requirement': obj.requirement, 'id': obj.id, 'type': obj.type, 'flow_xml': flow.xml,
-                'step': obj.step, 'roles': project_roles, 'docs': doc_list
+                'step': obj.step, 'role_allocs': pras, 'docs': doc_list
             }
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
@@ -901,7 +916,7 @@ def api_project_list(request):
                 if user.tposition and user.tposition.parts:
                     query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (
                         Q(is_open=4) & Q(target_users__in=[user])) | (
-                            Q(is_open=5) & Q(target_parts=user.tposition.parts))
+                                Q(is_open=5) & Q(target_parts=user.tposition.parts))
                 else:
                     query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (
                         Q(is_open=4) & Q(target_users__in=[user]))
