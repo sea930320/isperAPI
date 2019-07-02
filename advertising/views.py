@@ -20,10 +20,11 @@ import codecs
 from django.db.models import Q
 from datetime import date
 import datetime
-
+import os
 
 
 logger = logging.getLogger(__name__)
+
 
 # 公告列表
 def api_advertising_list(request):
@@ -164,6 +165,7 @@ def api_advertising_delete(request):
 
 
 def api_advertising_create(request):
+
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -174,9 +176,7 @@ def api_advertising_create(request):
             today = datetime.datetime.today()
 
             print today, public_time
-            # if (today>datetime.strptime(public_time,'%Y-%m-%d')):
-            #     resp = code.get_msg(code.PARAMETER_ERROR)
-            #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            print '4'
             if (public_time):
                 public_time = datetime.datetime.strptime(public_time, '%Y-%m-%d')
                 if (today.date() > public_time.date()):
@@ -185,21 +185,22 @@ def api_advertising_create(request):
             else:
                 resp = code.get_msg(code.PARAMETER_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            print '5'
             ad_content = request.POST.get("ad_content", None)
             name = ad_name.strip()
             ad_content = ad_content.strip()
             if len(name) == 0 or len(name) > 32:
                 resp = code.get_msg(code.PARAMETER_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+            print '1'
             if len(ad_content) == 0:
                 resp = code.get_msg(code.PARAMETER_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+            print '2'
             if (len(Advertising.objects.filter(name=ad_name)) > 0):
                 resp = code.get_msg(code.ADVERTISING_NAME_ALREADY_EXISTS)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+            print '3'
             with transaction.atomic():
                 if (public_time):
                     obj = Advertising.objects.create(name=ad_name, created_by=Tuser.objects.get(id=request.user.pk),
@@ -211,12 +212,15 @@ def api_advertising_create(request):
                 docx_file = str(saved_data_id)+'.docx'
                 tmp_filename =  'media/files/advertising/' + html_file
                 docx_file_name =  'media/files/advertising/' + docx_file
-                
+                if not os.path.exists('media/files/advertising/'):
+                    os.makedirs('media/files/advertising/')
                 f=codecs.open(tmp_filename, "a+", "utf-8")
                 f.write(ad_content)
                 f.close()
 
                 pypandoc.convert_file(tmp_filename, 'docx', outputfile=docx_file_name)
+                print 'upload'
+
                 obj = UploadFile.objects.create(filename=docx_file, file='files/advertising/' + docx_file, created_by=request.user.id)
                 pathDocx = obj.id
                 obj1 = UploadFile.objects.create(filename=html_file, file='files/advertising/' + html_file, created_by=request.user.id)
