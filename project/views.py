@@ -584,7 +584,7 @@ def api_project_detail(request):
             # WHERE t.type != \'''' + const.ROLE_TYPE_OBSERVER + '''\' and t.project_id={0}'''.format(project_id)
             # project_roles = query.select(sql, ['id', 'type', 'role_name', 'max', 'min', 'category', 'image_id',
             #                                    'image_name', 'image_url'])
-            qs = ProjectRoleAllocation.objects.filter(project_id=project_id)
+            qs = ProjectRoleAllocation.objects.filter(project_id=project_id, can_take_in=True)
             pras = []
             for pra in qs:
                 role = ProjectRole.objects.filter(pk=pra.role_id).first()
