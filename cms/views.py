@@ -350,7 +350,8 @@ def api_cms_to_user_list_business(request):
 
     try:
         business_id = request.GET.get("business_id", None)  # 实验任务id
-        btmsQs = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0)
+        business = Business.objects.get(pk=business_id)  # 实验任务id
+        btmsQs = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=business.cur_project_id)
         btms = []
         for btm in btmsQs:
             btms.append({

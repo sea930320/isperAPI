@@ -151,7 +151,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
     business = Business.objects.get(id=business_id)
 
-    project = Project.objects.get(pk=business.project_id)
+    project = Project.objects.get(pk=business.cur_project_id)
     first_node_id = get_start_node(project.flow_id)
     node = FlowNode.objects.get(pk=first_node_id)
     startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
@@ -250,7 +250,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         business_role_id=startRoleAlloc.role_id,
         no=startRoleAlloc.no,
         del_flag=0,
-        project_id=business.project_id
+        project_id=business.cur_project_id
     )
     newTeammate.save()
 
@@ -267,7 +267,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
             business_role_id=teamItem['role_id'],
             no=teamItem['no'],
             del_flag=0,
-            project_id=business.project_id
+            project_id=business.cur_project_id
         )
         newTeammate.save()
 
@@ -288,8 +288,7 @@ def api_business_list(request):
         status = int(request.GET.get("status", 1))  # 实验状态
 
         user = request.user
-        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id',
-                                                                                                  flat=True)
+        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id', flat=True).distinct()
         qs = Business.objects.filter(
             Q(del_flag=0, pk__in=bussinessIDsInTeam) | Q(created_by=request.user))
 
@@ -310,7 +309,7 @@ def api_business_list(request):
         results = []
 
         for item in businesses:
-            team_dict = [model_to_dict(member) for member in BusinessTeamMember.objects.filter(business_id=item.id)]
+            team_dict = [model_to_dict(member) for member in BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id)]
 
             project = Project.objects.filter(pk=item.project_id).first()
             if project:
@@ -459,7 +458,7 @@ def api_business_start(request):
     businessRoles = BusinessRole.objects.filter(business=business)  # get all Business Roles
     for role in businessRoles:
         for no in range(1, role.capacity + 1):
-            teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
+            teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no, project_id=business.cur_project_id,
                                                             del_flag=0)  # get all team members with same business, role, no to check if user is allocated to this allocation
             if teamMembers.count() == 0:
                 resp = code.get_msg(code.TEAM_MEMBER_NOT_EXIST)
@@ -482,6 +481,7 @@ def api_business_start(request):
     # check if this user is Start User
     isStartUser = BusinessTeamMember.objects.filter(business=business, user=request.user,
                                                     business_role=startRoleAlloc.role,
+                                                    project_id=business.cur_project_id,
                                                     no=startRoleAlloc.no).exists()
     if not isStartUser:
         resp = code.get_msg(code.BUSINESS_NO_ACCESS_TO_START)
@@ -1214,7 +1214,7 @@ def api_business_list_nodel(request):
             results = []
 
             for item in business:
-                teamMembers = list(BusinessTeamMember.objects.filter(business_id=item.id).values_list('user__name', flat=True))
+                teamMembers = list(BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id).values_list('user__name', flat=True))
                 project = Project.objects.get(pk=item.project_id)
                 project_name = project.name
                 workflow_name = Flow.objects.get(pk=project.flow_id).name
@@ -1280,7 +1280,7 @@ def api_business_list_del(request):
             results = []
 
             for item in business:
-                teamMembers = list(BusinessTeamMember.objects.filter(business_id=item.id).values_list('user__name', flat=True))
+                teamMembers = list(BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id).values_list('user__name', flat=True))
                 project = Project.objects.get(pk=item.project_id)
                 project_name = project.name
                 workflow_name = Flow.objects.get(pk=project.flow_id).name
@@ -2206,7 +2206,7 @@ def api_business_report_generate(request):
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
             flow = Flow.objects.filter(pk=project.flow_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id',
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id',
                                                                                                          flat=True)
 
             # 小组成员
@@ -2394,7 +2394,7 @@ def api_business_report_export(request):
 
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id',
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id',
                                                                                                          flat=True)
 
             # 小组成员
