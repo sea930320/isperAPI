@@ -17,7 +17,6 @@ from account.models import Tuser, TNotifications, TInnerPermission
 from django.core.paginator import Paginator, EmptyPage
 from django.db.models import Q, Count
 from django.http import HttpResponse
-from experiment.models import *
 from business.models import *
 from business.service import *
 from project.models import Project, ProjectRole, ProjectRoleAllocation, ProjectDoc, ProjectDocRole
@@ -29,6 +28,7 @@ from workflow.models import FlowNode, FlowAction, FlowRoleActionNew, FlowRolePos
     FlowRoleAllocationAction, ProcessRoleAllocationAction
 from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
+from django.utils import timezone
 import random
 import string
 from utils.public_fun import getProjectIDByGroupManager
@@ -331,7 +331,7 @@ def api_business_list(request):
                 cur_node = None
 
             business = {
-                'id': item.id, 'name': u'{0} {1}'.format(item.id, item.name), 'show_nickname': item.show_nickname,
+                'id': item.id, 'name': item.name, 'show_nickname': item.show_nickname,
                 'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
                 'end_time': item.end_time.strftime('%Y-%m-%d') if item.end_time else None,
                 'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S') if item.create_time else None,
@@ -1225,7 +1225,7 @@ def api_business_list_nodel(request):
                     'id': item.id, 'name': str(item.id) + ' ' + item.name, 'project_name': project_name,
                     'workflow_name': workflow_name, 'officeItem': item.officeItem.name,
                     'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
-                    'end_time': item.update_time.strftime('%Y-%m-%d') if item.update_time else None,
+                    'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
                 }
                 results.append(bus)
@@ -1292,7 +1292,7 @@ def api_business_list_del(request):
                     'id': item.id, 'name': str(item.id) + ' ' + item.name, 'project_name': project_name,
                     'workflow_name': workflow_name, 'officeItem': item.officeItem.name,
                     'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
-                    'end_time': item.update_time.strftime('%Y-%m-%d') if item.update_time else None,
+                    'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
                 }
                 results.append(bus)
@@ -2815,27 +2815,23 @@ def api_vote_get_init_data(request):
             if vote is None:
                 data = {
                     'node_members': [{
-                        'id': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
-                                                                no=item.no).first().user_id,
-                        'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
-                                                                  no=item.no).first().user.name
+                        'value': item.pk,
+                        'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user.name
                     } for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                 }
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {'status': 1, 'data': data}
-            elif vote.end_time > datetime.now():
+            elif vote.end_time > timezone.now():
                 resp = code.get_msg(code.SUCCESS)
-                resp['d'] = {'status': 2}
+                resp['d'] = {'status': 2, 'data': "Waiting until add voteItem" if vote.mode == 4 else "Waiting until end vote"}
             elif vote.mode == 4:
                 data = {
                     'title': vote.title,
                     'description': vote.description,
                     'mode': 4,
                     'node_members': [{
-                        'id': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id,
-                                                                no=n_member.no).first().user_id,
-                        'text': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id,
-                                                                  no=n_member.no).first().user.name
+                        'value': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id, no=n_member.no).first().user_id,
+                        'text': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id, no=n_member.no).first().user.name
                     } for n_member in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                     'items': [{
                         'id': item.pk,
@@ -2850,11 +2846,11 @@ def api_vote_get_init_data(request):
                     'description': vote.description,
                     'mode': 3,
                     'method': vote.method,
+                    'max_vote': vote.max_vote,
+                    'lost_vote': vote.lost_vote,
                     'node_members': [{
-                        'id': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id,
-                                                                no=n_member.no).first().user_id,
-                        'text': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id,
-                                                                  no=n_member.no).first().user.name
+                        'value': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id, no=n_member.no).first().user_id,
+                        'text': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id, no=n_member.no).first().user.name
                     } for n_member in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                     'members': [{
                         'id': member.pk,
@@ -2865,7 +2861,7 @@ def api_vote_get_init_data(request):
                         'id': item.pk,
                         'text': item.content,
                         'voted_count': item.voted_count,
-                        'voted_users': [user.name for user in vote.voted_users.all()]
+                        'voted_users': [user.name for user in item.voted_users.all()]
                     } for item in vote.items.all()]
                 }
                 resp = code.get_msg(code.SUCCESS)
@@ -2885,11 +2881,134 @@ def api_vote_get_init_data(request):
                         'id': item.pk,
                         'text': item.content,
                         'voted_count': item.voted_count,
-                        'voted_users': [user.name for user in vote.voted_users.all()]
+                        'voted_users': [user.name for user in item.voted_users.all()]
                     } for item in vote.items.all()]
                 }
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {'status': 5, 'data': data}
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def api_vote_save_vote_data(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        voteMode = request.POST.get('voteMode', None)
+        voteData = eval(request.POST.get('voteData', None))
+        voteSetting = eval(request.POST.get('voteSetting', None))
+
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            vote = Vote.objects.filter(
+                business_id=business_id,
+                node_id=node_id
+            ).first()
+
+            if vote is not None:
+                vote.items.all().delete()
+                vote.members.all().delete()
+                vote.delete()
+            newVote = Vote(
+                business_id=business_id,
+                node_id=node_id,
+                mode=voteMode,
+                title=voteData['voteTitle'],
+                description=voteData['voteDescription'],
+                method=voteSetting['voteMethod'] if int(voteMode) != 4 else None,
+                end_time=voteSetting['voteEndTime'],
+                max_vote=voteSetting['voteMaxVote'] if int(voteMode) == 3 else None,
+                lost_vote=voteSetting['voteLostVote'] if int(voteMode) == 3 else None
+            )
+            newVote.save()
+
+            if voteMode != 4:
+                for item in voteData['voteItems']:
+                    newVoteItem = VoteItem(content=item['text'])
+                    newVoteItem.save()
+                    newVote.items.add(newVoteItem)
+            for vm in voteSetting['members']:
+                newMember = VoteMember(user_id=vm)
+                newMember.save()
+                newVote.members.add(newMember)
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'status': 2, 'data': "Waiting until add voteItem" if voteMode == 4 else "Waiting until end vote"}
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def api_vote_finish_mode_3(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            Vote.objects.filter(
+                business_id=business_id,
+                node_id=node_id,
+                mode=3
+            ).update(mode=0)
+
+            vote = Vote.objects.filter(
+                business_id=business_id,
+                node_id=node_id,
+                mode=0
+            ).first()
+
+            data = {
+                'title': vote.title,
+                'description': vote.description,
+                'mode': vote.mode,
+                'method': vote.method,
+                'members': [{
+                    'id': member.pk,
+                    'username': member.user.name,
+                    'voted': member.voted,
+                } for member in vote.members.all()],
+                'items': [{
+                    'id': item.pk,
+                    'text': item.content,
+                    'voted_count': item.voted_count,
+                    'voted_users': [user.name for user in item.voted_users.all()]
+                } for item in vote.items.all()]
+            }
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'status': 5, 'data': data}
         elif bus.status == 1:
             resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
         else:

@@ -2179,7 +2179,8 @@ def get_own_messages(request):
             'content': eval(item.content) if bool(re.search('^businessMoreTeammate_', item.type)) else item.content,
             'moreTeammates': 1 if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
             'businessInfo': {
-                'title': item.type.split("businessMoreTeammate_", 1)[1] + ' ' + Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().name,
+                'id': item.type.split("businessMoreTeammate_", 1)[1],
+                'title': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().name,
                 'created_by': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().created_by.name,
                 'created_time': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S')
             } if bool(re.search('^businessMoreTeammate_', item.type)) else {},

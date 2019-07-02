@@ -364,7 +364,8 @@ class BusinessPost(models.Model):
 
     def __unicode__(self):
         return self.name
-        
+
+
 class VoteItem(models.Model):
     content = models.TextField(verbose_name=u'Vote Content')
     voted_count = models.IntegerField(default=0, verbose_name=u'Vote Count')
@@ -380,7 +381,7 @@ class VoteItem(models.Model):
 
 class VoteMember(models.Model):
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Vote User ID')
-    voted = models.IntegerField(verbose_name=u'Vote Done')
+    voted = models.IntegerField(default=0, verbose_name=u'Vote Done')
 
     class Meta:
         db_table = "t_voteMember"
@@ -396,10 +397,10 @@ class Vote(models.Model):
     mode = models.IntegerField(verbose_name=u'Vote Mode')
     title = models.TextField(verbose_name=u'Vote Title')
     description = models.TextField(verbose_name=u'Vote Description')
-    method = models.IntegerField(verbose_name=u'Vote Method')
+    method = models.IntegerField(blank=True, null=True, verbose_name=u'Vote Method')
     end_time = models.DateTimeField(verbose_name=u'Vote End Time')
-    max_vote = models.IntegerField(verbose_name=u'Vote Max Count')
-    lost_vote = models.IntegerField(verbose_name=u'Vote Lost Count')
+    max_vote = models.IntegerField(blank=True, null=True, verbose_name=u'Vote Max Count')
+    lost_vote = models.IntegerField(blank=True, null=True, verbose_name=u'Vote Lost Count')
     items = models.ManyToManyField(VoteItem, verbose_name=u'Vote Items')
     members = models.ManyToManyField(VoteMember, verbose_name=u'Vote Members')
 
