@@ -15,7 +15,7 @@ from django.utils.timezone import now
 
 from account.models import Tuser, TNotifications, TInnerPermission
 from django.core.paginator import Paginator, EmptyPage
-from django.db.models import Q, Count
+from django.db.models import Q, F, Count
 from django.http import HttpResponse
 from business.models import *
 from business.service import *
@@ -164,12 +164,12 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     target_user_counts = []
     if business.target_part is not None:
         target_user_counts = list(Tuser.objects.filter(
-            Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id)).values(
+            Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id if business.jumper_id is None else business.jumper_id)).values(
             'tposition__name').annotate(counts=Count('id')))
         company_id = business.target_part.company_id
     elif business.target_company is not None:
         target_user_counts = list(Tuser.objects.filter(
-            Q(tcompany=business.target_company, is_review=1) & ~Q(id=business.created_by_id)).values(
+            Q(tcompany=business.target_company, is_review=1) & ~Q(id=business.created_by_id if business.jumper_id is None else business.jumper_id)).values(
             'tposition__name').annotate(counts=Count('id')))
         company_id = business.target_company.id
 
@@ -236,17 +236,16 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         targetUnitUsers = [{
             'id': item.id,
             'position': item.tposition.name,
-        } for item in Tuser.objects.filter(
-            Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id))]
+        } for item in Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id if business.jumper_id is None else business.jumper_id))]
     elif business.target_company is not None:
         targetUnitUsers = [{
             'id': item.id,
             'position': item.tposition.name if item.tposition else None,
-        } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(id=business.created_by_id))]
+        } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(id=business.created_by_id if business.jumper_id is None else business.jumper_id))]
 
     newTeammate = BusinessTeamMember.objects.create(
         business_id=business_id,
-        user_id=business.created_by_id,
+        user_id=business.created_by_id if business.jumper_id is None else business.jumper_id,
         business_role_id=startRoleAlloc.role_id,
         no=startRoleAlloc.no,
         del_flag=0,
@@ -3170,6 +3169,51 @@ def am_i_vote_member(request, statusMsg):
                 }
                 resp['d'] = {'status': 7, 'data': data}
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('am_i_vote_member Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def api_user_vote_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+        items = eval(request.POST.get('items', None))
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            vote = Vote.objects.filter(
+                business_id=business_id,
+                node_id=node_id
+            ).first()
+
+            for item in items:
+                if vote.method == 0:
+                    VoteItem.objects.get(pk=item).voted_users.add(request.user.pk)
+                elif vote.method == 1:
+                    VoteItem.objects.filter(pk=item).update(voted_count=F('voted_count')+1)
+
+            vote.members.filter(user_id=request.user.pk).update(voted=1)
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'status': 2, 'data': "您已经输入了表决选项" if vote.mode == 4 else "您已经进行表决"}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         elif bus.status == 1:
             resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
