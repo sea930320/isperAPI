@@ -2795,6 +2795,7 @@ def api_vote_get_init_data(request):
     try:
         business_id = request.POST.get('business_id', None)
         node_id = request.POST.get('node_id', None)
+        role = int(request.POST.get('role', None))
         if business_id is None or node_id is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2810,6 +2811,14 @@ def api_vote_get_init_data(request):
                 node_id=node_id
             ).first()
 
+            if role == 0:
+                if vote is None:
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 2, 'data': "还没进行表决设置，请等待"}
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                else:
+                    return am_i_vote_member(request, None)
+
             if vote is None:
                 data = {
                     'node_members': [{
@@ -2820,8 +2829,8 @@ def api_vote_get_init_data(request):
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {'status': 1, 'data': data}
             elif vote.end_time > timezone.now():
-                resp = code.get_msg(code.SUCCESS)
-                resp['d'] = {'status': 2, 'data': "Waiting until add voteItem" if vote.mode == 4 else "Waiting until end vote"}
+                statusMsg = "参与人员在输入表决选项，请等待" if vote.mode == 4 else "参与人员在投票，请等待"
+                return am_i_vote_member(request, statusMsg)
             elif vote.mode == 4:
                 data = {
                     'title': vote.title,
@@ -2947,8 +2956,8 @@ def api_vote_save_vote_data(request):
                 newMember.save()
                 newVote.members.add(newMember)
 
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'status': 2, 'data': "Waiting until add voteItem" if voteMode == 4 else "Waiting until end vote"}
+            statusMsg = "参与人员在输入表决选项，请等待" if vote.mode == 4 else "参与人员在投票，请等待"
+            return am_i_vote_member(request, statusMsg)
         elif bus.status == 1:
             resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
         else:
@@ -3015,5 +3024,72 @@ def api_vote_finish_mode_3(request):
 
     except Exception as e:
         logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def am_i_vote_member(request, statusMsg):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            vote = Vote.objects.filter(
+                business_id=business_id,
+                node_id=node_id
+            ).first()
+            if not vote.members.filter(user_id=request.user.pk).exists():
+                resp = code.get_msg(code.SUCCESS)
+                resp['d'] = {'status': 2, 'data': "您不能参与表决" if statusMsg is None else statusMsg}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            elif vote.members.get(user_id=request.user.pk).voted == 1:
+                resp = code.get_msg(code.SUCCESS)
+                resp['d'] = {'status': 2, 'data': "您已经输入了表决选项" if vote.mode == 4 else "您已经进行表决"}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            elif vote.end_time <= timezone.now():
+                resp = code.get_msg(code.SUCCESS)
+                resp['d'] = {'status': 2, 'data': "输入表决选项的时间已经过了" if vote.mode == 4 else "表决时间已经过了"}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            elif vote.mode == 4:
+                resp = code.get_msg(code.SUCCESS)
+                data = {
+                    'title': vote.title,
+                    'description': vote.description,
+                }
+                resp['d'] = {'status': 6, 'data': data}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            else:
+                resp = code.get_msg(code.SUCCESS)
+                data = {
+                    'title': vote.title,
+                    'description': vote.description,
+                    'mode': vote.mode,
+                    'method': vote.method,
+                    'max_vote': vote.max_vote,
+                    'items': [{
+                        'value': item.pk,
+                        'text': item.content,
+                    } for item in vote.items.all()]
+                }
+                resp['d'] = {'status': 7, 'data': data}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('am_i_vote_member Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
