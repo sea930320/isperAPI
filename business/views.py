@@ -81,8 +81,7 @@ def api_business_create(request):
                     target_company_id=use_to if project.created_role_id in [2,
                                                                             6] else company_id if project.created_role_id in [
                         3, 7] and project.use_to_id is None else None,
-                    target_part_id=project.use_to_id if project.created_role_id in [3,
-                                                                                    7] and project.use_to_id is not None else None,
+                    target_part_id=project.use_to_id if project.created_role_id in [3, 7] and project.use_to_id is not None else None,
                 )
                 business_roles = []
                 for item in roles:
