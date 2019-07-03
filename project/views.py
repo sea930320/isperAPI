@@ -534,7 +534,7 @@ def api_project_delete(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
         if obj:
-            cache.clear()
+            #cache.clear()
 
             with transaction.atomic():
                 obj.del_flag = 1

@@ -3070,13 +3070,13 @@ def api_business_template_create(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        exp = Business.objects.filter(pk=business_id, del_flag=0).first()
-        if exp:
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus:
             doc = BusinessDocContent.objects.filter(pk=doc_id).first()
             path = business_template_save(business_id, node_id, doc.name, content)
             BusinessDocContent.objects.filter(pk=doc_id).update(content=content, created_by=request.user.id, file=path, has_edited=True)
 
-            clear_cache(exp.pk)
+            clear_cache(bus.pk)
             resp = code.get_msg(code.SUCCESS)
         else:
             resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
