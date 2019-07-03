@@ -34,6 +34,7 @@ class Business(models.Model):
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     target_company = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.CASCADE)
     target_part = models.ForeignKey(TParts, blank=True, null=True, on_delete=models.CASCADE)
+    jumper_id = models.IntegerField(verbose_name=u'当前项目', null=True, default=None)
 
     class Meta:
         db_table = "t_business"

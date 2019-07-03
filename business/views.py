@@ -3041,7 +3041,7 @@ def api_business_jump_start(request):
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        project = Project.objects.get(pk=project_id).first()
+        project = Project.objects.filtere(pk=project_id).first()
         if project is None:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -3050,10 +3050,12 @@ def api_business_jump_start(request):
         if roles.exists() is False:
             resp = code.get_msg(code.PROJECT_ROLE_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
         with transaction.atomic():
             if project.created_role_id in [3, 7]:
                 company_id = project.created_by.tcompanymanagers_set.get().tcompany.id if project.created_role_id == 3 else project.created_by.t_company_set_assistants.get().id if project.created_role_id == 7 else None
             business.cur_project_id = project_id
+            business.jumper_id = request.user.id
             business.target_company_id = use_to if project.created_role_id in [2, 6] else company_id if project.created_role_id in [
                         3, 7] and project.use_to_id is None else None
             business.target_part_id = project.use_to_id if project.created_role_id in [3, 7] and project.use_to_id is not None else None
