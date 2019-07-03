@@ -577,14 +577,7 @@ def api_project_detail(request):
         obj = Project.objects.filter(pk=project_id, del_flag=0).first()
         if obj:
             flow = Flow.objects.get(pk=obj.flow_id)
-            # 项目角色
-            # sql = '''SELECT t.id,t.type,t.`name` role_name,t.max,t.min,t.category,t.image_id,
-            # i.`name` image_name, concat('/media/', i.`avatar`) image_url
-            # from t_project_role t LEFT JOIN t_role_image i ON t.image_id=i.id
-            # WHERE t.type != \'''' + const.ROLE_TYPE_OBSERVER + '''\' and t.project_id={0}'''.format(project_id)
-            # project_roles = query.select(sql, ['id', 'type', 'role_name', 'max', 'min', 'category', 'image_id',
-            #                                    'image_name', 'image_url'])
-            qs = ProjectRoleAllocation.objects.filter(project_id=project_id)
+            qs = ProjectRoleAllocation.objects.filter(project_id=project_id, can_take_in=True)
             pras = []
             for pra in qs:
                 role = ProjectRole.objects.filter(pk=pra.role_id).first()
@@ -621,6 +614,8 @@ def api_project_detail(request):
                                                     del_flag=const.DELETE_FLAG_NO).exists()
                 if is_exists:
                     has_jump_project = True
+            created_by = obj.created_by
+            group_id = created_by.allgroups_set.get().id if obj.created_role_id == 2 else created_by.allgroups_set_assistants.get().id if obj.created_role_id == 6 else None
             resp['d'] = {
                 'flow_id': obj.flow_id, 'flow_name': flow.name, 'name': obj.name,
                 'all_role': obj.all_role, 'course': model_to_dict(obj.course) if obj.course else None,
@@ -629,7 +624,8 @@ def api_project_detail(request):
                 'ability_target': obj.ability_target, 'start_time': start_time, 'has_jump_project': has_jump_project,
                 'end_time': end_time, 'intro': obj.intro, 'purpose': obj.purpose,
                 'requirement': obj.requirement, 'id': obj.id, 'type': obj.type, 'flow_xml': flow.xml,
-                'step': obj.step, 'role_allocs': pras, 'docs': doc_list
+                'step': obj.step, 'role_allocs': pras, 'docs': doc_list, 'created_role': obj.created_role_id,
+                'group_id': group_id
             }
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
