@@ -1201,14 +1201,11 @@ def action_exp_node_end(bus, role_alloc_id, data):
             if next_node is None:
                 # 结束实验，验证实验心得
                 experience_count = BusinessExperience.objects.filter(business_id=bus.id, del_flag=0).count()
-                bras = BusinessRoleAllocation.objects.filter(project_id=project.pk,
-                                                                 node_id=bus.node_id, can_take_in=True)
+                bras = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=bus.node_id, can_take_in=True)
                 user_ids = []
                 for bra in bras:
-                    print BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
-                                                               business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)
-                    user_ids = list(set(user_ids) | set(BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
-                                                               business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)))
+                    print BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0, business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)
+                    user_ids = list(set(user_ids) | set(BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0, business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)))
                 # logger.info(role_ids)
                 print user_ids
                 user_count = len(user_ids)

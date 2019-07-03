@@ -368,13 +368,13 @@ def api_business_detail(request):
 
     try:
         business_id = request.GET.get("business_id")  # 实验id
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
 
-        if BusinessTransPath.objects.filter(business_id=business_id).count() == 0:
+        if BusinessTransPath.objects.filter(business_id=business_id, project_id=business.cur_project_id).count() == 0:
             resp = api_business_start(request)
             if resp != 'success':
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        business = Business.objects.filter(pk=business_id, del_flag=0).first()
         if business:
             data = get_business_detail(business)
 
@@ -490,7 +490,7 @@ def api_business_start(request):
     with transaction.atomic():
         # Create Business TransPath
         path = BusinessTransPath.objects.create(business=business, node=node,
-                                                project_id=business.project_id, task_id=node.task_id, step=1)
+                                                project_id=business.cur_project_id, task_id=node.task_id, step=1)
         for item in allocations:
             if item.can_brought:
                 come_status = 1
@@ -2821,7 +2821,7 @@ def api_vote_get_init_data(request):
             if vote is None:
                 data = {
                     'node_members': [{
-                        'value': item.pk,
+                        'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user_id,
                         'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user.name
                     } for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                 }
@@ -2945,7 +2945,7 @@ def api_vote_save_vote_data(request):
             )
             newVote.save()
 
-            if voteMode != 4:
+            if int(voteMode) != 4:
                 for item in voteData['voteItems']:
                     newVoteItem = VoteItem(content=item['text'])
                     newVoteItem.save()
@@ -2955,7 +2955,7 @@ def api_vote_save_vote_data(request):
                 newMember.save()
                 newVote.members.add(newMember)
 
-            statusMsg = "参与人员在输入表决选项，请等待" if vote.mode == 4 else "参与人员在投票，请等待"
+            statusMsg = "参与人员在输入表决选项，请等待" if int(voteMode) == 4 else "参与人员在投票，请等待"
             return am_i_vote_member(request, statusMsg)
         elif bus.status == 1:
             resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
@@ -3211,6 +3211,48 @@ def api_user_vote_save(request):
                 elif vote.method == 1:
                     VoteItem.objects.filter(pk=item).update(voted_count=F('voted_count')+1)
 
+            vote.members.filter(user_id=request.user.pk).update(voted=1)
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'status': 2, 'data': "您已经输入了表决选项" if vote.mode == 4 else "您已经进行表决"}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('am_i_vote_member Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def api_user_vote_item_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+        new_item = request.POST.get('new_item', None)
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            vote = Vote.objects.filter(
+                business_id=business_id,
+                node_id=node_id
+            ).first()
+
+            newVoteItem = VoteItem(content=new_item)
+            newVoteItem.save()
+            vote.items.add(newVoteItem)
             vote.members.filter(user_id=request.user.pk).update(voted=1)
 
             resp = code.get_msg(code.SUCCESS)
