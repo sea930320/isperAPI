@@ -1580,7 +1580,7 @@ def api_business_message_push(request):
 
         # 是否有结束环节的权限
         can_terminate = bra.can_terminate
-
+        cur_project_id = bus.cur_project_id
         # if role_status is None:
         #     resp = code.get_msg(code.BUSINESS_NODE_ERROR)
         #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1611,7 +1611,7 @@ def api_business_message_push(request):
 
         name = request.user.name
 
-        project = Project.objects.get(pk=bus.cur_project_id)
+        project = Project.objects.get(pk=cur_project_id)
         node = FlowNode.objects.filter(pk=bus.node_id, del_flag=0).first()
 
         # 角色形象
@@ -1909,19 +1909,20 @@ def api_business_message_push(request):
         if role_alloc_id:
             bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id,
                                                         business_id=business_id,
-                                                        project_id=bus.cur_project_id
+                                                        project_id=cur_project_id
                                                         ).first()
-            message = BusinessMessage.objects.create(business_id=business_id, user_id=user.pk,
-                                                     business_role_allocation_id=role_alloc_id,
-                                                     file_id=file_id, msg=msg, msg_type=type,
-                                                     path_id=path.id, user_name=user.name, role_name=bra.role.name,
-                                                     ext=json.dumps(ext))
+            if bra:
+                message = BusinessMessage.objects.create(business_id=business_id, user_id=user.pk,
+                                                         business_role_allocation_id=role_alloc_id,
+                                                         file_id=file_id, msg=msg, msg_type=type,
+                                                         path_id=path.id, user_name=user.name, role_name=bra.role.name,
+                                                         ext=json.dumps(ext))
         ext['id'] = message.pk
         ext['opt_status'] = False
 
         msgDict = model_to_dict(message) if message else {}
         msgDict['ext'] = ext
-        msgDict['from'] = message.user.id
+        msgDict['from'] = message.user_id if message else None
         msgDict['type'] = 'groupchat'
         msgDict['to'] = None
         with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
@@ -2274,6 +2275,8 @@ def api_business_report_generate(request):
 
             for item in paths:
                 node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
+                if node.process.type == const.PROCESS_NEST_TYPE:
+                    continue
                 doc_list = []
                 vote_status = []
                 if node.process.type == 2:
@@ -2462,6 +2465,8 @@ def api_business_report_export(request):
             report = xlwt.Workbook(encoding='utf8')
             for item in paths:
                 node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
+                if node.process.type == const.PROCESS_NEST_TYPE:
+                    continue
                 doc_list = []
                 vote_status = []
                 sheet = report.add_sheet(node.name)
@@ -3097,8 +3102,10 @@ def api_business_jump_start(request):
         project_id = request.POST.get("project_id", None)  # 项目ID
         use_to = request.POST.get("use_to", None)
         role_alloc_id = request.POST.get("role_alloc_id", None)
+        process_type = request.POST.get("process_type", None)
+        tran_id = request.POST.get("tran_id", None)
 
-        if not all(v is not None for v in [business_id, project_id, role_alloc_id]):
+        if not all(v is not None for v in [business_id, project_id, role_alloc_id, process_type, tran_id]):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         business = Business.objects.filter(pk=business_id).first()
@@ -3126,6 +3133,9 @@ def api_business_jump_start(request):
             if business.path_id is None:
                 resp = code.get_msg(code.PERMISSION_DENIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            if int(process_type) == 9:
+                BusinessProjectTrack.objects.create(business_id=business_id, project_id=business.cur_project_id,
+                                                    process_type=process_type, flow_trans_id=tran_id)
             business.path_id = None
             business.node_id = None
             business.cur_project_id = project_id
@@ -3366,6 +3376,9 @@ def api_business_result(request):
             paths = BusinessTransPath.objects.filter(business_id=business_id)
             node_list = []
             for item in paths:
+                node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
+                if node.process.type == const.PROCESS_NEST_TYPE:
+                    continue
                 # 个人笔记
                 note = BusinessNotes.objects.filter(business_id=business_id,
                                                     node_id=item.node_id, created_by=user_id).first()
@@ -3415,7 +3428,6 @@ def api_business_result(request):
                                     'content': d.content, 'url': d.file.url, 'file_type': d.file_type
                                 })
 
-                node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
                 doc_list = []
                 vote_status = []
                 if node.process.type == 2:

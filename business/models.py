@@ -415,7 +415,8 @@ class Vote(models.Model):
 class BusinessProjectTrack(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
-    process_id = models.IntegerField(verbose_name=u'Process', null=True)
+    process_type = models.IntegerField(verbose_name=u'Process Type', null=True)
+    flow_trans_id = models.IntegerField(verbose_name=u'TFlowTrans ID', null=True)
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
 

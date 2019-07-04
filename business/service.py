@@ -1180,6 +1180,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
     :return:
     """
     try:
+        is_nest = False
         # 当前项目环节权限判断
         if not BusinessRoleAllocation.objects.filter(pk=role_alloc_id, project_id=bus.cur_project_id,
                                                      can_terminate=True).exists():
@@ -1188,6 +1189,17 @@ def action_exp_node_end(bus, role_alloc_id, data):
         else:
             if data['tran_id'] == 0 or data['tran_id'] == '0':
                 next_node = None
+            elif data['process_type'] == const.PROCESS_EXPERIENCE_TYPE:
+                bpt = BusinessProjectTrack.objects.filter(business_id=bus.id, process_type=const.PROCESS_NEST_TYPE).last()
+                if bpt is None or bpt.project_id == bus.cur_project_id:
+                    tran = FlowTrans.objects.get(pk=data['tran_id'])
+                    next_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
+                else:
+                    bus.jumper_id = None
+                    data['project_id'] = bpt.project_id
+                    tran = FlowTrans.objects.get(pk=bpt.flow_trans_id)
+                    next_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
+                    is_nest = True
             else:
                 tran = FlowTrans.objects.get(pk=data['tran_id'])
                 next_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
@@ -1272,7 +1284,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
                     # ).update(user_id=item.user_id)
                     # 三期 - 当上下两个环节的场景一样、角色一致，则下一个环节启动后，所有具备入席权限的角色自动在席
                     # 这样实现不行，会引入重复角色的bug
-                    if cur_node.process_id == next_node.process_id:
+                    if cur_node.process_id == next_node.process_id and not is_nest:
                         item_role = item.business_role
                         # 角色占位
                         pos = get_role_position(bus, project, next_node, path, item_role, role_alloc_id)

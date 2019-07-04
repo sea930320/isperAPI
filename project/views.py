@@ -1194,10 +1194,10 @@ def api_project_jump_detail(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             has_jump_project = False
-            jump_process = FlowProcess.objects.filter(type=const.PROCESS_JUMP_TYPE,
-                                                      del_flag=const.DELETE_FLAG_NO).first()
-            if jump_process:
-                is_exists = FlowNode.objects.filter(flow_id=flow.pk, process=jump_process,
+            jump_processes = FlowProcess.objects.filter(type__in=[const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE],
+                                                        del_flag=const.DELETE_FLAG_NO)
+            if jump_processes.first():
+                is_exists = FlowNode.objects.filter(flow_id=flow.pk, process__in=jump_processes,
                                                     del_flag=const.DELETE_FLAG_NO).exists()
                 if is_exists:
                     has_jump_project = True
@@ -1270,7 +1270,8 @@ def api_project_jump_setup(request):
                         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                     jump_list.append(ProjectJump(project_id=project_id, node_id=item['node_id'],
-                                                 jump_project_id=item['jump_project_id']))
+                                                 jump_project_id=item['jump_project_id'],
+                                                 process_type=item['processs_type']))
 
                 # 清除原分配
                 ProjectJump.objects.filter(project_id=project_id).delete()

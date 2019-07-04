@@ -1826,8 +1826,8 @@ def api_workflow_trans_query(request):
                 process_type = item['node'].process.type
                 jump_project_id = None
                 # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
-                if process_type == const.PROCESS_JUMP_TYPE:
-                    jump = ProjectJump.objects.filter(project_id=project_id, node_id=item['node'].pk).first()
+                if process_type in [const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE]:
+                    jump = ProjectJump.objects.filter(project_id=project_id, node_id=item['node'].pk, process_type=process_type).first()
                     if jump:
                         jump_project_id = jump.jump_project_id
                     else:
