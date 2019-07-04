@@ -81,8 +81,7 @@ def api_business_create(request):
                     target_company_id=use_to if project.created_role_id in [2,
                                                                             6] else company_id if project.created_role_id in [
                         3, 7] and project.use_to_id is None else None,
-                    target_part_id=project.use_to_id if project.created_role_id in [3,
-                                                                                    7] and project.use_to_id is not None else None,
+                    target_part_id=project.use_to_id if project.created_role_id in [3, 7] and project.use_to_id is not None else None,
                 )
                 business_roles = []
                 for item in roles:
@@ -3218,15 +3217,79 @@ def am_i_vote_member(request, statusMsg):
             ).first()
             if not vote.members.filter(user_id=request.user.pk).exists():
                 resp = code.get_msg(code.SUCCESS)
-                resp['d'] = {'status': 2, 'data': "您不能参与表决" if statusMsg is None else statusMsg}
+                if statusMsg is None:
+                    resp['d'] = {'status': 2, 'data': "您不能参与表决"}
+                elif vote.mode != 4 and not vote.members.filter(voted=0).exists():
+                    data = {
+                        'title': vote.title,
+                        'description': vote.description,
+                        'mode': vote.mode,
+                        'method': vote.method,
+                        'members': [{
+                            'id': member.pk,
+                            'username': member.user.name,
+                            'voted': member.voted,
+                        } for member in vote.members.all()],
+                        'items': [{
+                            'id': item.pk,
+                            'text': item.content,
+                            'voted_count': item.voted_count,
+                            'voted_users': [user.name for user in item.voted_users.all()]
+                        } for item in vote.items.all()]
+                    }
+                    resp['d'] = {'status': 5, 'data': data}
+                else:
+                    resp['d'] = {'status': 2, 'data': statusMsg}
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             elif vote.members.get(user_id=request.user.pk).voted == 1:
                 resp = code.get_msg(code.SUCCESS)
-                resp['d'] = {'status': 2, 'data': "您已经输入了表决选项" if vote.mode == 4 else "您已经进行表决"}
+                if vote.mode == 4:
+                    resp['d'] = {'status': 2, 'data': "您已经输入了表决选项"}
+                elif vote.end_time <= timezone.now() or not vote.members.filter(voted=0).exists():
+                    data = {
+                        'title': vote.title,
+                        'description': vote.description,
+                        'mode': vote.mode,
+                        'method': vote.method,
+                        'members': [{
+                            'id': member.pk,
+                            'username': member.user.name,
+                            'voted': member.voted,
+                        } for member in vote.members.all()],
+                        'items': [{
+                            'id': item.pk,
+                            'text': item.content,
+                            'voted_count': item.voted_count,
+                            'voted_users': [user.name for user in item.voted_users.all()]
+                        } for item in vote.items.all()]
+                    }
+                    resp['d'] = {'status': 5, 'data': data}
+                else:
+                    resp['d'] = {'status': 2, 'data': "您已经进行表决"}
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             elif vote.end_time <= timezone.now():
                 resp = code.get_msg(code.SUCCESS)
-                resp['d'] = {'status': 2, 'data': "输入表决选项的时间已经过了" if vote.mode == 4 else "表决时间已经过了"}
+                if vote.mode == 4:
+                    resp['d'] = {'status': 2, 'data': "输入表决选项的时间已经过了"}
+                else:
+                    data = {
+                        'title': vote.title,
+                        'description': vote.description,
+                        'mode': vote.mode,
+                        'method': vote.method,
+                        'members': [{
+                            'id': member.pk,
+                            'username': member.user.name,
+                            'voted': member.voted,
+                        } for member in vote.members.all()],
+                        'items': [{
+                            'id': item.pk,
+                            'text': item.content,
+                            'voted_count': item.voted_count,
+                            'voted_users': [user.name for user in item.voted_users.all()]
+                        } for item in vote.items.all()]
+                    }
+                    resp['d'] = {'status': 5, 'data': data}
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             elif vote.mode == 4:
                 resp = code.get_msg(code.SUCCESS)
@@ -3294,7 +3357,27 @@ def api_user_vote_save(request):
             vote.members.filter(user_id=request.user.pk).update(voted=1)
 
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'status': 2, 'data': "您已经输入了表决选项" if vote.mode == 4 else "您已经进行表决"}
+            if vote.end_time <= timezone.now() or not vote.members.filter(voted=0).exists():
+                data = {
+                    'title': vote.title,
+                    'description': vote.description,
+                    'mode': vote.mode,
+                    'method': vote.method,
+                    'members': [{
+                        'id': member.pk,
+                        'username': member.user.name,
+                        'voted': member.voted,
+                    } for member in vote.members.all()],
+                    'items': [{
+                        'id': item.pk,
+                        'text': item.content,
+                        'voted_count': item.voted_count,
+                        'voted_users': [user.name for user in item.voted_users.all()]
+                    } for item in vote.items.all()]
+                }
+                resp['d'] = {'status': 5, 'data': data}
+            else:
+                resp['d'] = {'status': 2, 'data': "您已经进行表决"}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         elif bus.status == 1:
@@ -3336,7 +3419,317 @@ def api_user_vote_item_save(request):
             vote.members.filter(user_id=request.user.pk).update(voted=1)
 
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'status': 2, 'data': "您已经输入了表决选项" if vote.mode == 4 else "您已经进行表决"}
+            resp['d'] = {'status': 2, 'data': "您已经输入了表决选项"}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('am_i_vote_member Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def api_get_poll_init_data(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+        role = int(request.POST.get('role', None))
+
+        if business_id is None or node_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            poll = Poll.objects.filter(
+                business_id=business_id,
+                node_id=node_id
+            ).first()
+
+            if role == 1:
+                if poll is None:
+                    data = {
+                        'node_members': [{
+                            'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user_id,
+                            'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user.name
+                        } for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
+                    }
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 1, 'data': data}
+                elif poll.end_time > timezone.now():
+                    if not poll.members.filter(poll_status=0).exists():
+                        data = {
+                            'title': poll.title,
+                            'method': poll.method,
+                            'share': poll.share,
+                            'items': {
+                                '1': [ x.user.name for x in poll.members.filter(poll_status=1) ],
+                                '2': [ x.user.name for x in poll.members.filter(poll_status=2) ],
+                                '3': [ x.user.name for x in poll.members.filter(Q(poll_status=3) | Q(poll_status=0)) ],
+                            } if poll.share == 0 else {
+                                '1': poll.members.filter(poll_status=1).count(),
+                                '2': poll.members.filter(poll_status=2).count(),
+                                '3': poll.members.filter(Q(poll_status=3) | Q(poll_status=0)).count(),
+                            },
+                        }
+                        resp = code.get_msg(code.SUCCESS)
+                        resp['d'] = {'status': 4, 'data': data}
+                    elif not poll.members.filter(user_id=request.user.pk).exists():
+                        resp = code.get_msg(code.SUCCESS)
+                        resp['d'] = {'status': 2, 'data': "请等到投票结束"}
+                    else:
+                        if poll.members.get(user_id=request.user.pk).poll_status == 0:
+                            data = {
+                                'title': poll.title,
+                                'method': poll.method,
+                                'share': poll.share,
+                            }
+                            resp = code.get_msg(code.SUCCESS)
+                            resp['d'] = {'status': 3, 'data': data}
+                        elif not poll.members.filter(poll_status=0).exists():
+                            data = {
+                                'title': poll.title,
+                                'method': poll.method,
+                                'share': poll.share,
+                                'items': {
+                                    '1': [x.user.name for x in poll.members.filter(poll_status=1)],
+                                    '2': [x.user.name for x in poll.members.filter(poll_status=2)],
+                                    '3': [x.user.name for x in poll.members.filter(Q(poll_status=3) | Q(poll_status=0))],
+                                } if poll.share == 0 else {
+                                    '1': poll.members.filter(poll_status=1).count(),
+                                    '2': poll.members.filter(poll_status=2).count(),
+                                    '3': poll.members.filter(Q(poll_status=3) | Q(poll_status=0)).count(),
+                                },
+                            }
+                            resp = code.get_msg(code.SUCCESS)
+                            resp['d'] = {'status': 4, 'data': data}
+                        else:
+                            resp = code.get_msg(code.SUCCESS)
+                            resp['d'] = {'status': 2, 'data': "已经投票了"}
+                else:
+                    data = {
+                        'title': poll.title,
+                        'method': poll.method,
+                        'share': poll.share,
+                        'items': {
+                            '1': [x.user.name for x in poll.members.filter(poll_status=1)],
+                            '2': [x.user.name for x in poll.members.filter(poll_status=2)],
+                            '3': [x.user.name for x in poll.members.filter(Q(poll_status=3) | Q(poll_status=0))],
+                        } if poll.share == 0 else {
+                            '1': poll.members.filter(poll_status=1).count(),
+                            '2': poll.members.filter(poll_status=2).count(),
+                            '3': poll.members.filter(Q(poll_status=3) | Q(poll_status=0)).count(),
+                        },
+                    }
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 4, 'data': data}
+            else:
+                if poll is None:
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 2, 'data': "还没有进行投票设置"}
+                elif not poll.members.filter(user_id=request.user.pk).exists():
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 2, 'data': "不能参与投票"}
+                elif poll.end_time <= timezone.now():
+                    if poll.share == 0:
+                        data = {
+                            'title': poll.title,
+                            'method': poll.method,
+                            'share': poll.share,
+                            'items': {
+                                '1': [x.user.name for x in poll.members.filter(poll_status=1)],
+                                '2': [x.user.name for x in poll.members.filter(poll_status=2)],
+                                '3': [x.user.name for x in poll.members.filter(Q(poll_status=3) | Q(poll_status=0))],
+                            } if poll.share == 0 else {
+                                '1': poll.members.filter(poll_status=1).count(),
+                                '2': poll.members.filter(poll_status=2).count(),
+                                '3': poll.members.filter(Q(poll_status=3) | Q(poll_status=0)).count(),
+                            },
+                        }
+                        resp = code.get_msg(code.SUCCESS)
+                        resp['d'] = {'status': 4, 'data': data}
+                    else:
+                        resp = code.get_msg(code.SUCCESS)
+                        resp['d'] = {'status': 2, 'data': "已经过了投票时间"}
+                else:
+                    if poll.members.get(user_id=request.user.pk).poll_status == 0:
+                        data = {
+                            'title': poll.title,
+                            'method': poll.method,
+                            'share': poll.share,
+                        }
+                        resp = code.get_msg(code.SUCCESS)
+                        resp['d'] = {'status': 3, 'data': data}
+                    elif poll.share == 0 and not poll.members.filter(poll_status=0).exists():
+                        data = {
+                            'title': poll.title,
+                            'method': poll.method,
+                            'share': poll.share,
+                            'items': {
+                                '1': [x.user.name for x in poll.members.filter(poll_status=1)],
+                                '2': [x.user.name for x in poll.members.filter(poll_status=2)],
+                                '3': [x.user.name for x in poll.members.filter(Q(poll_status=3) | Q(poll_status=0))],
+                            } if poll.share == 0 else {
+                                '1': poll.members.filter(poll_status=1).count(),
+                                '2': poll.members.filter(poll_status=2).count(),
+                                '3': poll.members.filter(Q(poll_status=3) | Q(poll_status=0)).count(),
+                            },
+                        }
+                        resp = code.get_msg(code.SUCCESS)
+                        resp['d'] = {'status': 4, 'data': data}
+                    else:
+                        resp = code.get_msg(code.SUCCESS)
+                        resp['d'] = {'status': 2, 'data': "已经投票了"}
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_display_application Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def api_save_poll_data(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+        data = eval(request.POST.get('data', None))
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            poll = Poll.objects.filter(
+                business_id=business_id,
+                node_id=node_id
+            ).first()
+
+            if poll is not None:
+                poll.members.all().delete()
+                poll.delete()
+            newPoll = Poll(
+                business_id=business_id,
+                node_id=node_id,
+                title=data['pollTitle'],
+                method=data['pollMethod'],
+                end_time=data['pollEndTime'],
+                share=data['pollShare'],
+            )
+            newPoll.save()
+
+            for pm in data['members']:
+                newMember = PollMember(user_id=pm)
+                newMember.save()
+                newPoll.members.add(newMember)
+
+            if not poll.members.filter(user_id=request.user.pk).exists():
+                resp = code.get_msg(code.SUCCESS)
+                resp['d'] = {'status': 2, 'data': "请等到投票结束"}
+            else:
+                if poll.members.get(user_id=request.user.pk).poll_status == 0:
+                    data = {
+                        'title': poll.title,
+                        'method': poll.method,
+                        'share': poll.share,
+                    }
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 3, 'data': data}
+                elif not poll.members.filter(poll_status=0).exists():
+                    data = {
+                        'title': poll.title,
+                        'method': poll.method,
+                        'share': poll.share,
+                        'items': {
+                            '1': [x.user.name for x in poll.members.filter(poll_status=1)],
+                            '2': [x.user.name for x in poll.members.filter(poll_status=2)],
+                            '3': [x.user.name for x in poll.members.filter(Q(poll_status=3) | Q(poll_status=0))],
+                        } if poll.share == 0 else {
+                            '1': poll.members.filter(poll_status=1).count(),
+                            '2': poll.members.filter(poll_status=2).count(),
+                            '3': poll.members.filter(Q(poll_status=3) | Q(poll_status=0)).count(),
+                        },
+                    }
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 4, 'data': data}
+                else:
+                    resp = code.get_msg(code.SUCCESS)
+                    resp['d'] = {'status': 2, 'data': "已经投票了"}
+        elif bus.status == 1:
+            resp = code.get_msg(code.BUSINESS_HAS_NOT_STARTED)
+        else:
+            resp = code.get_msg(code.BUSINESS_HAS_FINISHED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_save_poll_data Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#
+def api_user_poll_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+        set_poll = request.POST.get('poll', None)
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if bus.status == 2:
+            poll = Poll.objects.filter(
+                business_id=business_id,
+                node_id=node_id
+            ).first()
+
+            poll.members.filter(user_id=request.user.pk).update(poll_status=set_poll)
+
+            resp = code.get_msg(code.SUCCESS)
+            if poll.share == 0 and not poll.members.filter(poll_status=0).exists():
+                data = {
+                    'title': poll.title,
+                    'method': poll.method,
+                    'share': poll.share,
+                    'items': {
+                        '1': [x.user.name for x in poll.members.filter(poll_status=1)],
+                        '2': [x.user.name for x in poll.members.filter(poll_status=2)],
+                        '3': [x.user.name for x in poll.members.filter(Q(poll_status=3) | Q(poll_status=0))],
+                    } if poll.share == 0 else {
+                        '1': poll.members.filter(poll_status=1).count(),
+                        '2': poll.members.filter(poll_status=2).count(),
+                        '3': poll.members.filter(Q(poll_status=3) | Q(poll_status=0)).count(),
+                    },
+                }
+                resp['d'] = {'status': 4, 'data': data}
+            else:
+                resp['d'] = {'status': 2, 'data': "已经投票了"}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         elif bus.status == 1:

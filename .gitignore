@@ -106,10 +106,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-media/avatars
-media/workflow
-media/files/*
-!*.swf
-media/project
+media
 
 ws_server/node_modules

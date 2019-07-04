@@ -1235,9 +1235,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
                 # 判断是否投票环节和配置
                 cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
                 if cur_node.process.type == const.PROCESS_VOTE_TYPE:
-                    if cur_path.vote_status == 1:
-                        resp = code.get_msg(code.EXPERIMENT_ROLE_VOTE_NOT_END)
-                        return False, resp
+                    cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
 
                 # 创建新环节路径
                 step = BusinessTransPath.objects.filter(business_id=bus.id).count() + 1
