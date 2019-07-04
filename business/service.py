@@ -1225,10 +1225,6 @@ def action_exp_node_end(bus, role_alloc_id, data):
                 if cur_node.process.type == const.PROCESS_VOTE_TYPE:
                     cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
 
-                    if cur_path.vote_status == 1:
-                        resp = code.get_msg(code.EXPERIMENT_ROLE_VOTE_NOT_END)
-                        return False, resp
-
                 # 创建新环节路径
                 step = BusinessTransPath.objects.filter(business_id=bus.id).count() + 1
                 path = BusinessTransPath.objects.create(business_id=bus.id, node_id=next_node.pk, project_id=project.pk,

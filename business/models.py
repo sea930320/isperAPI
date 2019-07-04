@@ -411,3 +411,32 @@ class Vote(models.Model):
 
     def __unicode__(self):
         return self.title
+
+
+class PollMember(models.Model):
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Poll User ID')
+    poll_status = models.IntegerField(default=0, verbose_name=u'Poll status')
+
+    class Meta:
+        db_table = "t_pollMember"
+        verbose_name_plural = verbose_name = u"pollMember"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+
+class Poll(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business ID')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'Node ID')
+    title = models.TextField(verbose_name=u'投票主题')
+    method = models.IntegerField(blank=True, null=True, verbose_name=u'投票方式')
+    end_time = models.DateTimeField(verbose_name=u'投票用时')
+    share = models.IntegerField(blank=True, null=True, verbose_name=u'投票结果')
+    members = models.ManyToManyField(PollMember, verbose_name=u'投票人范围')
+
+    class Meta:
+        db_table = "t_poll"
+        verbose_name_plural = verbose_name = u"poll"
+
+    def __unicode__(self):
+        return self.title
