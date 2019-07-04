@@ -144,12 +144,40 @@ def api_business_create(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+def api_business_remove(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get("business_id", None)  # 项目ID
+        if business_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        business = Business.objects.filter(pk=business_id).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if business.status != 1:
+            resp = code.get_msg(code.BUSINESS_HAS_STARTED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        business.del_flag = True
+        business.save()
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
 def teammates_configuration(business_id, seted_users_fromInnerPermission):
     # check team counts
 
-    business_team_counts = list(
-        BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
     business = Business.objects.get(id=business_id)
+    business_team_counts = list(
+        BusinessRole.objects.filter(business_id=business_id, project_id=business.cur_project_id).values(
+            'job_type__name', 'capacity'))
 
     project = Project.objects.get(pk=business.cur_project_id)
     first_node_id = get_start_node(project.flow_id)
@@ -164,12 +192,14 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     target_user_counts = []
     if business.target_part is not None:
         target_user_counts = list(Tuser.objects.filter(
-            Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id if business.jumper_id is None else business.jumper_id)).values(
+            Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(
+                id=business.created_by_id if business.jumper_id is None else business.jumper_id)).values(
             'tposition__name').annotate(counts=Count('id')))
         company_id = business.target_part.company_id
     elif business.target_company is not None:
         target_user_counts = list(Tuser.objects.filter(
-            Q(tcompany=business.target_company, is_review=1) & ~Q(id=business.created_by_id if business.jumper_id is None else business.jumper_id)).values(
+            Q(tcompany=business.target_company, is_review=1) & ~Q(
+                id=business.created_by_id if business.jumper_id is None else business.jumper_id)).values(
             'tposition__name').annotate(counts=Count('id')))
         company_id = business.target_company.id
 
@@ -228,20 +258,23 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
 
     targetUnitUsers = []
     teammateList = list(
-        BusinessRoleAllocation.objects.filter(business_id=business_id).values('role_id', 'role__job_type__name',
-                                                                              'no').distinct())
+        BusinessRoleAllocation.objects.filter(business_id=business_id, project_id=business.cur_project_id).values(
+            'role_id', 'role__job_type__name',
+            'no').distinct())
     teammateList.pop(next((index for (index, x) in enumerate(teammateList) if
                            x['role_id'] == startRoleAlloc.role_id and x['no'] == startRoleAlloc.no), None))
     if business.target_part is not None:
         targetUnitUsers = [{
             'id': item.id,
             'position': item.tposition.name,
-        } for item in Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(id=business.created_by_id if business.jumper_id is None else business.jumper_id))]
+        } for item in Tuser.objects.filter(Q(tposition__parts_id=business.target_part.id, is_review=1) & ~Q(
+            id=business.created_by_id if business.jumper_id is None else business.jumper_id))]
     elif business.target_company is not None:
         targetUnitUsers = [{
             'id': item.id,
             'position': item.tposition.name if item.tposition else None,
-        } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(id=business.created_by_id if business.jumper_id is None else business.jumper_id))]
+        } for item in Tuser.objects.filter(Q(tcompany_id=company_id, is_review=1) & ~Q(
+            id=business.created_by_id if business.jumper_id is None else business.jumper_id))]
 
     newTeammate = BusinessTeamMember.objects.create(
         business_id=business_id,
@@ -287,9 +320,10 @@ def api_business_list(request):
         status = int(request.GET.get("status", 1))  # 实验状态
 
         user = request.user
-        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id', flat=True).distinct()
+        bussinessIDsInTeam = BusinessTeamMember.objects.filter(user=user, del_flag=0).values_list('business_id',
+                                                                                                  flat=True).distinct()
         qs = Business.objects.filter(
-            Q(del_flag=0, pk__in=bussinessIDsInTeam) | Q(created_by=request.user))
+            Q(del_flag=0, pk__in=bussinessIDsInTeam) | Q(del_flag=0, created_by=request.user))
 
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
@@ -308,7 +342,8 @@ def api_business_list(request):
         results = []
 
         for item in businesses:
-            team_dict = [model_to_dict(member) for member in BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id)]
+            team_dict = [model_to_dict(member) for member in
+                         BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id)]
 
             project = Project.objects.filter(pk=item.project_id).first()
             if project:
@@ -338,7 +373,8 @@ def api_business_list(request):
                 'project': project_dict,
                 'huanxin_id': item.huanxin_id,
                 'node': cur_node, 'flow_id': project.flow_id if project else None,
-                'officeItem': model_to_dict(item.officeItem) if item.officeItem else None
+                'officeItem': model_to_dict(item.officeItem) if item.officeItem else None,
+                'jumper_id': item.jumper_id
             }
             results.append(business)
 
@@ -369,43 +405,51 @@ def api_business_detail(request):
     try:
         business_id = request.GET.get("business_id")  # 实验id
         business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if BusinessTransPath.objects.filter(business_id=business_id, project_id=business.cur_project_id).count() == 0:
             resp = api_business_start(request)
             if resp != 'success':
+                if business.jumper_id and resp['c'] == code.TEAM_MEMBER_NOT_EXIST:
+                    notification = TNotifications.objects.filter(type='businessMoreTeammate_' + business_id).first()
+                    if notification:
+                        resp = code.get_msg(code.SUCCESS)
+                        resp['d'] = {
+                            'jumper_member_not_exist': True,
+                            'notification': eval(notification.content)
+                        }
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        if business:
-            data = get_business_detail(business)
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        data = get_business_detail(business)
 
-            # 三期记录用户最后一次进入的实验id
-            user = request.user
-            user.last_business_id = business_id
-            user.save()
+        # 三期记录用户最后一次进入的实验id
+        user = request.user
+        user.last_business_id = business_id
+        user.save()
 
-            user_role_allocs = []
-            if business.status == 1:
-                control_status = 1
-                path_id = None
-            else:
-                path = BusinessTransPath.objects.filter(business=business).last()
-                control_status = path.control_status
-                path_id = path.pk
-                user_role_allocs_temp = get_role_allocs_status_by_user(business, path, request.user)
-                for role_alloc_temp in user_role_allocs_temp:
-                    if role_alloc_temp['role']['type'] != const.ROLE_TYPE_OBSERVER:
-                        user_role_allocs.append(role_alloc_temp)
-
-                data['with_user_nodes'] = get_user_with_node_on_business(business, request.user)
-
-            data['control_status'] = control_status
-            data['path_id'] = path_id
-            data['user_role_allocs'] = user_role_allocs
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = data
+        user_role_allocs = []
+        if business.status == 1:
+            control_status = 1
+            path_id = None
         else:
-            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            path = BusinessTransPath.objects.filter(business=business).last()
+            control_status = path.control_status
+            path_id = path.pk
+            user_role_allocs_temp = get_role_allocs_status_by_user(business, path, request.user)
+            for role_alloc_temp in user_role_allocs_temp:
+                if role_alloc_temp['role']['type'] != const.ROLE_TYPE_OBSERVER:
+                    user_role_allocs.append(role_alloc_temp)
+
+            data['with_user_nodes'] = get_user_with_node_on_business(business, request.user)
+
+        data['control_status'] = control_status
+        data['path_id'] = path_id
+        data['user_role_allocs'] = user_role_allocs
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = data
 
         # 三期 - 到达指定环节还有角色没有设置提示设置角色
         node = business.node
@@ -445,7 +489,7 @@ def api_business_start(request):
         return resp
 
     # get Project that this business is based on
-    project = Project.objects.get(pk=business.project_id)
+    project = Project.objects.get(pk=business.cur_project_id)
     # 验证项目中是否有未配置的跳转项目 todo
     if not check_jump_project(project):
         resp = code.get_msg(code.BUSINESS_JUMP_PROJECT_SETUP_ERROR)
@@ -454,10 +498,12 @@ def api_business_start(request):
     first_node_id = get_start_node(project.flow_id)
     node = FlowNode.objects.get(pk=first_node_id)
     # get All Business Roles to check if all users are allocated to business Role Alloc
-    businessRoles = BusinessRole.objects.filter(business=business)  # get all Business Roles
+    businessRoles = BusinessRole.objects.filter(business=business,
+                                                project_id=business.cur_project_id)  # get all Business Roles
     for role in businessRoles:
         for no in range(1, role.capacity + 1):
-            teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no, project_id=business.cur_project_id,
+            teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
+                                                            project_id=business.cur_project_id,
                                                             del_flag=0)  # get all team members with same business, role, no to check if user is allocated to this allocation
             if teamMembers.count() == 0:
                 resp = code.get_msg(code.TEAM_MEMBER_NOT_EXIST)
@@ -476,7 +522,7 @@ def api_business_start(request):
 
     # get Start Role Allocation
     startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
-                                                           can_take_in=1).first()
+                                                           can_take_in=1, project_id=business.cur_project_id).first()
     # check if this user is Start User
     isStartUser = BusinessTeamMember.objects.filter(business=business, user=request.user,
                                                     business_role=startRoleAlloc.role,
@@ -486,11 +532,13 @@ def api_business_start(request):
         resp = code.get_msg(code.BUSINESS_NO_ACCESS_TO_START)
         return resp
     # get all allocations take part in this first node of this business
-    allocations = BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1)
+    allocations = BusinessRoleAllocation.objects.filter(business=business, node=node, can_take_in=1,
+                                                        project_id=business.cur_project_id)
     with transaction.atomic():
         # Create Business TransPath
+        step = BusinessTransPath.objects.filter(business_id=business.id).count() + 1
         path = BusinessTransPath.objects.create(business=business, node=node,
-                                                project_id=business.cur_project_id, task_id=node.task_id, step=1)
+                                                project_id=business.cur_project_id, task_id=node.task_id, step=step)
         for item in allocations:
             if item.can_brought:
                 come_status = 1
@@ -1213,7 +1261,9 @@ def api_business_list_nodel(request):
             results = []
 
             for item in business:
-                teamMembers = list(BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id).values_list('user__name', flat=True))
+                teamMembers = list(
+                    BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id).values_list(
+                        'user__name', flat=True))
                 project = Project.objects.get(pk=item.project_id)
                 project_name = project.name
                 workflow_name = Flow.objects.get(pk=project.flow_id).name
@@ -1279,7 +1329,9 @@ def api_business_list_del(request):
             results = []
 
             for item in business:
-                teamMembers = list(BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id).values_list('user__name', flat=True))
+                teamMembers = list(
+                    BusinessTeamMember.objects.filter(business_id=item.id, project_id=item.cur_project_id).values_list(
+                        'user__name', flat=True))
                 project = Project.objects.get(pk=item.project_id)
                 project_name = project.name
                 workflow_name = Flow.objects.get(pk=project.flow_id).name
@@ -2205,8 +2257,9 @@ def api_business_report_generate(request):
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
             flow = Flow.objects.filter(pk=project.flow_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id',
-                                                                                                         flat=True)
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0,
+                                                        project_id=busi.cur_project_id).values_list('user_id',
+                                                                                                    flat=True)
 
             # 小组成员
             member_list = []
@@ -2393,8 +2446,9 @@ def api_business_report_export(request):
 
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id',
-                                                                                                         flat=True)
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0,
+                                                        project_id=busi.cur_project_id).values_list('user_id',
+                                                                                                    flat=True)
 
             # 小组成员
             member_list = []
@@ -2562,7 +2616,7 @@ def api_business_report_export(request):
                     sheet.write(row, 0, note.content, set_style(220, True))
 
             experiences = BusinessExperience.objects.filter(business_id=busi.id)
-            sheet = report.add_sheet(u'Experience') # 设置样式
+            sheet = report.add_sheet(u'Experience')  # 设置样式
             for i in range(0, len(experienceTitle)):
                 sheet.write(0, i, experienceTitle[i], set_style(220, True))
             row = 1
@@ -2821,8 +2875,10 @@ def api_vote_get_init_data(request):
             if vote is None:
                 data = {
                     'node_members': [{
-                        'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user_id,
-                        'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user.name
+                        'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
+                                                                   no=item.no).first().user_id,
+                        'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
+                                                                  no=item.no).first().user.name
                     } for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                 }
                 resp = code.get_msg(code.SUCCESS)
@@ -2836,8 +2892,10 @@ def api_vote_get_init_data(request):
                     'description': vote.description,
                     'mode': 4,
                     'node_members': [{
-                        'value': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id, no=n_member.no).first().user_id,
-                        'text': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id, no=n_member.no).first().user.name
+                        'value': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id,
+                                                                   no=n_member.no).first().user_id,
+                        'text': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id,
+                                                                  no=n_member.no).first().user.name
                     } for n_member in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                     'items': [{
                         'id': item.pk,
@@ -2855,8 +2913,10 @@ def api_vote_get_init_data(request):
                     'max_vote': vote.max_vote,
                     'lost_vote': vote.lost_vote,
                     'node_members': [{
-                        'value': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id, no=n_member.no).first().user_id,
-                        'text': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id, no=n_member.no).first().user.name
+                        'value': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id,
+                                                                   no=n_member.no).first().user_id,
+                        'text': BusinessTeamMember.objects.filter(business_role_id=n_member.role_id,
+                                                                  no=n_member.no).first().user.name
                     } for n_member in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                     'members': [{
                         'id': member.pk,
@@ -3026,22 +3086,31 @@ def api_vote_finish_mode_3(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_business_jump_start(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        business_id = request.POST.get("business_id")
-        project_id = request.POST.get("project_id")  # 项目ID
-        use_to = request.POST.get("use_to")
+        business_id = request.POST.get("business_id", None)
+        project_id = request.POST.get("project_id", None)  # 项目ID
+        use_to = request.POST.get("use_to", None)
+        role_alloc_id = request.POST.get("role_alloc_id", None)
 
+        if not all(v is not None for v in [business_id, project_id, role_alloc_id]):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         business = Business.objects.filter(pk=business_id).first()
         if business is None:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        project = Project.objects.filtere(pk=project_id).first()
+        if not BusinessRoleAllocation.objects.filter(pk=role_alloc_id, project_id=business.cur_project_id,
+                                                     can_terminate=True).exists():
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        project = Project.objects.filter(pk=project_id).first()
         if project is None:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -3054,11 +3123,18 @@ def api_business_jump_start(request):
         with transaction.atomic():
             if project.created_role_id in [3, 7]:
                 company_id = project.created_by.tcompanymanagers_set.get().tcompany.id if project.created_role_id == 3 else project.created_by.t_company_set_assistants.get().id if project.created_role_id == 7 else None
+            if business.path_id is None:
+                resp = code.get_msg(code.PERMISSION_DENIED)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            business.path_id = None
+            business.node_id = None
             business.cur_project_id = project_id
             business.jumper_id = request.user.id
-            business.target_company_id = use_to if project.created_role_id in [2, 6] else company_id if project.created_role_id in [
-                        3, 7] and project.use_to_id is None else None
-            business.target_part_id = project.use_to_id if project.created_role_id in [3, 7] and project.use_to_id is not None else None
+            business.target_company_id = use_to if project.created_role_id in [2,
+                                                                               6] else company_id if project.created_role_id in [
+                3, 7] and project.use_to_id is None else None
+            business.target_part_id = project.use_to_id if project.created_role_id in [3,
+                                                                                       7] and project.use_to_id is not None else None
             business.save()
 
             business_roles = []
@@ -3098,24 +3174,18 @@ def api_business_jump_start(request):
                                                no=item.no))
             BusinessRoleAllocation.objects.bulk_create(business_allocations)
 
-            teammates_configuration(business.id, [])
-
+            res = teammates_configuration(business.id, [])
+            if (res == 'team_configured'):
+                return api_business_detail(request)
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {
-                'id': business.id, 'name': u'{0} {1}'.format(business.id, business.name),
-                'project_id': business.project_id,
-                'show_nickname': business.show_nickname, 'start_time': business.start_time,
-                'end_time': business.end_time, 'status': business.status,
-                'created_by': user_simple_info(business.created_by.id) if business.created_by else '',
-                'node_id': business.node.id if business.node else '',
-                'create_time': business.create_time.strftime('%Y-%m-%d')
-            }
+            resp['d'] = 'jump_team_not_configured'
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('api_business_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 #
 def am_i_vote_member(request, statusMsg):
@@ -3209,7 +3279,7 @@ def api_user_vote_save(request):
                 if vote.method == 0:
                     VoteItem.objects.get(pk=item).voted_users.add(request.user.pk)
                 elif vote.method == 1:
-                    VoteItem.objects.filter(pk=item).update(voted_count=F('voted_count')+1)
+                    VoteItem.objects.filter(pk=item).update(voted_count=F('voted_count') + 1)
 
             vote.members.filter(user_id=request.user.pk).update(voted=1)
 
@@ -3267,5 +3337,207 @@ def api_user_vote_item_save(request):
 
     except Exception as e:
         logger.exception('am_i_vote_member Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_result(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get("business_id")  # 实验ID
+        user_id = request.user.id
+        business = Business.objects.filter(pk=business_id).first()
+        if business:
+            project = Project.objects.filter(pk=business.project_id).first()
+            flow = Flow.objects.filter(pk=project.flow_id).first()
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0).values_list('user_id',
+                                                                                                         flat=True)
+
+            # 小组成员
+            member_list = []
+            for uid in members:
+                user = Tuser.objects.get(pk=uid)
+                member_list.append(user.name)
+
+            # 各环节提交文件信息和聊天信息
+            paths = BusinessTransPath.objects.filter(business_id=business_id)
+            node_list = []
+            for item in paths:
+                # 个人笔记
+                note = BusinessNotes.objects.filter(business_id=business_id,
+                                                    node_id=item.node_id, created_by=user_id).first()
+
+                # 角色项目素材
+                project_doc_list = []
+                operation_guide_list = []
+                project_tips_list = []
+
+                doc_ids = FlowNodeDocs.objects.filter(flow_id=flow.pk,
+                                                      node_id=item.node_id).values_list('doc_id', flat=True)
+                if doc_ids:
+                    operation_docs = FlowDocs.objects.filter(id__in=doc_ids, usage__in=(1, 2, 3))
+                    for d in operation_docs:
+                        url = ''
+                        if d.file:
+                            url = d.file.url
+                        if d.usage == 1:
+                            operation_guide_list.append({
+                                'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
+                                'content': d.content, 'url': url, 'file_type': d.file_type
+                            })
+                        else:
+                            project_doc_list.append({
+                                'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
+                                'content': d.content, 'url': url, 'file_type': d.file_type
+                            })
+
+                # 获取该环节角色分配项目素材id
+                doc_ids = ProjectDocRole.objects.filter(project_id=item.project_id,
+                                                        node_id=item.node_id).values_list('doc_id', flat=True)
+
+                if doc_ids:
+                    # logger.info(doc_ids)
+                    project_docs = ProjectDoc.objects.filter(id__in=doc_ids)
+                    for d in project_docs:
+                        if d.usage in [3, 4, 5, 7]:
+                            is_exist = False
+                            if d.usage == 3:
+                                for t in project_doc_list:
+                                    if d.name == t['name']:
+                                        is_exist = True
+                                        break
+                            if not is_exist:
+                                project_doc_list.append({
+                                    'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
+                                    'content': d.content, 'url': d.file.url, 'file_type': d.file_type
+                                })
+
+                node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
+                doc_list = []
+                vote_status = []
+                if node.process.type == 2:
+                    # 如果是编辑
+                    # 应用模板
+                    contents = BusinessDocContent.objects.filter(business_id=business_id, node_id=item.node_id,
+                                                                 has_edited=True)
+                    for d in contents:
+                        doc_list.append({
+                            'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
+                            'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                            'url': d.file.url if d.file else None
+                        })
+                    # 提交的文件
+                    docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
+                                                      path_id=item.pk)
+                    for d in docs:
+                        sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
+                        doc_list.append({
+                            'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                            'signs': list(sign_list), 'url': d.file.url if d.file else None
+                        })
+                elif node.process.type == 3:
+                    project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
+                                                              path_id=item.pk)
+                    for d in project_docs:
+                        doc_list.append({
+                            'id': d.id, 'filename': d.filename, 'signs': [],
+                            'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
+                        })
+                elif node.process.type == 5:
+                    # 如果是投票   三期 - 增加投票结果数量汇总  todo 去掉老师观察者的数量 WTF
+                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                                     business_role_allocation__node_id=item.node_id,
+                                                                                     path_id=item.id, vote_status=0)
+                    vote_status_0 = []
+                    # 去掉老师观察者角色的数据
+                    for item0 in vote_status_0_temp:
+                        role_alloc_temp = item0.business_role_allocation
+                        if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
+                            vote_status_0.append(item0)
+
+                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                                     business_role_allocation__node_id=item.node_id,
+                                                                                     path_id=item.id, vote_status=1)
+                    vote_status_1 = []
+                    # 去掉老师观察者角色的数据
+                    for item1 in vote_status_1_temp:
+                        role_alloc_temp = item1.business_role_allocation
+                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
+                            vote_status_1.append(item1)
+
+                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                                     business_role_allocation__node_id=item.node_id,
+                                                                                     path_id=item.id, vote_status=2)
+                    vote_status_2 = []
+                    # 去掉老师观察者角色的数据
+                    for item2 in vote_status_2_temp:
+                        role_alloc_temp = item2.business_role_allocation
+                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
+                            vote_status_2.append(item2)
+
+                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
+                                                                                     business_role_allocation__node_id=item.node_id,
+                                                                                     path_id=item.id, vote_status=9)
+                    vote_status_9 = []
+                    # 去掉老师观察者角色的数据
+                    for item9 in vote_status_9_temp:
+                        role_alloc_temp = item9.business_role_allocation
+                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
+                            vote_status_9.append(item9)
+                    vote_status = [{'status': '未投票', 'num': len(vote_status_0)},
+                                   {'status': '同意', 'num': len(vote_status_1)},
+                                   {'status': '不同意', 'num': len(vote_status_2)},
+                                   {'status': '弃权', 'num': len(vote_status_9)}]
+                    pass
+                else:
+                    # 提交的文件
+                    docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
+                                                      path_id=item.id)
+                    for d in docs:
+                        sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
+                        doc_list.append({
+                            'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                            'signs': list(sign_list), 'url': d.file.url if d.file else None
+                        })
+                # 消息
+                messages = BusinessMessage.objects.filter(business_id=business_id,
+                                                          business_role_allocation__node_id=item.node_id,
+                                                          path_id=item.id).order_by('timestamp')
+                message_list = []
+                for m in messages:
+                    message = {
+                        'user_name': m.user_name, 'role_name': m.role_name,
+                        'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
+                        'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                    message_list.append(message)
+
+                node_list.append({
+                    'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
+                    'project_docs': project_doc_list,
+                    'operation_guides': operation_guide_list,
+                    'project_tips_list': project_tips_list,
+                    'note': note.content if note else None, 'type': node.process.type if node.process else 0,
+                    'vote_status': vote_status
+                })
+
+            detail = {'name': u'{0} {1}'.format(business.id, business.name), 'project_name': project.name,
+                      'flow_name': flow.name, 'members': member_list,
+                      'finish_time': business.finish_time.strftime('%Y-%m-%d') if business.finish_time else None,
+                      'start_time': business.start_time.strftime('%Y-%m-%d') if business.start_time else None,
+                      'end_time': business.end_time.strftime('%Y-%m-%d') if business.end_time else None,
+                      'create_time': business.create_time.strftime('%Y-%m-%d'),
+                      'flow_xml': flow.xml}
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'detail': detail, 'nodes': node_list}
+        else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_result Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

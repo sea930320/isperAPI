@@ -60,7 +60,7 @@ def clear_cache(experiment_id):
 
 def get_role_allocs_status_by_user(business, path, user):
     role_alloc_list = []
-    btmQs = BusinessTeamMember.objects.filter(business=business, user=user)
+    btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
     for btm in btmQs:
         try:
             roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=path.node, role=btm.business_role,
@@ -125,7 +125,7 @@ def get_role_allocs_status_simple_by_user(business, node, path, user_id):
 
 def get_user_with_node_on_business(business, user):
     nodes = []
-    btmQs = BusinessTeamMember.objects.filter(business=business, user=user)
+    btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
     for btm in btmQs:
         try:
             node_ids = BusinessRoleAllocation.objects.filter(business=business, role=btm.business_role,
@@ -147,7 +147,7 @@ def get_business_detail(business):
         'username': member.user.username,
         'type': member.user.type,
         'gender': member.user.gender,
-    } for member in BusinessTeamMember.objects.filter(business=business, del_flag=0)]
+    } for member in BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, del_flag=0)]
     # 项目信息
 
     if project:
@@ -1223,8 +1223,6 @@ def action_exp_node_end(bus, role_alloc_id, data):
                 # 判断是否投票环节和配置
                 cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
                 if cur_node.process.type == const.PROCESS_VOTE_TYPE:
-                    cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
-
                     if cur_path.vote_status == 1:
                         resp = code.get_msg(code.EXPERIMENT_ROLE_VOTE_NOT_END)
                         return False, resp
@@ -1946,3 +1944,7 @@ def get_business_display_files(bus, node_id, path_id):
                 'url': '{0}?{1}'.format(item.file.url, r) if item.file else None
             })
     return doc_list
+
+
+def action_business_jump_start():
+    return None

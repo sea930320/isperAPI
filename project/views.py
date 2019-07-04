@@ -588,7 +588,7 @@ def api_project_detail(request):
                     'id': pra.id, 'role_id': pra.role_id, 'type': role.type, 'name': role.name,
                     'image_id': fra.image_id,
                     'image_name': image.name if image else None,
-                    'image_url': '/media/' + image.avatar if image else None,
+                    'image_url': image.avatar.url if image else None,
                     'no': pra.no, 'can_take_in': pra.can_take_in, 'can_terminate': pra.can_terminate,
                     'can_start': pra.can_start, 'can_brought': pra.can_brought, 'node_id': pra.node_id
                 })
