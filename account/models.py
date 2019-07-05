@@ -381,6 +381,7 @@ class TAction(models.Model):
     def __unicode__(self):
         return self.name
 
+
 class WorkLog(models.Model):
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, null=True)
     role = models.ForeignKey(TRole, on_delete=models.CASCADE, null=True)

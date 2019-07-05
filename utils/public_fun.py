@@ -5,6 +5,7 @@ import time
 import random
 from account.models import *
 from group.models import *
+from django.db.models import Q
 from group.models import AllGroups
 from account.models import LoginLog
 from project.models import Project
@@ -130,8 +131,37 @@ def getProjectIDByGroupManager(userID):
 
     gruopID = AllGroups.objects.get(groupManagers__in=[Tuser.objects.get(id=userID)])
     groupInfo = AllGroups.objects.filter(groupManagers__in=[Tuser.objects.get(id=userID)])
-    companyAndAssist = TCompany.objects.filter(group=gruopID).values('tcompanymanagers', 'assistants')
+    companyAndAssist = TCompany.objects.filter(group=gruopID).values('tcompanymanagers__tuser_id', 'assistants')
     allData = list(groupInfo.values('groupManagerAssistants', 'groupManagers')) + list(companyAndAssist)
     allID = itertools.chain.from_iterable(map(lambda x: x.values(), allData))
 
     return list(Project.objects.filter(created_by__in=list(allID)).values_list('id', flat=True))
+
+
+def getProjectIDByGroupManagerAssistant(userID):
+
+    gruopID = AllGroups.objects.get(groupManagerAssistants__in=[Tuser.objects.get(id=userID)])
+    groupInfo = AllGroups.objects.filter(groupManagerAssistants__in=[Tuser.objects.get(id=userID)])
+    companyAndAssist = TCompany.objects.filter(group=gruopID).values('tcompanymanagers__tuser_id', 'assistants')
+    allData = list(groupInfo.values('groupManagerAssistants', 'groupManagers')) + list(companyAndAssist)
+    allID = itertools.chain.from_iterable(map(lambda x: x.values(), allData))
+
+    return list(Project.objects.filter(created_by__in=list(allID)).values_list('id', flat=True))
+
+
+def getProjectIDByCompanyManager(userID):
+
+    companyID = TCompanyManagers.objects.get(tuser_id=userID).tcompany_id
+    cM = list(itertools.chain.from_iterable(map(lambda x: x.values(), list(TCompany.objects.filter(pk=companyID).values('tcompanymanagers__tuser_id')))))
+    cMA = list(itertools.chain.from_iterable(map(lambda x: x.values(), list(TCompany.objects.filter(pk=companyID).values('assistants')))))
+
+    return list(Project.objects.filter(Q(created_by_id__in=cM, created_role_id=3) | Q(created_by_id__in=cMA, created_role_id=7)).values_list('id', flat=True))
+
+
+def getProjectIDByCompanyManagerAssistant(userID):
+
+    companyID = TCompanyManagerAssistants.objects.get(tuser_id=userID).tcompany_id
+    cM = list(itertools.chain.from_iterable(map(lambda x: x.values(), list(TCompany.objects.filter(pk=companyID).values('tcompanymanagers__tuser_id')))))
+    cMA = list(itertools.chain.from_iterable(map(lambda x: x.values(), list(TCompany.objects.filter(pk=companyID).values('assistants')))))
+
+    return list(Project.objects.filter(Q(created_by_id__in=cM, created_role_id=3) | Q(created_by_id__in=cMA, created_role_id=7)).values_list('id', flat=True))
