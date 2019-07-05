@@ -346,6 +346,7 @@ class BusinessNotes(models.Model):
     def __unicode__(self):
         return u""
 
+
 class BusinessPost(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
