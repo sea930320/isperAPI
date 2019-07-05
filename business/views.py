@@ -177,9 +177,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     # check team counts
 
     business = Business.objects.get(id=business_id)
-    business_team_counts = list(
-        BusinessRole.objects.filter(business_id=business_id, project_id=business.cur_project_id).values(
-            'job_type__name', 'capacity'))
+    business_team_counts = list(BusinessRole.objects.filter(Q(business_id=business_id, project_id=business.cur_project_id) & ~Q(job_type_id=None)).values('job_type__name', 'capacity'))
 
     project = Project.objects.get(pk=business.cur_project_id)
     first_node_id = get_start_node(project.flow_id)
@@ -221,8 +219,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         if matched_item is None:
             moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity']})
         elif matched_item['counts'] < item['capacity']:
-            moreResult.append(
-                {'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
+            moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
 
     if moreResult:
         if len(seted_users_fromInnerPermission) != 0:
@@ -293,19 +290,30 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
             targetUnitUsers.append({'position': item['role_name'], 'id': item['userId']})
 
     for teamItem in teammateList:
-        selectedUser = random.choice([a for a in targetUnitUsers if a['position'] == teamItem['role__job_type__name']])
-        targetUnitUsers.pop(next((index for (index, x) in enumerate(targetUnitUsers) if x == selectedUser), None))
-        newTeammate = BusinessTeamMember.objects.create(
-            business_id=business_id,
-            user_id=selectedUser['id'],
-            business_role_id=teamItem['role_id'],
-            no=teamItem['no'],
-            del_flag=0,
-            project_id=business.cur_project_id
-        )
-        newTeammate.save()
+        if teamItem['role__job_type__name'] is None:
+            newTeammate = BusinessTeamMember.objects.create(
+                business_id=business_id,
+                user_id=None,
+                business_role_id=teamItem['role_id'],
+                no=teamItem['no'],
+                del_flag=0,
+                project_id=business.cur_project_id
+            )
+            newTeammate.save()
+        else:
+            selectedUser = random.choice([a for a in targetUnitUsers if a['position'] == teamItem['role__job_type__name']])
+            targetUnitUsers.pop(next((index for (index, x) in enumerate(targetUnitUsers) if x == selectedUser), None))
+            newTeammate = BusinessTeamMember.objects.create(
+                business_id=business_id,
+                user_id=selectedUser['id'],
+                business_role_id=teamItem['role_id'],
+                no=teamItem['no'],
+                del_flag=0,
+                project_id=business.cur_project_id
+            )
+            newTeammate.save()
 
-        Business.objects.filter(id=business_id).update(status=2)
+    Business.objects.filter(id=business_id).update(status=2)
 
     return 'team_configured'
 

@@ -183,7 +183,7 @@ class BusinessTeamMember(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
     business_role = models.ForeignKey(BusinessRole, on_delete=models.CASCADE, verbose_name=u'Business Role')
-    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'User')
+    user = models.ForeignKey(Tuser, blank=True, null=True, on_delete=models.CASCADE, verbose_name=u'User')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     no = models.IntegerField(default=1, verbose_name=u'Number')
