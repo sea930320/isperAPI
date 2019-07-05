@@ -256,11 +256,13 @@ urlpatterns += (
 
 urlpatterns += (
     url(r'^api/business/create', business_views.api_business_create),
+    url(r'^api/business/remove', business_views.api_business_remove),
     url(r'^api/business/detail', business_views.api_business_detail),
     # url(r'^api/business/start$', business_views.api_business_start),
     url(r'^api/business/list$', business_views.api_business_list),
     url(r'^api/business/messages$', business_views.api_business_messages),
     url(r'^api/business/templates$', business_views.api_business_templates),
+    url(r'^api/business/result', business_views.api_business_result),
 
     url(r'^api/business/node/detail$', business_views.api_business_node_detail),
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),

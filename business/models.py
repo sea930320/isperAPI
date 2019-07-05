@@ -413,6 +413,21 @@ class Vote(models.Model):
     def __unicode__(self):
         return self.title
 
+class BusinessProjectTrack(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    project_id = models.IntegerField(verbose_name=u'当前项目', null=True)
+    process_type = models.IntegerField(verbose_name=u'Process Type', null=True)
+    flow_trans_id = models.IntegerField(verbose_name=u'TFlowTrans ID', null=True)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+
+    class Meta:
+        db_table = "t_business_project_track"
+        ordering = ('-create_time', )
+        verbose_name_plural = verbose_name = u"BusinessProjectTrack"
+
+    def __unicode__(self):
+        return str(self.id)
 
 class PollMember(models.Model):
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Poll User ID')

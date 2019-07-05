@@ -162,7 +162,7 @@ class ProjectJump(models.Model):
     project_id = models.IntegerField(verbose_name=u'项目')
     node_id = models.IntegerField(verbose_name=u'环节')
     jump_project_id = models.IntegerField(verbose_name=u'跳转项目')
-
+    process_type = models.IntegerField(verbose_name=u'Process Type', null=True, default=6)
     class Meta:
         db_table = "t_project_jump"
         verbose_name_plural = verbose_name = u"项目环节跳转分配"
