@@ -31,7 +31,10 @@ from datetime import datetime
 from django.utils import timezone
 import random
 import string
-from utils.public_fun import getProjectIDByGroupManager
+from utils.public_fun import getProjectIDByGroupManager, \
+    getProjectIDByCompanyManager, \
+    getProjectIDByCompanyManagerAssistant, \
+    getProjectIDByGroupManagerAssistant
 from django.forms.models import model_to_dict
 from socketio.socketIO_client import SocketIO, LoggingNamespace
 import codecs
@@ -1233,19 +1236,27 @@ def api_business_note_create(request):
 
 # Get No-Deleted Business
 def api_business_list_nodel(request):
-    if request.session['login_type'] in [2, 6]:
+    if request.session['login_type'] in [2, 6, 3, 7]:
         resp = auth_check(request, "GET")
         if resp != {}:
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         try:
             userIDInfo = request.user.id
-            projectAvailableList = getProjectIDByGroupManager(userIDInfo)
+            projectAvailableList = []
+            if request.session['login_type'] == 2:
+                projectAvailableList = getProjectIDByGroupManager(userIDInfo)
+            elif request.session['login_type'] == 3:
+                projectAvailableList = getProjectIDByCompanyManager(userIDInfo)
+            elif request.session['login_type'] == 6:
+                projectAvailableList = getProjectIDByGroupManagerAssistant(userIDInfo)
+            elif request.session['login_type'] == 7:
+                projectAvailableList = getProjectIDByCompanyManagerAssistant(userIDInfo)
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
 
-            qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(status=9) & Q(del_flag=0))
+            qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(del_flag=0))
 
             if search:
                 qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
@@ -1274,6 +1285,7 @@ def api_business_list_nodel(request):
                     'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
                     'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
+                    'status': '已完成' if item.status == 9 else '未完成'
                 }
                 results.append(bus)
             # 分页信息
@@ -1301,19 +1313,27 @@ def api_business_list_nodel(request):
 
 # Get Deleted Business
 def api_business_list_del(request):
-    if request.session['login_type'] in [2, 6]:
+    if request.session['login_type'] in [2, 6, 3, 7]:
         resp = auth_check(request, "GET")
         if resp != {}:
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         try:
             userIDInfo = request.user.id
-            projectAvailableList = getProjectIDByGroupManager(userIDInfo)
+            projectAvailableList = []
+            if request.session['login_type'] == 2:
+                projectAvailableList = getProjectIDByGroupManager(userIDInfo)
+            elif request.session['login_type'] == 3:
+                projectAvailableList = getProjectIDByCompanyManager(userIDInfo)
+            elif request.session['login_type'] == 6:
+                projectAvailableList = getProjectIDByGroupManagerAssistant(userIDInfo)
+            elif request.session['login_type'] == 7:
+                projectAvailableList = getProjectIDByCompanyManagerAssistant(userIDInfo)
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
 
-            qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(status=9) & Q(del_flag=1))
+            qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(del_flag=1))
 
             if search:
                 qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
@@ -1342,6 +1362,7 @@ def api_business_list_del(request):
                     'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
                     'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
+                    'status': '已完成' if item.status == 9 else '未完成'
                 }
                 results.append(bus)
             # 分页信息
@@ -1369,7 +1390,7 @@ def api_business_list_del(request):
 
 # Delete Business
 def api_business_delete(request):
-    if request.session['login_type'] in [2, 6]:
+    if request.session['login_type'] in [2, 6, 3, 7]:
         resp = auth_check(request, "POST")
         if resp != {}:
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1396,7 +1417,7 @@ def api_business_delete(request):
 
 # Recovery Business
 def api_business_recovery(request):
-    if request.session['login_type'] in [2, 6]:
+    if request.session['login_type'] in [2, 6, 3, 7]:
         resp = auth_check(request, "POST")
         if resp != {}:
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
