@@ -2069,6 +2069,33 @@ def api_business_docs_create(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+# 实验中删除文件
+def api_business_docs_delete(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id")  # 实验
+        node_id = request.POST.get("node_id")  # 环节
+        doc_id = request.POST.get("doc_id")  # 文件
+        logger.info('experiment_id:%s,node_id:%s' % (business_id, node_id))
+        path = BusinessTransPath.objects.filter(business_id=business_id).last()
+        if path is None:
+            resp = code.get_msg(code.EXPERIMENT_NODE_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        doc = BusinessDoc.objects.filter(id=doc_id)
+        if doc:
+            doc.delete()
+
+        resp = code.get_msg(code.SUCCESS)
+        clear_cache(business_id)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_docs_delete Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 # 实验文件展示列表
 def api_business_file_display_list(request):

@@ -263,7 +263,7 @@ urlpatterns += (
     url(r'^api/business/templates$', business_views.api_business_templates),
 
     url(r'^api/business/template/new$', business_views.api_business_template_new),              # added by ser
-    url(r'^api/business/template/create$', business_views.api_business_create),                 # added by ser
+    url(r'^api/business/template/create$', business_views.api_business_template_create),                 # added by ser
 
     url(r'^api/business/node/detail$', business_views.api_business_node_detail),
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),
@@ -287,6 +287,9 @@ urlpatterns += (
     url(r'^api/business/role/in/list', business_views.api_business_role_in_list),
     url(r'^api/business/role/out/list$', business_views.api_business_role_out_list),
     url(r'^api/business/docs/create$', business_views.api_business_docs_create),
+
+    url(r'^api/business/docs/delete$', business_views.api_business_docs_delete),            # added by ser
+
     url(r'^api/business/file/display/list$', business_views.api_business_file_display_list),
     url(r'^api/business/role/report/list$', business_views.api_business_role_schedule_report_list),
     url(r'^api/business/request/sign/roles$', business_views.api_business_request_sign_roles),
