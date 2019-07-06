@@ -262,8 +262,7 @@ urlpatterns += (
     url(r'^api/business/messages$', business_views.api_business_messages),
     url(r'^api/business/templates$', business_views.api_business_templates),
 
-    url(r'^api/business/template/new$', business_views.api_business_template_new),              # added by ser
-    url(r'^api/business/template/create$', business_views.api_business_template_create),                 # added by ser
+
 
     url(r'^api/business/node/detail$', business_views.api_business_node_detail),
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),
@@ -288,7 +287,7 @@ urlpatterns += (
     url(r'^api/business/role/out/list$', business_views.api_business_role_out_list),
     url(r'^api/business/docs/create$', business_views.api_business_docs_create),
 
-    url(r'^api/business/docs/delete$', business_views.api_business_docs_delete),            # added by ser
+
 
     url(r'^api/business/file/display/list$', business_views.api_business_file_display_list),
     url(r'^api/business/role/report/list$', business_views.api_business_role_schedule_report_list),
@@ -306,6 +305,17 @@ urlpatterns += (
     url(r'^api/business/templates$', business_views.api_business_templates),
     url(r'^api/business/vote/saveVoteData$', business_views.api_vote_save_vote_data),
     url(r'^api/business/vote/finishVote$', business_views.api_vote_finish_mode_3),
+
+    #added by ser start
+    url(r'^api/business/template/new$', business_views.api_business_template_new),
+    url(r'^api/business/template/create$', business_views.api_business_template_create),
+    url(r'^api/business/template/sign$', business_views.api_business_template_sign),
+    url(r'^api/business/docs/delete$', business_views.api_business_docs_delete),
+    url(r'^api/business/docs/team/create$', business_views.api_business_docs_team_create),
+    url(r'^api/business/flownode/step$', business_views.api_business_flownode_step),
+    url(r'^api/business/flownode/step/update$', business_views.api_business_flownode_step_update),
+    url(r'^api/business/doc/sign/image$', business_views.api_business_doc_sign_image)
+    #added by ser end
 )
 urlpatterns += (
     url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),

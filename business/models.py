@@ -37,7 +37,7 @@ class Business(models.Model):
 
     class Meta:
         db_table = "t_business"
-        ordering = ('-create_time', )
+        ordering = ('-create_time',)
         verbose_name_plural = verbose_name = u"Business"
 
     def __unicode__(self):
@@ -110,7 +110,8 @@ class BusinessRoleAllocation(models.Model):
 # 实验环节角色状态
 class BusinessRoleAllocationStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,
+                                                 verbose_name=u'Business Role Allocation')
     path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
     speak_times = models.IntegerField(default=0, verbose_name=u'发言次数')
     submit_status = models.PositiveIntegerField(choices=const.SUBMIT_STATUS, default=9, verbose_name=u'提交状态')
@@ -131,7 +132,8 @@ class BusinessRoleAllocationStatus(models.Model):
 # 实验环节占位状态
 class BusinessPositionStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, blank=True, null=True, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, blank=True, null=True,
+                                                 on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
     path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
     position_id = models.IntegerField(verbose_name=u'占位')
     sitting_status = models.PositiveIntegerField(choices=const.SITTING_STATUS, default=1, verbose_name=u'入席退席状态')
@@ -165,7 +167,8 @@ class BusinessExperience(models.Model):
 
 class BusinessReportStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,
+                                                 verbose_name=u'Business Role Allocation')
     path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
     position_id = models.IntegerField(verbose_name=u'占位')
     schedule_status = models.PositiveIntegerField(choices=const.SCHEDULE_STATUS, default=1, verbose_name=u'安排状态')
@@ -190,7 +193,7 @@ class BusinessTeamMember(models.Model):
 
     class Meta:
         db_table = "t_business_team_member"
-        ordering = ('-create_time', )
+        ordering = ('-create_time',)
         verbose_name_plural = verbose_name = u"BusinessTeam"
 
     def __unicode__(self):
@@ -201,7 +204,8 @@ class BusinessTeamMember(models.Model):
 class BusinessMessage(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'User')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,
+                                                 verbose_name=u'Business Role Allocation')
     file_id = models.IntegerField(blank=True, null=True, verbose_name=u'文件')
     path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
     user_name = models.CharField(max_length=64, blank=True, null=True, verbose_name=u'姓名')
@@ -253,7 +257,9 @@ class BusinessDoc(models.Model):
     type = models.IntegerField(blank=True, null=True, verbose_name=u'文件类型')
     content = models.TextField(blank=True, null=True, verbose_name=u'内容')
     created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,
+                                                 verbose_name=u'Business Role Allocation', blank=True, null=True,
+                                                 default=None)
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
     sign = models.CharField(max_length=12, blank=True, null=True, verbose_name=u'签名')
     sign_status = models.BooleanField(default=False, verbose_name=u'签名状态')
@@ -281,7 +287,9 @@ class BusinessDocContent(models.Model):
     sign = models.CharField(max_length=32, blank=True, null=True, verbose_name=u'签名')
     sign_status = models.PositiveIntegerField(choices=const.SIGN_STATUS, default=0, verbose_name=u'签名状态')
     file_type = models.PositiveSmallIntegerField(choices=const.FILE_TYPE, default=0, verbose_name=u'文件类型')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,
+                                                 verbose_name=u'Business Role Allocation', blank=True, null=True,
+                                                 default=None)
     has_edited = models.BooleanField(default=False, verbose_name=u'是否已编辑')
     created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
@@ -302,10 +310,12 @@ class BusinessDocTeam(models.Model):
     business_doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
+
     class Meta:
         db_table = "t_business_doc_team"
         ordering = ['-create_time']
         verbose_name_plural = verbose_name = u"BusinessDocTeam"
+
     def __unicode__(self):
         return u''
 
@@ -314,7 +324,9 @@ class BusinessDocTeam(models.Model):
 class BusinessDocSign(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
-    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,
+                                                 verbose_name=u'Business Role Allocation', blank=True, null=True,
+                                                 default=None)
     sign = models.CharField(max_length=18, blank=True, null=True, verbose_name=u'签名')
     sign_status = models.PositiveIntegerField(choices=const.SIGN_STATUS, default=0, verbose_name=u'签名状态')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
@@ -345,11 +357,12 @@ class BusinessNotes(models.Model):
     def __unicode__(self):
         return u""
 
+
 class BusinessPost(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
     name = models.CharField(max_length=64, verbose_name=u'名称')
-    content = models.TextField(verbose_name=u'内容',blank=True, null=True)
+    content = models.TextField(verbose_name=u'内容', blank=True, null=True)
     docx_id = models.IntegerField(blank=True, null=True, verbose_name=u'文件路径1')
     html_id = models.IntegerField(blank=True, null=True, verbose_name=u'文件路径2')
     file_type = models.CharField(max_length=10, verbose_name=u'文件类型')
@@ -381,7 +394,7 @@ class VoteItem(models.Model):
 
 class VoteMember(models.Model):
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Vote User ID')
-    voted = models.IntegerField(default=0, verbose_name=u'Vote Done')
+    voted = models.IntegerField(verbose_name=u'Vote Done')
 
     class Meta:
         db_table = "t_voteMember"
@@ -397,10 +410,10 @@ class Vote(models.Model):
     mode = models.IntegerField(verbose_name=u'Vote Mode')
     title = models.TextField(verbose_name=u'Vote Title')
     description = models.TextField(verbose_name=u'Vote Description')
-    method = models.IntegerField(blank=True, null=True, verbose_name=u'Vote Method')
+    method = models.IntegerField(verbose_name=u'Vote Method')
     end_time = models.DateTimeField(verbose_name=u'Vote End Time')
-    max_vote = models.IntegerField(blank=True, null=True, verbose_name=u'Vote Max Count')
-    lost_vote = models.IntegerField(blank=True, null=True, verbose_name=u'Vote Lost Count')
+    max_vote = models.IntegerField(verbose_name=u'Vote Max Count')
+    lost_vote = models.IntegerField(verbose_name=u'Vote Lost Count')
     items = models.ManyToManyField(VoteItem, verbose_name=u'Vote Items')
     members = models.ManyToManyField(VoteMember, verbose_name=u'Vote Members')
 

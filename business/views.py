@@ -1070,7 +1070,6 @@ def api_business_templates(request):
         bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
         pra = ProjectRoleAllocation.objects.filter(pk=bra.project_role_alloc_id).first()
         if business:
-            user_id = request.user.pk
             if usage and usage == '3':
                 if role_alloc_id is None:
                     resp = code.get_msg(code.PARAMETER_ERROR)
@@ -1486,6 +1485,7 @@ def api_business_message_push(request):
         param = request.POST.get("param", None)
         file_id = request.POST.get("file_id", None)
         data = request.POST.get('data', None)
+        edit_module = request.POST.get('edit_module', None)
         logger.info('business_id:%s,node_id:%s,role_id:%s,type:%s,cmd:%s,param:%s,file_id:%s,'
                     'data:%s' % (business_id, node_id, role_alloc_id, type, cmd, param, file_id, data))
 
@@ -1567,7 +1567,7 @@ def api_business_message_push(request):
 
         # 角色形象
         image = get_role_image(bra.flow_role_alloc_id)
-        if image is None and type != const.MSG_TYPE_CMD:
+        if image is None and type != const.MSG_TYPE_CMD and edit_module is None:        #modifed by ser for edit module
             resp = code.get_msg(code.BUSINESS_ROLE_IMAGE_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -1593,7 +1593,7 @@ def api_business_message_push(request):
             msg = tools.filter_invalid_str(msg)
             msg_obj = {'type': const.MSG_TYPE_TXT, 'msg': msg}
             ext = {'business_id': business_id, 'username': name,
-                   'alloc_id': role_alloc_id, 'role_name': role.name, 'avatar': image['avatar'],
+                   'alloc_id': role_alloc_id, 'role_name': role.name, 'avatar': image['avatar'] if image else '',   #modified by ser for edit module
                    'cmd': const.ACTION_TXT_SPEAK, 'param': '', 'time': time, 'can_terminate': can_terminate,
                    'code_position': pos['code_position'] if pos else ''}
 
@@ -2023,6 +2023,7 @@ def api_business_role_out_list(request):
 
 
 # 实验中上传文件
+
 def api_business_docs_create(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -2108,6 +2109,9 @@ def api_business_file_display_list(request):
         node_id = request.GET.get('node_id', None)
         path_id = request.GET.get("path_id", None)  # 环节id
 
+        can_terminate = request.GET.get('can_terminate', None)      #added by ser
+        user_id = request.GET.get('user_id', None)                  #added by ser
+
         bus = Business.objects.filter(pk=business_id).first()
         if bus:
             doc_list = get_business_display_files(bus, node_id, path_id)
@@ -2119,6 +2123,12 @@ def api_business_file_display_list(request):
                 'num_pages': 1,
                 'cur_page': 1,
             }
+
+            # get document read states
+            # this is for display module
+            if can_terminate != None and user_id != None:
+                doc_list = get_business_display_file_read_status(doc_list, can_terminate, user_id)
+
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': doc_list, 'paging': paging}
 
@@ -3047,40 +3057,6 @@ def api_vote_finish_mode_3(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-def api_business_template_new(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-    try:
-        business_id = request.POST.get('business_id', None)
-        node_id = request.POST.get('node_id', None)
-        name = request.POST.get('name', '')
-        content = request.POST.get('content', '')
-        role_id = request.POST.get('role_id', None)
-
-        if None in (business_id, node_id, name):
-            resp = code.get_msg(code.PARAMETER_ERROR)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-        exp = Business.objects.filter(pk=business_id, del_flag=0).first()
-        if exp:
-            name = '%s.docx' % name
-            path = business_template_save(business_id, node_id, name, content)
-            BusinessDocContent.objects.create(business_id=business_id, node_id=node_id, business_role_allocation_id=role_id,
-                                                content=content, name=name, created_by=request.user,
-                                                file_type=1, file=path, has_edited=True)
-
-            clear_cache(exp.pk)
-            resp = code.get_msg(code.SUCCESS)
-        else:
-            resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    except Exception as e:
-        logger.exception('api_experiment_template_new Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
 
 def api_business_template_create(request):
     resp = auth_check(request, "POST")
@@ -3106,9 +3082,210 @@ def api_business_template_create(request):
             clear_cache(bus.pk)
             resp = code.get_msg(code.SUCCESS)
         else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_template_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_docs_team_create(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_doc_id = request.POST.get('business_doc_id', None)
+        user_id = request.POST.get('user_id', None)
+
+        btm = BusinessTeamMember.objects.filter(user_id=user_id).first()
+
+        if btm is None:
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        doc_team = BusinessDocTeam.objects.create(business_doc_id=business_doc_id, business_team_member_id=btm.pk)
+        if doc_team is not None:
+            resp = code.get_msg(code.SUCCESS)
+        else:
+            resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('business_docs_team_create Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+#added by ser
+def api_business_template_new(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get('business_id', None)
+        node_id = request.POST.get('node_id', None)
+        name = request.POST.get('name', '')
+        content = request.POST.get('content', '')
+        role_alloc_id = request.POST.get('role_alloc_id', None)
+
+        if None in (business_id, node_id, name):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus:
+            name = '%s.docx' % name
+            path = business_template_save(business_id, node_id, name, content)
+            BusinessDocContent.objects.create(business_id=business_id, node_id=node_id, business_role_allocation_id=role_alloc_id,
+                                                content=content, name=name, created_by=request.user,
+                                                file_type=1, file=path, has_edited=True)
+
+            clear_cache(bus.pk)
+            resp = code.get_msg(code.SUCCESS)
+        else:
             resp = code.get_msg(code.EXPERIMENT_NOT_EXIST)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
-        logger.exception('api_experiment_template_create Exception:{0}'.format(str(e)))
+        logger.exception('api_business_template_new Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 用户编辑模板签名
+def api_business_template_sign(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    business_id = request.POST.get('business_id', None)  # 实验id
+    node_id = request.POST.get('node_id', None)  # 环节id
+    project_role_id = request.POST.get('project_role_id', None)
+    doc_id = request.POST.get('doc_id', None)  # 模板素材id
+    status = request.POST.get('status', None)
+    content = request.POST.get('content', None)
+
+    logger.info('experiment_id:%s,node_id:%s,role_id:%s,doc_id:%s,status:%s' % (business_id, node_id,
+                                                                                project_role_id, doc_id, status))
+    if None in (business_id, node_id, doc_id, project_role_id):
+        resp = code.get_msg(code.PARAMETER_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        role = ProjectRole.objects.filter(pk=project_role_id).first()
+        if role is None:
+            resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bus = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if bus:
+            sign = content
+            if status == '1' or status == '2':
+                BusinessDocContent.objects.filter(pk=doc_id, business_id=business_id,
+                                                    node_id=node_id).update(sign_status=1, sign=sign, has_edited=True)
+            else:
+                BusinessDocContent.objects.filter(pk=doc_id, business_id=business_id,
+                                                    node_id=node_id).update(sign_status=0, sign='', has_edited=True)
+
+            doc_sign = BusinessDocContent.objects.filter(pk=doc_id).first()
+            if doc_sign is None:
+                resp = code.get_msg(code.PARAMETER_ERROR)
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'sign_status': doc_sign.sign_status, 'sign': doc_sign.sign}
+
+            clear_cache(bus.pk)
+        else:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_experiment_template_sign Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_flownode_step(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        flownode_id = request.GET.get("flownode_id")
+        fn = FlowNode.objects.filter(id=flownode_id).first()
+        if fn is None:
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'flow_step': fn.step, 'data': ''}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_flownode_step Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_flownode_step_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        flownode_id = request.POST.get("flownode_id")
+        step = request.POST.get("step", 0)
+
+        FlowNode.objects.filter(id=flownode_id).update(step=step)
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_business_flownode_step Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_doc_sign_image(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        upload_file = request.FILES["file"]  # 文件
+        business_id = request.POST.get("business_id")  # 实验
+        node_id = request.POST.get("node_id")  # 环节
+        role_alloc_id = request.POST.get("role_alloc_id", None)  # 角色id
+        cmd = request.POST.get('cmd', None)
+        logger.info('business_id:%s,node_id:%s,role_id:%s,cmd:%s' % (business_id, node_id, role_alloc_id, cmd))
+        path = BusinessTransPath.objects.filter(business_id=business_id).last()
+        if path is None:
+            resp = code.get_msg(code.BUSINESS_NODE_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if len(upload_file.name) > 60:
+            resp = code.get_msg(code.UPLOAD_FILE_NAME_TOOLONG_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        file_type = tools.check_file_type(upload_file.name)
+        doc = BusinessDoc.objects.create(
+            filename=upload_file.name,
+            file=upload_file,
+            business_id=business_id,
+            node_id=node_id,
+            business_role_allocation_id=role_alloc_id,
+            path_id=path.id,
+            file_type=file_type,
+            created_by=request.user
+        )
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'id': doc.id, 'filename': doc.filename, 'file': doc.file.url if doc.file else None,
+            'business_id': doc.business_id, 'node_id': doc.node_id, 'file_type': file_type,
+            'created_by': user_simple_info(doc.created_by_id)
+        }
+        # clear_cache(business_id)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_experiment_docs_create Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

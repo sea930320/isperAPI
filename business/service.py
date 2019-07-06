@@ -60,7 +60,7 @@ def clear_cache(experiment_id):
 
 def get_role_allocs_status_by_user(business, path, user):
     role_alloc_list = []
-    btmQs = BusinessTeamMember.objects.filter(business=business, user=user)
+    btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
     for btm in btmQs:
         try:
             roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=path.node, role=btm.business_role,
@@ -125,7 +125,7 @@ def get_role_allocs_status_simple_by_user(business, node, path, user_id):
 
 def get_user_with_node_on_business(business, user):
     nodes = []
-    btmQs = BusinessTeamMember.objects.filter(business=business, user=user)
+    btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
     for btm in btmQs:
         try:
             node_ids = BusinessRoleAllocation.objects.filter(business=business, role=btm.business_role,
@@ -147,7 +147,7 @@ def get_business_detail(business):
         'username': member.user.username,
         'type': member.user.type,
         'gender': member.user.gender,
-    } for member in BusinessTeamMember.objects.filter(business=business, del_flag=0)]
+    } for member in BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, del_flag=0)]
     # 项目信息
 
     if project:
@@ -1180,6 +1180,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
     :return:
     """
     try:
+        is_nest = False
         # 当前项目环节权限判断
         if not BusinessRoleAllocation.objects.filter(pk=role_alloc_id, project_id=bus.cur_project_id,
                                                      can_terminate=True).exists():
@@ -1188,6 +1189,17 @@ def action_exp_node_end(bus, role_alloc_id, data):
         else:
             if data['tran_id'] == 0 or data['tran_id'] == '0':
                 next_node = None
+            elif data['process_type'] == const.PROCESS_EXPERIENCE_TYPE:
+                bpt = BusinessProjectTrack.objects.filter(business_id=bus.id, process_type=const.PROCESS_NEST_TYPE).last()
+                if bpt is None or bpt.project_id == bus.cur_project_id:
+                    tran = FlowTrans.objects.get(pk=data['tran_id'])
+                    next_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
+                else:
+                    bus.jumper_id = None
+                    data['project_id'] = bpt.project_id
+                    tran = FlowTrans.objects.get(pk=bpt.flow_trans_id)
+                    next_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
+                    is_nest = True
             else:
                 tran = FlowTrans.objects.get(pk=data['tran_id'])
                 next_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
@@ -1201,14 +1213,11 @@ def action_exp_node_end(bus, role_alloc_id, data):
             if next_node is None:
                 # 结束实验，验证实验心得
                 experience_count = BusinessExperience.objects.filter(business_id=bus.id, del_flag=0).count()
-                bras = BusinessRoleAllocation.objects.filter(project_id=project.pk,
-                                                                 node_id=bus.node_id, can_take_in=True)
+                bras = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=bus.node_id, can_take_in=True)
                 user_ids = []
                 for bra in bras:
-                    print BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
-                                                               business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)
-                    user_ids = list(set(user_ids) | set(BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
-                                                               business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)))
+                    print BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0, business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)
+                    user_ids = list(set(user_ids) | set(BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0, business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)))
                 # logger.info(role_ids)
                 print user_ids
                 user_count = len(user_ids)
@@ -1227,10 +1236,6 @@ def action_exp_node_end(bus, role_alloc_id, data):
                 cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
                 if cur_node.process.type == const.PROCESS_VOTE_TYPE:
                     cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
-
-                    if cur_path.vote_status == 1:
-                        resp = code.get_msg(code.EXPERIMENT_ROLE_VOTE_NOT_END)
-                        return False, resp
 
                 # 创建新环节路径
                 step = BusinessTransPath.objects.filter(business_id=bus.id).count() + 1
@@ -1277,7 +1282,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
                     # ).update(user_id=item.user_id)
                     # 三期 - 当上下两个环节的场景一样、角色一致，则下一个环节启动后，所有具备入席权限的角色自动在席
                     # 这样实现不行，会引入重复角色的bug
-                    if cur_node.process_id == next_node.process_id:
+                    if cur_node.process_id == next_node.process_id and not is_nest:
                         item_role = item.business_role
                         # 角色占位
                         pos = get_role_position(bus, project, next_node, path, item_role, role_alloc_id)
@@ -1949,3 +1954,26 @@ def get_business_display_files(bus, node_id, path_id):
                 'url': '{0}?{1}'.format(item.file.url, r) if item.file else None
             })
     return doc_list
+
+#added by ser
+def get_business_display_file_read_status(doc_list, can_terminate, user_id):
+    res_list = []
+    for item in doc_list:
+        doc = item
+        if can_terminate is None or can_terminate == 'false':
+            btm = BusinessTeamMember.objects.filter(user_id=user_id).first()
+            state = BusinessDocTeam.objects.filter(business_doc_id=item["id"], business_team_member_id=btm.pk).first()
+        else:
+            state = BusinessDocTeam.objects.filter(business_doc_id=item["id"]).first()
+
+        if state is None:
+            doc['view_status'] = False
+        else:
+            doc['view_status'] = True
+
+        res_list.append(doc)
+    return res_list
+
+
+def action_business_jump_start():
+    return None
