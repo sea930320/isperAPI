@@ -31,7 +31,10 @@ from datetime import datetime
 from django.utils import timezone
 import random
 import string
-from utils.public_fun import getProjectIDByGroupManager
+from utils.public_fun import getProjectIDByGroupManager, \
+    getProjectIDByCompanyManager, \
+    getProjectIDByCompanyManagerAssistant, \
+    getProjectIDByGroupManagerAssistant
 from django.forms.models import model_to_dict
 from socketio.socketIO_client import SocketIO, LoggingNamespace
 import codecs
@@ -146,10 +149,9 @@ def api_business_create(request):
 
 def teammates_configuration(business_id, seted_users_fromInnerPermission):
     # check team counts
-
-    business_team_counts = list(
-        BusinessRole.objects.filter(business_id=business_id).values('job_type__name', 'capacity'))
+    
     business = Business.objects.get(id=business_id)
+    business_team_counts = list(BusinessRole.objects.filter(Q(business_id=business_id, project_id=business.cur_project_id) & ~Q(job_type_id=None)).values('job_type__name', 'capacity'))
 
     project = Project.objects.get(pk=business.project_id)
     first_node_id = get_start_node(project.flow_id)
@@ -189,8 +191,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         if matched_item is None:
             moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity']})
         elif matched_item['counts'] < item['capacity']:
-            moreResult.append(
-                {'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
+            moreResult.append({'role_name': item['job_type__name'], 'moreCount': item['capacity'] - matched_item['counts']})
 
     if moreResult:
         if len(seted_users_fromInnerPermission) != 0:
@@ -259,19 +260,30 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
             targetUnitUsers.append({'position': item['role_name'], 'id': item['userId']})
 
     for teamItem in teammateList:
-        selectedUser = random.choice([a for a in targetUnitUsers if a['position'] == teamItem['role__job_type__name']])
-        targetUnitUsers.pop(next((index for (index, x) in enumerate(targetUnitUsers) if x == selectedUser), None))
-        newTeammate = BusinessTeamMember.objects.create(
-            business_id=business_id,
-            user_id=selectedUser['id'],
-            business_role_id=teamItem['role_id'],
-            no=teamItem['no'],
-            del_flag=0,
-            project_id=business.project_id
-        )
-        newTeammate.save()
+        if teamItem['role__job_type__name'] is None:
+            newTeammate = BusinessTeamMember.objects.create(
+                business_id=business_id,
+                user_id=None,
+                business_role_id=teamItem['role_id'],
+                no=teamItem['no'],
+                del_flag=0,
+                project_id=business.cur_project_id
+            )
+            newTeammate.save()
+        else:
+            selectedUser = random.choice([a for a in targetUnitUsers if a['position'] == teamItem['role__job_type__name']])
+            targetUnitUsers.pop(next((index for (index, x) in enumerate(targetUnitUsers) if x == selectedUser), None))
+            newTeammate = BusinessTeamMember.objects.create(
+                business_id=business_id,
+                user_id=selectedUser['id'],
+                business_role_id=teamItem['role_id'],
+                no=teamItem['no'],
+                del_flag=0,
+                project_id=business.cur_project_id
+            )
+            newTeammate.save()
 
-        Business.objects.filter(id=business_id).update(status=2)
+    Business.objects.filter(id=business_id).update(status=2)
 
     return 'team_configured'
 
@@ -1186,19 +1198,27 @@ def api_business_note_create(request):
 
 # Get No-Deleted Business
 def api_business_list_nodel(request):
-    if request.session['login_type'] in [2, 6]:
+    if request.session['login_type'] in [2, 6, 3, 7]:
         resp = auth_check(request, "GET")
         if resp != {}:
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         try:
             userIDInfo = request.user.id
-            projectAvailableList = getProjectIDByGroupManager(userIDInfo)
+            projectAvailableList = []
+            if request.session['login_type'] == 2:
+                projectAvailableList = getProjectIDByGroupManager(userIDInfo)
+            elif request.session['login_type'] == 3:
+                projectAvailableList = getProjectIDByCompanyManager(userIDInfo)
+            elif request.session['login_type'] == 6:
+                projectAvailableList = getProjectIDByGroupManagerAssistant(userIDInfo)
+            elif request.session['login_type'] == 7:
+                projectAvailableList = getProjectIDByCompanyManagerAssistant(userIDInfo)
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
 
-            qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(status=9) & Q(del_flag=0))
+            qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(del_flag=0))
 
             if search:
                 qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
@@ -1226,6 +1246,7 @@ def api_business_list_nodel(request):
                     'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
                     'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
+                    'status': '已完成' if item.status == 9 else '未完成'
                 }
                 results.append(bus)
             # 分页信息
@@ -1253,19 +1274,27 @@ def api_business_list_nodel(request):
 
 # Get Deleted Business
 def api_business_list_del(request):
-    if request.session['login_type'] in [2, 6]:
+    if request.session['login_type'] in [2, 6, 3, 7]:
         resp = auth_check(request, "GET")
         if resp != {}:
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         try:
             userIDInfo = request.user.id
-            projectAvailableList = getProjectIDByGroupManager(userIDInfo)
+            projectAvailableList = []
+            if request.session['login_type'] == 2:
+                projectAvailableList = getProjectIDByGroupManager(userIDInfo)
+            elif request.session['login_type'] == 3:
+                projectAvailableList = getProjectIDByCompanyManager(userIDInfo)
+            elif request.session['login_type'] == 6:
+                projectAvailableList = getProjectIDByGroupManagerAssistant(userIDInfo)
+            elif request.session['login_type'] == 7:
+                projectAvailableList = getProjectIDByCompanyManagerAssistant(userIDInfo)
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
 
-            qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(status=9) & Q(del_flag=1))
+            qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(del_flag=1))
 
             if search:
                 qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
@@ -1293,6 +1322,7 @@ def api_business_list_del(request):
                     'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
                     'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
+                    'status': '已完成' if item.status == 9 else '未完成'
                 }
                 results.append(bus)
             # 分页信息
@@ -1320,7 +1350,7 @@ def api_business_list_del(request):
 
 # Delete Business
 def api_business_delete(request):
-    if request.session['login_type'] in [2, 6]:
+    if request.session['login_type'] in [2, 6, 3, 7]:
         resp = auth_check(request, "POST")
         if resp != {}:
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1347,7 +1377,7 @@ def api_business_delete(request):
 
 # Recovery Business
 def api_business_recovery(request):
-    if request.session['login_type'] in [2, 6]:
+    if request.session['login_type'] in [2, 6, 3, 7]:
         resp = auth_check(request, "POST")
         if resp != {}:
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
