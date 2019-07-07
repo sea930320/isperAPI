@@ -274,12 +274,12 @@ class BusinessDoc(models.Model):
 class BusinessDocContent(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
-    doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
+    doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc', null=True)
     name = models.CharField(max_length=64, verbose_name=u'模板名称')
     content = models.TextField(verbose_name=u'内容')
     file = models.FileField(upload_to=get_business_doc_upload_to, storage=FileStorage(),
                             blank=True, null=True, verbose_name=u'文件')
-    sign = models.CharField(max_length=32, blank=True, null=True, verbose_name=u'签名')
+    sign = models.CharField(max_length=255, blank=True, null=True, verbose_name=u'签名')
     sign_status = models.PositiveIntegerField(choices=const.SIGN_STATUS, default=0, verbose_name=u'签名状态')
     file_type = models.PositiveSmallIntegerField(choices=const.FILE_TYPE, default=0, verbose_name=u'文件类型')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation', blank=True, null=True, default=None)
