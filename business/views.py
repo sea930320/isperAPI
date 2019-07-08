@@ -4271,6 +4271,25 @@ def api_business_doc_team_status(request):
         logger.exception('api_business_doc_team_status Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        
+def get_group_userList(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 5:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        group_id = request.user.tcompany.group_id
+        guserList = [{'value': item.pk, 'text': item.name} for item in Tuser.objects.filter(roles=5, tcompany__group_id=group_id)]
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'result': guserList}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_result Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
 # added by ser
@@ -4344,5 +4363,25 @@ def api_business_doc_team_staus_update(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+     
+def set_none_user(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-
+    try:
+        if request.session['login_type'] != 5:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        role_alloc_id = request.POST.get("role_alloc_id", None)
+        user_id = request.POST.get("user_id", None)
+        role_id = BusinessRoleAllocation.objects.get(pk=role_alloc_id).role_id
+        no = BusinessRoleAllocation.objects.get(pk=role_alloc_id).no
+        BusinessTeamMember.objects.filter(business_role_id=role_id, no=no).update(user_id=user_id)
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'result': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_result Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

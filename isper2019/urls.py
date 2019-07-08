@@ -279,6 +279,8 @@ urlpatterns += (
     url(r'^api/business/delete$', business_views.api_business_delete),
     url(r'^api/business/recovery$', business_views.api_business_recovery),
     url(r'^api/business/getUnitUserList$', business_views.get_unit_userList),
+    url(r'^api/business/getOwnGUsers$', business_views.get_group_userList),
+    url(r'^api/business/setNoneUser$', business_views.set_none_user),
     url(r'^api/business/addMoreTeammates$', business_views.add_more_teammates),
     url(r'^api/business/role/status$', business_views.api_business_role_status),
     url(r'^api/business/message/push$', business_views.api_business_message_push),
