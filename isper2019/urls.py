@@ -311,6 +311,10 @@ urlpatterns += (
     url(r'^api/business/poll/getInitPollData$', business_views.api_get_poll_init_data),
     url(r'^api/business/poll/savePollData$', business_views.api_save_poll_data),
     url(r'^api/business/poll/userPollSave$', business_views.api_user_poll_save),
+
+    url(r'^api/business/template/create$', business_views.api_business_template_create),
+    url(r'^api/business/template/new$', business_views.api_business_template_new),
+    url(r'^api/business/template/sign$', business_views.api_business_template_sign),
 )
 urlpatterns += (
     url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),
