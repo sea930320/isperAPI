@@ -368,6 +368,35 @@ class BusinessPost(models.Model):
         return self.name
 
 
+# added by ser
+class BusinessStepStatus(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
+    step = models.IntegerField(default=1, verbose_name=u'步骤')
+
+    class Meta:
+        db_table = "t_business_step_status"
+        verbose_name_plural = verbose_name = u"BusinessStepStatus"
+
+    def __unicode__(self):
+        return self.name
+
+class BusinessDocTeamStatus(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    business_team_member = models.ForeignKey(BusinessTeamMember, on_delete=models.CASCADE, verbose_name=u'Business')
+    business_doc = models.ForeignKey(BusinessDoc, on_delete=models.CASCADE, verbose_name=u'BusinessDoc')
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'环节')
+    permission = models.IntegerField(default=1, verbose_name=u'Permission')
+    status = models.IntegerField(default=0, verbose_name=u'Status')
+
+    class Meta:
+        db_table = "t_business_doc_team_status"
+        verbose_name_plural = verbose_name = u"BusinessDocTeamStatus"
+
+    def __unicode__(self):
+        return self.name
+
+
 class VoteItem(models.Model):
     content = models.TextField(verbose_name=u'Vote Content')
     voted_count = models.IntegerField(default=0, verbose_name=u'Vote Count')
@@ -456,3 +485,5 @@ class Poll(models.Model):
 
     def __unicode__(self):
         return self.title
+
+
