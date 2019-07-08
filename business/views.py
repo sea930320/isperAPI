@@ -4248,21 +4248,65 @@ def api_business_doc_team_status(request):
             left_users =''
             status=0
             for member in team_members:
-                b, created = BusinessDocTeamStatus.objects.get_or_create(business_id=business_id, node_id=node_id,
+                b = BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id,
                                                                 business_doc_id=doc.pk,
-                                                                    business_team_member_id=member.pk);
-                if b.status == 0:
-                    user = Tuser.objects.filter(pk=member.user_id).first().name
-                    left_users = left_users + user + ','
-                else:
-                    status=1
+                                                                    business_team_member_id=member.pk).first();
+                if b is not None:
+                    if b.status == 0:
+                        user = Tuser.objects.filter(pk=member.user_id).first().name
+                        left_users = left_users + user + ','
+                    else:
+                        status=1
 
-            url = '{0}?{1}'.format(doc.file.url, r) if doc.file else None
-            #url = doc.file.url if doc.file else None
-            bdts_list.append({'doc_id': doc.pk, 'doc_name':doc.filename, 'doc_url': url, 'left_users':left_users, 'status': status})
+            if user_id is None or b is not None:
+                url = '{0}?{1}'.format(doc.file.url, r) if doc.file else None
+                #url = doc.file.url if doc.file else None
+                bdts_list.append({'doc_id': doc.pk, 'doc_name':doc.filename, 'doc_url': url, 'left_users':left_users, 'status': status})
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = bdts_list
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_doc_team_status Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# added by ser
+def api_business_doc_team_status_create(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id", None)
+        node_id = request.POST.get("node_id", None)
+        business_doc_id = request.POST.get("business_doc_id", None)
+        user_id = request.POST.get("user_id", None)
+
+        if None in (business_id, node_id):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if user_id is None:
+            # get all members
+            team_members = BusinessTeamMember.objects.filter(business_id=business_id)
+        else:
+            team_members = BusinessTeamMember.objects.filter(business_id=business_id, user_id=user_id)
+
+        if business_doc_id is None:
+            docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node_id)
+        else:
+            docs = BusinessDoc.objects.filter(pk=business_doc_id)
+
+        for doc in docs:
+            for member in team_members:
+                BusinessDocTeamStatus.objects.create(business_id=business_id, node_id=node_id,
+                                                                business_doc_id=doc.pk,
+                                                                    business_team_member_id=member.pk);
+
+        resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
