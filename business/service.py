@@ -143,10 +143,10 @@ def get_business_detail(business):
     project = Project.objects.filter(pk=business.cur_project_id).first()
     team_dict = [{
         'id': member.user_id,
-        'name': member.user.name,
-        'username': member.user.username,
-        'type': member.user.type,
-        'gender': member.user.gender,
+        'name': member.user.name if member.user is not None else '',
+        'username': member.user.username if member.user is not None else '',
+        'type': member.user.type if member.user is not None else '',
+        'gender': member.user.gender if member.user is not None else '',
     } for member in BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, del_flag=0)]
     # 项目信息
 
@@ -182,7 +182,7 @@ def get_business_detail(business):
             'id': bra.id, 'name': bra.role.name, 'type': bra.role.type,
             'node_id': bra.node_id,
             'user_id': teamMember.user_id if teamMember else None,
-            'user_name': teamMember.user.name if teamMember else None,
+            'user_name': teamMember.user.name if teamMember and teamMember.user is not None else None,
             'image': image,
         })
     data = {
