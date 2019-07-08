@@ -1964,3 +1964,25 @@ def get_business_display_files(bus, node_id, path_id):
 
 def action_business_jump_start():
     return None
+
+
+# added by ser
+def get_business_display_file_read_status(doc_list, can_terminate, user_id):
+    res_list = []
+    for item in doc_list:
+        doc = item
+        if can_terminate is None or can_terminate == 'false':
+            btm = BusinessTeamMember.objects.filter(user_id=user_id).first()
+            state = BusinessDocTeam.objects.filter(business_doc_id=item["id"], business_team_member_id=btm.pk).first()
+        else:
+            state = BusinessDocTeam.objects.filter(business_doc_id=item["id"]).first()
+
+        if state is None:
+            doc['view_status'] = False
+        else:
+            doc['view_status'] = True
+
+        res_list.append(doc)
+    return res_list
+
+

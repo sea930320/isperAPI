@@ -2191,6 +2191,7 @@ def api_business_file_display_list(request):
                 'num_pages': 1,
                 'cur_page': 1,
             }
+
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': doc_list, 'paging': paging}
 
@@ -4032,6 +4033,7 @@ def api_business_template_create(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+# added by ser for edit module
 def api_business_template_new(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -4074,6 +4076,7 @@ def api_business_template_new(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+# added by ser for edit module
 def api_business_template_sign(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -4125,3 +4128,221 @@ def api_business_template_sign(request):
         logger.exception('api_experiment_template_sign Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# added by ser for display module
+def api_business_docs_delete(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id")  # 实验
+        node_id = request.POST.get("node_id")  # 环节
+        doc_id = request.POST.get("doc_id")  # 文件
+        logger.info('experiment_id:%s,node_id:%s' % (business_id, node_id))
+        path = BusinessTransPath.objects.filter(business_id=business_id).last()
+        if path is None:
+            resp = code.get_msg(code.EXPERIMENT_NODE_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        doc = BusinessDoc.objects.filter(id=doc_id)
+        if doc:
+            doc.delete()
+
+        resp = code.get_msg(code.SUCCESS)
+        clear_cache(business_id)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_docs_delete Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# added by ser
+def api_business_step_status(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get("business_id", None)
+        node_id = request.GET.get("node_id", None)
+
+        if None in (business_id, node_id):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bss, created = BusinessStepStatus.objects.get_or_create(business_id=business_id, node_id=node_id);
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'step': bss.step}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('get_business_step_status Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# added by ser
+def api_business_step_status_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id", None)
+        node_id = request.POST.get("node_id", None)
+        step = request.POST.get("step", 0)
+
+        if None in (business_id, node_id, step):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bss = BusinessStepStatus.objects.filter(business_id=business_id, node_id=node_id).first();
+        if bss is None:  # if not exist then create it
+            resp = code.get_msg(code.SYSTEM_ERROR)          # have to change to something
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        BusinessStepStatus.objects.update_or_create(business_id=business_id, node_id=node_id, defaults={'step':step})
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('get_business_step_status Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# added by ser
+def api_business_doc_team_status(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        bdts_list = []
+
+        business_id = request.GET.get("business_id", None)
+        node_id = request.GET.get("node_id", None)
+        business_doc_id = request.GET.get("business_doc_id", None)
+        user_id = request.GET.get("user_id", None)
+
+        if None in (business_id, node_id):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if user_id is None:
+            # get all members
+            team_members = BusinessTeamMember.objects.filter(business_id=business_id)
+        else:
+            team_members = BusinessTeamMember.objects.filter(business_id=business_id, user_id=user_id)
+
+        if business_doc_id is None:
+            docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node_id)
+        else:
+            docs = BusinessDoc.objects.filter(pk=business_doc_id)
+
+        r = tools.generate_code(6)
+
+        for doc in docs:
+            left_users =''
+            status=0
+            for member in team_members:
+                b = BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id,
+                                                                business_doc_id=doc.pk,
+                                                                    business_team_member_id=member.pk).first();
+                if b is not None:
+                    if b.status == 0:
+                        user = Tuser.objects.filter(pk=member.user_id).first().name
+                        left_users = left_users + user + ','
+                    else:
+                        status=1
+
+            if user_id is None or b is not None:
+                url = '{0}?{1}'.format(doc.file.url, r) if doc.file else None
+                #url = doc.file.url if doc.file else None
+                bdts_list.append({'doc_id': doc.pk, 'doc_name':doc.filename, 'doc_url': url, 'left_users':left_users, 'status': status})
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = bdts_list
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_doc_team_status Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# added by ser
+def api_business_doc_team_status_create(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id", None)
+        node_id = request.POST.get("node_id", None)
+        business_doc_id = request.POST.get("business_doc_id", None)
+        user_id = request.POST.get("user_id", None)
+
+        if None in (business_id, node_id):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if user_id is None:
+            # get all members
+            team_members = BusinessTeamMember.objects.filter(business_id=business_id)
+        else:
+            team_members = BusinessTeamMember.objects.filter(business_id=business_id, user_id=user_id)
+
+        if business_doc_id is None:
+            docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node_id)
+        else:
+            docs = BusinessDoc.objects.filter(pk=business_doc_id)
+
+        for doc in docs:
+            for member in team_members:
+                BusinessDocTeamStatus.objects.create(business_id=business_id, node_id=node_id,
+                                                                business_doc_id=doc.pk,
+                                                                    business_team_member_id=member.pk);
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_doc_team_status Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_doc_team_staus_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        business_doc_id = request.POST.get("business_doc_id", None)
+        node_id = request.POST.get("node_id", None)
+        user_id = request.POST.get("user_id", None)
+        status = request.POST.get("status", None)
+
+        if None in (business_id, business_doc_id, node_id, user_id, status):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        b = BusinessTeamMember.objects.filter(business_id=business_id, user_id=user_id).first()
+
+        if b is None:
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk, business_doc_id=business_doc_id).update(status=1);
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_doc_teaem_staus_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+
