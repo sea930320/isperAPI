@@ -324,7 +324,9 @@ urlpatterns += (
     url(r'^api/business/step/status/update$', business_views.api_business_step_status_update),
     url(r'^api/business/doc/team/status$', business_views.api_business_doc_team_status),
     url(r'^api/business/doc/team/status/create$', business_views.api_business_doc_team_status_create),
-    url(r'^api/business/doc/team/status/update$', business_views.api_business_doc_team_staus_update)
+    url(r'^api/business/doc/team/status/update$', business_views.api_business_doc_team_staus_update),
+    url(r'^api/business/prev/doc/get$', business_views.api_buisness_prev_doc_get),
+    url(r'^api/business/doc/create/prev$', business_views.api_business_doc_create_from_prev)
     # added by ser for edit module *end
 )
 urlpatterns += (

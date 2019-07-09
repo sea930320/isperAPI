@@ -102,11 +102,6 @@ DB_NAME = 'isper2019'
 DB_USER = 'remote'
 DB_PWD = 'remoteadmin'
 
-# HOST = 'localhost'
-# DB_NAME = 'isper2019'
-# DB_USER = 'root'
-# DB_PWD = ''
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',

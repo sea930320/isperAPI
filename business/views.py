@@ -4173,7 +4173,7 @@ def api_business_step_status(request):
             resp = code.get_msg(code.SYSTEM_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        bss, created = BusinessStepStatus.objects.get_or_create(business_id=business_id, node_id=node_id);
+        bss, created = BusinessStepStatus.objects.get_or_create(business_id=business_id, node_id=node_id,defaults={'business_id':business_id, 'node_id':node_id});
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'step': bss.step}
@@ -4383,5 +4383,104 @@ def set_none_user(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_business_result Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        
+def api_buisness_prev_doc_get(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get("business_id", None)
+        node_id = request.GET.get("node_id", None)
+        doc_list = []
+
+        if business_id is None:
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bus = Business.objects.filter(pk=business_id).first();
+
+        if bus is None:
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # get project_doc
+        project_docs = ProjectDoc.objects.filter(project_id=bus.project_id, usage=3)
+        for item in project_docs:
+            doc_list.append({
+                'id': item.id, 'name': item.name, 'url': item.file.url, 'type':'project_doc'
+            })
+
+        # get business_doc
+        # exclude current node docs
+        business_docs = BusinessDoc.objects.filter(business_id=bus.pk).exclude(node_id=node_id)
+        for item in business_docs:
+            doc_list.append({
+                'id':item.id, 'name':item.filename, 'url':item.file.url, 'type': 'business_doc'
+            })
+        # get business_doc_content
+        business_doc_contents = BusinessDocContent.objects.filter(business_id=business_id).exclude(node_id=node_id)
+        for item in business_doc_contents:
+            doc_list.append({
+                'id':item.id, 'name':item.name, 'url':item.file.url, 'type': 'business_doc_content'
+            })
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = doc_list
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_buisness_prev_doc_get Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_doc_create_from_prev(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id", None)
+        node_id = request.POST.get("node_id", None)
+        doc_from = request.POST.get("doc_from", None)
+        doc_id = request.POST.get("doc_id", None)
+        role_alloc_id = request.POST.get("role_alloc_id", None)
+        path_id = request.POST.get("path_id", None)
+
+        if None in (business_id, node_id, doc_from, doc_id):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        # get doc
+        if doc_from == 'business_doc':
+            doc = BusinessDoc.objects.filter(pk=doc_id).first()
+            filename = doc.filename
+        elif doc_from == 'business_doc_content':
+            doc = BusinessDocContent.objects.filter(pk=doc_id).first()
+            filename = doc.name
+        elif doc_from == 'project_doc':
+            doc = ProjectDoc.objects.filter(pk=doc_id).first()
+            filename = doc.name
+
+
+        bdoc = BusinessDoc.objects.create(
+            filename=filename,
+            file=doc.file,
+            business_id=business_id,
+            node_id=node_id,
+            business_role_allocation_id=role_alloc_id,
+            path_id=path_id,
+            file_type=doc.file_type,
+            created_by=request.user
+        )
+
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_doc_create_copy Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
