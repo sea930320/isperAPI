@@ -2907,8 +2907,8 @@ def api_vote_get_init_data(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
-        business_id = request.POST.get('business_id', None)
-        node_id = request.POST.get('node_id', None)
+        business_id = int(request.POST.get('business_id', None))
+        node_id = int(request.POST.get('node_id', None))
         role = int(request.POST.get('role', None))
         if business_id is None or node_id is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
@@ -2936,10 +2936,9 @@ def api_vote_get_init_data(request):
             if vote is None:
                 data = {
                     'node_members': [{
-                        'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
-                                                                   no=item.no).first().user_id,
-                        'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
-                                                                  no=item.no).first().user.name
+                        'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user_id,
+                        'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user.name
+                        if BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user else ''
                     } for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                 }
                 resp = code.get_msg(code.SUCCESS)
