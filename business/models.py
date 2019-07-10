@@ -546,7 +546,7 @@ class BusinessQuestionCase(models.Model):
         verbose_name_plural = verbose_name = u"t_business_question_cases"
 
     def __unicode__(self):
-        return self.title
+        return self.case
 
 class BusinessAnswer(models.Model):
     survey = models.ForeignKey(BusinessSurvey, on_delete=models.CASCADE, verbose_name=u'Business Survey')
