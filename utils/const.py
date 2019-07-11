@@ -289,6 +289,17 @@ FILE_TYPE = (
     (4, u'音频'),
 )
 
+BUSINESS_SURVEY_TARGET = (
+    (0, u'All'),
+    (1, u'Business'),
+    (2, u'Node'),
+)
+
+BUSINESS_QUESTION_TYPE = (
+    (0, u'Choose Question'),
+    (1, u'Blank Fill Question'),
+    (2, u'Normal Question'),
+)
 
 # 动作命令常量
 ACTION_TRANS = 'action_trans'

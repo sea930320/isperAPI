@@ -313,6 +313,24 @@ urlpatterns += (
     url(r'^api/business/poll/getInitPollData$', business_views.api_get_poll_init_data),
     url(r'^api/business/poll/savePollData$', business_views.api_save_poll_data),
     url(r'^api/business/poll/userPollSave$', business_views.api_user_poll_save),
+
+    # added by ser for edit module *start
+    url(r'^api/business/template/create$', business_views.api_business_template_create),
+    url(r'^api/business/template/new$', business_views.api_business_template_new),
+    url(r'^api/business/template/sign$', business_views.api_business_template_sign),
+
+    url(r'^api/business/docs/delete$', business_views.api_business_docs_delete),
+    url(r'^api/business/step/status$', business_views.api_business_step_status),
+    url(r'^api/business/step/status/update$', business_views.api_business_step_status_update),
+    url(r'^api/business/doc/team/status$', business_views.api_business_doc_team_status),
+    url(r'^api/business/doc/team/status/create$', business_views.api_business_doc_team_status_create),
+    url(r'^api/business/doc/team/status/update$', business_views.api_business_doc_team_staus_update),
+    url(r'^api/business/prev/doc/get$', business_views.api_buisness_prev_doc_get),
+    url(r'^api/business/doc/create/prev$', business_views.api_business_doc_create_from_prev),
+    url(r'^api/business/survey$', business_views.api_business_survey),
+    url(r'^api/business/survey/createOrUpdate$', business_views.api_business_survey_create_or_update),
+    url(r'^api/business/survey/setSelectQuestions', business_views.api_business_survey_set_select_questions)
+    # added by ser for edit module *end
 )
 urlpatterns += (
     url(r'^save_message/$', socketIO_views.save_message, name='socket_io_save_message'),

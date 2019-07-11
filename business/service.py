@@ -341,7 +341,8 @@ def business_template_save(business_id, node_id, name, content):
     return path
 
 
-def get_business_templates(business, node_id, role_alloc_id, usage, pra=None):
+# modified by ser -- edit_module param is added
+def get_business_templates(business, node_id, role_alloc_id, usage, pra=None, edit_module=None):
     doc_list = []
     try:
 
@@ -353,8 +354,12 @@ def get_business_templates(business, node_id, role_alloc_id, usage, pra=None):
             pra = ProjectRoleAllocation.objects.filter(pk=bra.project_role_alloc_id).first()
 
         if usage and usage == '3':
-            docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id,
+            if edit_module is None:
+                docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id,
                                                      business_role_allocation_id=role_alloc_id)
+            else:
+                docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id)
+
             for item in docs:
                 doc_list.append({
                     'id': item.id, 'name': item.name, 'type': '', 'usage': 3,
@@ -364,7 +369,8 @@ def get_business_templates(business, node_id, role_alloc_id, usage, pra=None):
                     'role_alloc_id': item.business_role_allocation_id, 'url': item.file.url
                 })
         else:
-            if role_alloc_id:
+            # modified by ser -- edit_module validation
+            if role_alloc_id and edit_module is None:
                 doc_ids = ProjectDocRole.objects.filter(project_id=business.cur_project_id, node_id=node_id,
                                                         role_id=pra.role_id, no=pra.no).values_list('doc_id', flat=True)
             else:
@@ -1958,3 +1964,25 @@ def get_business_display_files(bus, node_id, path_id):
 
 def action_business_jump_start():
     return None
+
+
+# added by ser
+def get_business_display_file_read_status(doc_list, can_terminate, user_id):
+    res_list = []
+    for item in doc_list:
+        doc = item
+        if can_terminate is None or can_terminate == 'false':
+            btm = BusinessTeamMember.objects.filter(user_id=user_id).first()
+            state = BusinessDocTeam.objects.filter(business_doc_id=item["id"], business_team_member_id=btm.pk).first()
+        else:
+            state = BusinessDocTeam.objects.filter(business_doc_id=item["id"]).first()
+
+        if state is None:
+            doc['view_status'] = False
+        else:
+            doc['view_status'] = True
+
+        res_list.append(doc)
+    return res_list
+
+
