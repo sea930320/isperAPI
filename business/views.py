@@ -40,6 +40,7 @@ from socketio.socketIO_client import SocketIO, LoggingNamespace
 import codecs
 import pypandoc
 from system.models import UploadFile
+import html2text
 
 logger = logging.getLogger(__name__)
 
@@ -2322,8 +2323,9 @@ def api_business_report_generate(request):
             member_list = []
 
             for uid in members:
-                user = Tuser.objects.get(pk=int(uid))
-                member_list.append(user.name)
+                if uid:
+                    user = Tuser.objects.get(pk=int(uid))
+                    member_list.append(user.name)
 
             # 各环节提交文件信息和聊天信息
             paths = BusinessTransPath.objects.filter(business_id=busi.id)
@@ -2936,9 +2938,12 @@ def api_vote_get_init_data(request):
             if vote is None:
                 data = {
                     'node_members': [{
-                        'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user_id,
-                        'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user.name
-                        if BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first().user else ''
+                        'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
+                                                                   no=item.no).first().user_id,
+                        'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
+                                                                  no=item.no).first().user.name
+                        if BusinessTeamMember.objects.filter(business_role_id=item.role_id,
+                                                             no=item.no).first().user else ''
                     } for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
                 }
                 resp = code.get_msg(code.SUCCESS)
@@ -4525,7 +4530,14 @@ def api_business_survey(request):
         ).first()
         bsurvey = {}
         if qs:
-            bsurvey = model_to_dict(qs)
+            bsurvey = {
+                'id': qs.id, 'business_id': qs.business_id, 'project_id': qs.project_id, 'node_id': qs.node_id,
+                'title': qs.title,
+                'description': qs.description, 'step': qs.step,
+                'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+                'end_time': qs.end_time.strftime(
+                    '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target
+            }
             selectQuestions = BusinessQuestion.objects.filter(
                 survey_id=qs.pk, type=0
             )
@@ -4565,6 +4577,7 @@ def api_business_survey_create_or_update(request):
         node_id = request.POST.get("node_id", None)
         title = request.POST.get("title", None)
         description = request.POST.get("description", None)
+        end_quote = request.POST.get("end_quote", None)
 
         if None in (business_id, node_id):
             resp = code.get_msg(code.PARAMETER_ERROR)
@@ -4581,12 +4594,19 @@ def api_business_survey_create_or_update(request):
             node_id=node_id
         ).first()
         if qs:
-            qs.title = title
-            qs.description = description
-            if qs.step is None or qs.step < 1:
-                qs.step = 1
+            if end_quote:
+                qs.end_quote = end_quote
+                if qs.step is None or qs.step < 5:
+                    qs.step = 5
+            else:
+                if title:
+                    qs.title = title
+                if description:
+                    qs.description = description
+                if qs.step is None or qs.step < 1:
+                    qs.step = 1
             qs.save()
-        else:
+        elif end_quote is None:
             BusinessSurvey.objects.create(
                 business_id=business_id,
                 project_id=business.cur_project_id,
@@ -4599,9 +4619,10 @@ def api_business_survey_create_or_update(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_business_create_or_update Exception:{0}'.format(str(e)))
+        logger.exception('api_business_survey_create_or_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_business_survey_set_select_questions(request):
     resp = auth_check(request, "POST")
@@ -4627,9 +4648,8 @@ def api_business_survey_set_select_questions(request):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         question_ids = [sq['id'] for sq in select_questions if sq['id']]
-        print question_ids
 
-        BusinessQuestion.objects.filter(survey_id=survey_id).exclude(id__in=question_ids).delete()
+        BusinessQuestion.objects.filter(survey_id=survey_id, type=0).exclude(id__in=question_ids).delete()
         for sq in select_questions:
             if sq['id']:
                 bq = BusinessQuestion.objects.filter(pk=sq['id']).first()
@@ -4661,10 +4681,494 @@ def api_business_survey_set_select_questions(request):
                         case=qc['case']
                     )
 
+        if businessSurvey.step is None or businessSurvey.step < 2:
+            businessSurvey.step = 2
+            businessSurvey.save()
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_business_create_or_update Exception:{0}'.format(str(e)))
+        logger.exception('api_business_survey_set_select_questions Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_survey_set_blank_questions(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id", None)
+        node_id = request.POST.get("node_id", None)
+        survey_id = request.POST.get("survey_id", None)
+        blank_questions = request.POST.get("blank_questions", None)
+
+        if None in (business_id, node_id, survey_id, blank_questions):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        blank_questions = json.loads(blank_questions)
+        business = Business.objects.filter(pk=business_id).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        businessSurvey = BusinessSurvey.objects.filter(pk=survey_id).first()
+        if businessSurvey is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        question_ids = [bq['id'] for bq in blank_questions if bq['id']]
+        BusinessQuestion.objects.filter(survey_id=survey_id, type=1).exclude(id__in=question_ids).delete()
+
+        for bq in blank_questions:
+            if bq['id']:
+                bqQs = BusinessQuestion.objects.filter(pk=bq['id']).first()
+                if bqQs is None:
+                    continue
+                bqQs.title = bq['title']
+                bqQs.type = 1
+                bqQs.save()
+            else:
+                bqQs = BusinessQuestion.objects.create(
+                    survey_id=survey_id,
+                    type=1,
+                    title=bq['title']
+                )
+
+        if businessSurvey.step is None or businessSurvey.step < 3:
+            businessSurvey.step = 3
+            businessSurvey.save()
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_survey_set_blank_questions Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_survey_set_normal_questions(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id", None)
+        node_id = request.POST.get("node_id", None)
+        survey_id = request.POST.get("survey_id", None)
+        normal_questions = request.POST.get("normal_questions", None)
+
+        if None in (business_id, node_id, survey_id, normal_questions):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        normal_questions = json.loads(normal_questions)
+        business = Business.objects.filter(pk=business_id).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        businessSurvey = BusinessSurvey.objects.filter(pk=survey_id).first()
+        if businessSurvey is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        question_ids = [nq['id'] for nq in normal_questions if nq['id']]
+        BusinessQuestion.objects.filter(survey_id=survey_id, type=2).exclude(id__in=question_ids).delete()
+
+        for nq in normal_questions:
+            if nq['id']:
+                bqQs = BusinessQuestion.objects.filter(pk=nq['id']).first()
+                if bqQs is None:
+                    continue
+                bqQs.title = nq['title']
+                bqQs.type = 1
+                bqQs.save()
+            else:
+                bqQs = BusinessQuestion.objects.create(
+                    survey_id=survey_id,
+                    type=2,
+                    title=nq['title']
+                )
+
+        if businessSurvey.step is None or businessSurvey.step < 4:
+            businessSurvey.step = 4
+            businessSurvey.save()
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_survey_set_blank_questions Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_survey_publish(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.POST.get("business_id", None)
+        node_id = request.POST.get("node_id", None)
+        start_date = request.POST.get("start_date", None)
+        end_date = request.POST.get("end_date", None)
+        target = request.POST.get("target", None)
+
+        if None in (business_id, node_id, target):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id).first();
+        if business is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        businessSurvey = BusinessSurvey.objects.filter(
+            business_id=business_id,
+            project_id=business.cur_project_id,
+            node_id=node_id
+        ).first()
+        if businessSurvey is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        businessSurvey.target = target
+        if start_date and end_date:
+            businessSurvey.start_time = datetime.strptime(start_date, '%Y-%m-%d')
+            businessSurvey.end_time = datetime.strptime(end_date, '%Y-%m-%d')
+        if businessSurvey.step is None or businessSurvey.step < 6:
+            businessSurvey.step = 6
+        businessSurvey.save()
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_survey_publish Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_survey_answer(request):
+    try:
+        survey_id = request.POST.get("survey_id", None)
+        answers = request.POST.get("answers", None)
+        user = request.user if request.user else None
+
+        if None in (survey_id, answers):
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        businessSurvey = BusinessSurvey.objects.filter(pk=survey_id).first();
+        if businessSurvey is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        answers = json.loads(answers)
+        if user.id is not None:
+            basu = BusinessSurveyAnsweredUser.objects.filter(survey_id=survey_id, user_id=user.id).first()
+            if not basu:
+                bsau = BusinessSurveyAnsweredUser.objects.create(survey_id=survey_id, user_id=user.id)
+        else:
+            bsau = BusinessSurveyAnsweredUser.objects.create(survey_id=survey_id)
+
+        for answer in answers:
+            bqQs = BusinessQuestion.objects.filter(pk=answer['id']).first()
+            if not bqQs:
+                continue
+            if user.id is not None:
+                ba = BusinessAnswer.objects.filter(survey_id=survey_id, question_id=bqQs.id, question_title=bqQs.title,
+                                                   user=user).first()
+                if not ba:
+                    ba = BusinessAnswer.objects.create(survey_id=survey_id, question_id=bqQs.id,
+                                                       question_title=bqQs.title,
+                                                       user=user)
+            else:
+                ba = BusinessAnswer.objects.create(survey_id=survey_id, question_id=bqQs.id, question_title=bqQs.title,
+                                                   answeredUser=bsau)
+            if bqQs.type == 0:
+                ba.question_cases.clear()
+                if bqQs.select_option == 0:
+                    ba.question_cases.add(BusinessQuestionCase.objects.get(pk=int(answer['answer'])))
+                else:
+                    for answer_id in answer['answers']:
+                        ba.question_cases.add(BusinessQuestionCase.objects.get(pk=int(answer_id)))
+            else:
+                ba.answer = answer['answer']
+                ba.save()
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_survey_publish Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_survey_public_list(request):
+    try:
+        page = request.GET.get("page", 1)
+        size = request.GET.get("size", 10)
+        search = request.GET.get("search", "")
+
+        bsQs = BusinessSurvey.objects.filter(target=0, title__contains=search)
+        paginator = Paginator(bsQs, size)
+        try:
+            bsurveyQs = paginator.page(page)
+        except EmptyPage:
+            bsurveyQs = paginator.page(1)
+
+        bsurveys = []
+
+        for qs in bsurveyQs:
+            bsurvey = {
+                'id': qs.id, 'business_id': qs.business_id, 'project_id': qs.project_id, 'node_id': qs.node_id,
+                'title': qs.title,
+                'description': qs.description, 'step': qs.step,
+                'created_at': qs.create_time.strftime('%Y-%m-%d') if qs.create_time else '',
+                'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+                'end_time': qs.end_time.strftime(
+                    '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
+                'link': '/survey/' + str(qs.id)
+            }
+            selectQuestions = BusinessQuestion.objects.filter(
+                survey_id=qs.pk, type=0
+            )
+            blankQuestions = BusinessQuestion.objects.filter(
+                survey_id=qs.pk, type=1
+            )
+            normalQuestions = BusinessQuestion.objects.filter(
+                survey_id=qs.pk, type=2
+            )
+
+            bsurvey['select_questions'] = []
+            for item in selectQuestions:
+                questionCases = item.businessquestioncase_set.all()
+                selectQuestion = model_to_dict(item)
+                selectQuestion['question_cases'] = [model_to_dict(qc) for qc in questionCases]
+                bsurvey['select_questions'].append(selectQuestion)
+            bsurvey['blank_questions'] = [model_to_dict(bq) for bq in blankQuestions]
+            bsurvey['normal_questions'] = [model_to_dict(nq) for nq in normalQuestions]
+            bsurveys.append(bsurvey)
+
+        paging = {
+            'count': paginator.count,
+            'has_previous': bsurveyQs.has_previous(),
+            'has_next': bsurveyQs.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': bsurveyQs.number,
+            'page_size': size
+        }
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'surveys': bsurveys, 'paging': paging}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_survey_public_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_survey_public_detail(request):
+    try:
+        survey_id = request.GET.get("survey_id", None)
+
+        if survey_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        qs = BusinessSurvey.objects.filter(pk=survey_id).first()
+        if not qs or qs.target != 0:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        cur_node_id = qs.business.node_id
+        bsurvey = {
+            'id': qs.id, 'business_id': qs.business_id, 'project_id': qs.project_id, 'node_id': qs.node_id,
+            'title': qs.title,
+            'description': qs.description, 'step': qs.step,
+            'created_at': qs.create_time.strftime('%Y-%m-%d') if qs.create_time else '',
+            'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+            'end_time': qs.end_time.strftime(
+                '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
+            'link': '/survey/' + str(qs.id),
+            'is_ended': cur_node_id != qs.node_id
+        }
+        selectQuestions = BusinessQuestion.objects.filter(
+            survey_id=qs.pk, type=0
+        )
+        blankQuestions = BusinessQuestion.objects.filter(
+            survey_id=qs.pk, type=1
+        )
+        normalQuestions = BusinessQuestion.objects.filter(
+            survey_id=qs.pk, type=2
+        )
+
+        bsurvey['select_questions'] = []
+        for item in selectQuestions:
+            questionCases = item.businessquestioncase_set.all()
+            selectQuestion = model_to_dict(item)
+            selectQuestion['question_cases'] = [model_to_dict(qc) for qc in questionCases]
+            bsurvey['select_questions'].append(selectQuestion)
+        bsurvey['blank_questions'] = [model_to_dict(bq) for bq in blankQuestions]
+        bsurvey['normal_questions'] = [model_to_dict(nq) for nq in normalQuestions]
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = bsurvey
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_survey_public_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_survey_report(request):
+    try:
+        survey_id = request.GET.get("survey_id", None)
+
+        if survey_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bsurvey = BusinessSurvey.objects.filter(pk=survey_id).first()
+        if not bsurvey:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        selectQuestions = BusinessQuestion.objects.filter(
+            survey_id=bsurvey.pk, type=0
+        )
+        blankQuestions = BusinessQuestion.objects.filter(
+            survey_id=bsurvey.pk, type=1
+        )
+        normalQuestions = BusinessQuestion.objects.filter(
+            survey_id=bsurvey.pk, type=2
+        )
+
+        report = {'select_questions': [], 'blank_questions': [], 'normal_questions': []}
+
+        for item in selectQuestions:
+            selectQuestion = model_to_dict(item)
+            totalAnswers = BusinessAnswer.objects.filter(question_id=item.id)
+            selectQuestion['total_answers'] = totalAnswers.count()
+            questionCases = item.businessquestioncase_set.all()
+            selectQuestion['question_cases'] = []
+            for qc in questionCases:
+                questionCase = model_to_dict(qc)
+                answers = BusinessAnswer.objects.filter(question_id=item.id, question_cases__id=qc.id)
+                questionCase['answers'] = answers.count()
+                selectQuestion['question_cases'].append(questionCase)
+            report['select_questions'].append(selectQuestion)
+        for item in blankQuestions:
+            blankQuestion = model_to_dict(item)
+            answers = BusinessAnswer.objects.filter(question_id=item.id)
+            blankQuestion['total_answers'] = answers.count()
+            blankQuestion['answers'] = [answer.answer for answer in answers]
+            report['blank_questions'].append(blankQuestion)
+        for item in normalQuestions:
+            normalQuestion = model_to_dict(item)
+            answers = BusinessAnswer.objects.filter(question_id=item.id)
+            normalQuestion['total_answers'] = answers.count()
+            normalQuestion['answers'] = [answer.answer for answer in answers]
+            report['normal_questions'].append(normalQuestion)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = report
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_survey_report Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_business_survey_report_export(request):
+    try:
+        survey_id = request.GET.get("survey_id", None)
+
+        if survey_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        bsurvey = BusinessSurvey.objects.filter(pk=survey_id).first()
+        if not bsurvey:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        selectQuestions = BusinessQuestion.objects.filter(
+            survey_id=bsurvey.pk, type=0
+        )
+        blankQuestions = BusinessQuestion.objects.filter(
+            survey_id=bsurvey.pk, type=1
+        )
+        normalQuestions = BusinessQuestion.objects.filter(
+            survey_id=bsurvey.pk, type=2
+        )
+        report = {'select_questions': [], 'blank_questions': [], 'normal_questions': []}
+        for item in selectQuestions:
+            selectQuestion = model_to_dict(item)
+            totalAnswers = BusinessAnswer.objects.filter(question_id=item.id)
+            selectQuestion['total_answers'] = totalAnswers.count()
+            questionCases = item.businessquestioncase_set.all()
+            selectQuestion['question_cases'] = []
+            for qc in questionCases:
+                questionCase = model_to_dict(qc)
+                answers = BusinessAnswer.objects.filter(question_id=item.id, question_cases__id=qc.id)
+                questionCase['answers'] = answers.count()
+                selectQuestion['question_cases'].append(questionCase)
+            report['select_questions'].append(selectQuestion)
+        for item in blankQuestions:
+            blankQuestion = model_to_dict(item)
+            answers = BusinessAnswer.objects.filter(question_id=item.id)
+            blankQuestion['total_answers'] = answers.count()
+            blankQuestion['answers'] = [answer.answer for answer in answers]
+            report['blank_questions'].append(blankQuestion)
+        for item in normalQuestions:
+            normalQuestion = model_to_dict(item)
+            answers = BusinessAnswer.objects.filter(question_id=item.id)
+            normalQuestion['total_answers'] = answers.count()
+            normalQuestion['answers'] = [answer.answer for answer in answers]
+            report['normal_questions'].append(normalQuestion)
+
+        workbook = xlwt.Workbook(encoding='utf8')
+        sheet = workbook.add_sheet(u"选择题")
+        title = [u'题目', u'选项', u'回答人数', u'比例']
+        for i in range(0, len(title)):
+            sheet.write(0, i, title[i], set_style(220, True))
+        row = 1
+        for item in report['select_questions']:
+            for qc in item['question_cases']:
+                sheet.write(row, 0, item['title'])
+                sheet.write(row, 1, qc['case'])
+                sheet.write(row, 2, qc['answers'])
+                sheet.write(row, 3, str(qc['answers'] / float(item['total_answers']) * 100) + '%')
+                row += 1
+            row += 1
+
+        sheet = workbook.add_sheet(u"填空题")
+        title = [u'题目', u'Answer']
+        for i in range(0, len(title)):
+            sheet.write(0, i, title[i], set_style(220, True))
+        row = 1
+        for item in report['blank_questions']:
+            for answer in item['answers']:
+                sheet.write(row, 0, html2text.html2text(item['title'].replace('', '_')))
+                sheet.write(row, 1, answer)
+                row += 1
+            row += 1
+
+        sheet = workbook.add_sheet(u"问答题")
+        title = [u'题目', u'Answer']
+        for i in range(0, len(title)):
+            sheet.write(0, i, title[i], set_style(220, True))
+        row = 1
+        for item in report['normal_questions']:
+            for answer in item['answers']:
+                sheet.write(row, 0, html2text.html2text(item['title']))
+                sheet.write(row, 1, answer)
+                row += 1
+            row += 1
+
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        filename = urlquote(u'Survey Report')
+        response['Content-Disposition'] = u'attachment;filename=%s.xls' % filename
+        workbook.save(response)
+        return response
+    except Exception as e:
+        logger.exception('api_business_survey_report_export Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

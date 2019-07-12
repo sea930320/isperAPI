@@ -161,6 +161,12 @@ def get_business_detail(business):
     node = FlowNode.objects.filter(pk=business.node_id).first() if business.node else None
     if node:
         process = node.process
+        print process.type
+        if process.type == 11:
+            bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id, node_id=node.id, target__in=[0,1]).first()
+            if bSurvey:
+                allocations = BusinessRoleAllocation.objects.filter(business_id=business.id, project_id=business.cur_project_id, node_id=node.id)
+                allocations.update(can_take_in=True)
         cur_node = {
             'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': process.type,
             'can_switch': process.can_switch

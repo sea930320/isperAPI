@@ -28,11 +28,11 @@ urlpatterns += (
     url(r'^api/account/query$', account_views.api_account_query),
     url(r'^api/account/users/$', account_views.api_account_users),
     url(r'^api/account/logout$', account_views.api_account_logout),
-    url(r'^api/account/login$', account_views.api_account_login), #Jonas
-    url(r'^api/account/roles', account_views.api_account_roles), #Jonas
-    url(r'^api/account/set/roles/actions', account_views.api_set_roles_actions), #Jonas
-    url(r'^api/account/permission', account_views.api_account_permission), #Jonas
-    url(r'^api/account/send/code', account_views.api_account_send_verify_code), #Jonas
+    url(r'^api/account/login$', account_views.api_account_login),  # Jonas
+    url(r'^api/account/roles', account_views.api_account_roles),  # Jonas
+    url(r'^api/account/set/roles/actions', account_views.api_set_roles_actions),  # Jonas
+    url(r'^api/account/permission', account_views.api_account_permission),  # Jonas
+    url(r'^api/account/send/code', account_views.api_account_send_verify_code),  # Jonas
     url(r'^api/account/users/v3/$', account_views.api_account_users_v3),
     url(r'^api/account/companys/$', account_views.api_account_companys),
     url(r'^api/account/classes/$', account_views.api_account_classes),
@@ -41,28 +41,28 @@ urlpatterns += (
     url(r'^api/account/avatar-img/update', account_views.api_account_avatar_img_update),
     url(r'^api/account/avatar-img/upload', account_views.api_account_avatar_img_upload),
     url(r'^api/account/user/save$', account_views.api_account_user_save),
-    url(r'^api/account/user/create', account_views.api_account_user_create), #Jonas
+    url(r'^api/account/user/create', account_views.api_account_user_create),  # Jonas
     url(r'^api/account/get/user/$', account_views.api_account_get_user),
     url(r'^api/account/import$', account_views.api_account_import),
     url(r'^api/account/export$', account_views.api_account_export),
     url(r'^api/account/user/auth/update', account_views.api_account_user_auth_update),
     url(r'^api/account/user/delete', account_views.api_course_user_delete),
-    url(r'^api/account/share', account_views.api_account_share), #Jonas
-    url(r'^api/account/default-group', account_views.api_get_default_group), #Jonas
-    url(r'^api/account/get/loginlogs', account_views.api_get_loginlog_list), #Jonas
-    url(r'^api/account/remove/loginlogs', account_views.api_remove_loginlogs), #Jonas
-    url(r'^api/account/export/loginlogs', account_views.api_export_loginlogs), #Jonas
-    url(r'^api/account/get/worklogs', account_views.api_get_worklog_list), #Jonas
-    url(r'^api/account/remove/worklogs', account_views.api_remove_worklogs), #Jonas
-    url(r'^api/account/export/worklogs', account_views.api_export_worklogs), #Jonas
-    url(r'^api/account/get/assistants', account_views.api_get_assistants), #Jonas
-    url(r'^api/account/set/assistants', account_views.api_set_assistants), #Jonas worklog added
-    url(r'^api/account/unset/assistant', account_views.api_unset_assistant), #Jonas worklog added
-    url(r'^api/account/get/permissions', account_views.api_get_permissions), #Jonas
-    url(r'^api/account/set/assistant/actions', account_views.api_set_assistants_actions), #Jonas
+    url(r'^api/account/share', account_views.api_account_share),  # Jonas
+    url(r'^api/account/default-group', account_views.api_get_default_group),  # Jonas
+    url(r'^api/account/get/loginlogs', account_views.api_get_loginlog_list),  # Jonas
+    url(r'^api/account/remove/loginlogs', account_views.api_remove_loginlogs),  # Jonas
+    url(r'^api/account/export/loginlogs', account_views.api_export_loginlogs),  # Jonas
+    url(r'^api/account/get/worklogs', account_views.api_get_worklog_list),  # Jonas
+    url(r'^api/account/remove/worklogs', account_views.api_remove_worklogs),  # Jonas
+    url(r'^api/account/export/worklogs', account_views.api_export_worklogs),  # Jonas
+    url(r'^api/account/get/assistants', account_views.api_get_assistants),  # Jonas
+    url(r'^api/account/set/assistants', account_views.api_set_assistants),  # Jonas worklog added
+    url(r'^api/account/unset/assistant', account_views.api_unset_assistant),  # Jonas worklog added
+    url(r'^api/account/get/permissions', account_views.api_get_permissions),  # Jonas
+    url(r'^api/account/set/assistant/actions', account_views.api_set_assistants_actions),  # Jonas
     url(r'^api/account/get/getMessageData', account_views.get_own_messages),
-    url(r'^api/account/get/worklog-statistic', account_views.api_get_worklog_statistic), #Jonas
-    url(r'^api/account/get/user-statistic', account_views.api_get_user_statistic), #Jonas
+    url(r'^api/account/get/worklog-statistic', account_views.api_get_worklog_statistic),  # Jonas
+    url(r'^api/account/get/user-statistic', account_views.api_get_user_statistic),  # Jonas
 )
 
 urlpatterns += (
@@ -93,14 +93,14 @@ urlpatterns += (
 )
 
 urlpatterns += (
-    url(r'^api/project/create$', project_views.api_project_create), # Jonas
+    url(r'^api/project/create$', project_views.api_project_create),  # Jonas
     url(r'^api/project/detail$', project_views.api_project_detail),
-    url(r'^api/project/docs/detail$', project_views.api_project_docs_detail), # Jonas
-    url(r'^api/project/docs/allocate$', project_views.api_project_docs_allocate), # Jonas
-    url(r'^api/project/docs/delete$', project_views.api_project_docs_delete), # Jonas
+    url(r'^api/project/docs/detail$', project_views.api_project_docs_detail),  # Jonas
+    url(r'^api/project/docs/allocate$', project_views.api_project_docs_allocate),  # Jonas
+    url(r'^api/project/docs/delete$', project_views.api_project_docs_delete),  # Jonas
     url(r'^api/project/docs/create$', project_views.api_project_docs_create),
-    url(r'^api/project/roles/detail$', project_views.api_project_roles_detail), # Jonas
-    url(r'^api/project/roles/configurate$', project_views.api_project_roles_configurate), # Jonas
+    url(r'^api/project/roles/detail$', project_views.api_project_roles_detail),  # Jonas
+    url(r'^api/project/roles/configurate$', project_views.api_project_roles_configurate),  # Jonas
     url(r'^api/project/role/image/update$', project_views.api_project_role_image_update),
     url(r'^api/project/jump/detail$', project_views.api_project_jump_detail),
     url(r'^api/project/jump/setup$', project_views.api_project_jump_setup),
@@ -122,54 +122,55 @@ urlpatterns += (
 )
 
 urlpatterns += (
-    url(r'^api/workflow/list$', workflow_views.api_workflow_list), #Jonas
-    url(r'^api/workflow/process/positions$', workflow_views.api_workflow_process_positions), #Jonas
-    url(r'^api/workflow/role/action$', workflow_views.api_workflow_role_action), #Jonas
-    url(r'^api/workflow/role/process/actions$', workflow_views.api_workflow_role_process_action), #Jonas
+    url(r'^api/workflow/list$', workflow_views.api_workflow_list),  # Jonas
+    url(r'^api/workflow/process/positions$', workflow_views.api_workflow_process_positions),  # Jonas
+    url(r'^api/workflow/role/action$', workflow_views.api_workflow_role_action),  # Jonas
+    url(r'^api/workflow/role/process/actions$', workflow_views.api_workflow_role_process_action),  # Jonas
     url(r'^api/workflow/flow/actions$', workflow_views.api_workflow_flow_actions),
     url(r'^api/workflow/flow/draw$', workflow_views.api_workflow_flow_draw),
-    url(r'^api/workflow/role/allcation$', workflow_views.api_workflow_role_allcation), #Jonas
+    url(r'^api/workflow/role/allcation$', workflow_views.api_workflow_role_allcation),  # Jonas
     url(r'^api/workflow/doc/list$', workflow_views.api_workflow_doc_list),
     url(r'^api/workflow/role/list$', workflow_views.api_workflow_role_list),
     url(r'^api/workflow/node/list$', workflow_views.api_workflow_node_list),
     url(r'^api/workflow/role/image/list$', workflow_views.api_workflow_role_image_list),
-    url(r'^api/workflow/flow/copy$', workflow_views.api_workflow_flow_copy), #Jonas
-    url(r'^api/workflow/roles/create$', workflow_views.api_workflow_roles_create), #Jonas
+    url(r'^api/workflow/flow/copy$', workflow_views.api_workflow_flow_copy),  # Jonas
+    url(r'^api/workflow/roles/create$', workflow_views.api_workflow_roles_create),  # Jonas
     url(r'^api/workflow/roles/position/setup$', workflow_views.api_workflow_roles_position_setup),
     url(r'^api/workflow/roles/position$', workflow_views.api_workflow_roles_position),
-    url(r'^api/workflow/roles/action$', workflow_views.api_workflow_roles_action), #Jonas
+    url(r'^api/workflow/roles/action$', workflow_views.api_workflow_roles_action),  # Jonas
     url(r'^api/workflow/roles/process/action$', workflow_views.api_workflow_roles_process_action),
-    url(r'^api/workflow/roles/allocate$', workflow_views.api_workflow_roles_allocate), #Jonas
-    url(r'^api/workflow/roles/update$', workflow_views.api_workflow_roles_update), #Jonas
-    url(r'^api/workflow/roles/delete$', workflow_views.api_workflow_roles_delete), #Jonas
+    url(r'^api/workflow/roles/allocate$', workflow_views.api_workflow_roles_allocate),  # Jonas
+    url(r'^api/workflow/roles/update$', workflow_views.api_workflow_roles_update),  # Jonas
+    url(r'^api/workflow/roles/delete$', workflow_views.api_workflow_roles_delete),  # Jonas
     url(r'^api/workflow/docs/update$', workflow_views.api_workflow_docs_update),
-    url(r'^api/workflow/docs/delete$', workflow_views.api_workflow_docs_delete), #Jonas
-    url(r'^api/workflow/docs/create$', workflow_views.api_workflow_docs_create), #Jonas
-    url(r'^api/workflow/nodes/update$', workflow_views.api_workflow_nodes_update), #Jonas
+    url(r'^api/workflow/docs/delete$', workflow_views.api_workflow_docs_delete),  # Jonas
+    url(r'^api/workflow/docs/create$', workflow_views.api_workflow_docs_create),  # Jonas
+    url(r'^api/workflow/nodes/update$', workflow_views.api_workflow_nodes_update),  # Jonas
     url(r'^api/workflow/processes$', workflow_views.api_workflow_processes),
-    url(r'^api/workflow/detail$', workflow_views.api_workflow_detail), #Jonas
-    url(r'^api/workflow/publish$', workflow_views.api_workflow_publish), #Jonas worklog added
-    url(r'^api/workflow/delete$', workflow_views.api_workflow_delete), #Jonas worklog added
-    url(r'^api/workflow/update$', workflow_views.api_workflow_update), #Jonas worklog added
-    url(r'^api/workflow/create$', workflow_views.api_workflow_create), #Jonas worklog added
+    url(r'^api/workflow/detail$', workflow_views.api_workflow_detail),  # Jonas
+    url(r'^api/workflow/publish$', workflow_views.api_workflow_publish),  # Jonas worklog added
+    url(r'^api/workflow/delete$', workflow_views.api_workflow_delete),  # Jonas worklog added
+    url(r'^api/workflow/update$', workflow_views.api_workflow_update),  # Jonas worklog added
+    url(r'^api/workflow/create$', workflow_views.api_workflow_create),  # Jonas worklog added
     url(r'^api/workflow/related$', workflow_views.api_workflow_related),
     url(r'^api/workflow/role/assign/info$', workflow_views.api_workflow_role_assign_info),
     url(r'^api/workflow/trans/query$', workflow_views.api_workflow_trans_query),
     url(r'^api/workflow/opt/import$', workflow_views.api_workflow_opt_import),
     url(r'^api/workflow/opt/export$', workflow_views.workflow_opt_export),
-    url(r'^api/workflow/protected$', workflow_views.api_workflow_protected), #Jonas
-    url(r'^api/workflow/public$', workflow_views.api_workflow_public), #Jonas worklog added
-    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic), #Jonas worklog added
-    url(r'^api/workflow/share$', workflow_views.api_workflow_share), #Jonas worklog added
-    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare), #Jonas worklog added
-    url(r'^api/workflow/job_types', workflow_views.api_workflow_job_types), #Jonas
-    url(r'^api/workflow/office_items', workflow_views.api_workflow_office_items), #Jonas
-    url(r'^api/workflow/job_type/candidate', workflow_views.api_workflow_job_type_candidate), #Jonas
-    url(r'^api/workflow/role/allocation/list', workflow_views.api_workflow_role_allocation_list), #Jonas
-    url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create), #Jonas
-    url(r'^api/workflow/role/allocation/remove', workflow_views.api_workflow_role_allocation_remove), #Jonas
-    url(r'^api/workflow/role/allocation/bulk_update', workflow_views.api_workflow_role_allocation_bulk_update), #Jonas
-    url(r'^api/workflow/role/allocation/image_update', workflow_views.api_workflow_role_allocation_image_update), #Jonas
+    url(r'^api/workflow/protected$', workflow_views.api_workflow_protected),  # Jonas
+    url(r'^api/workflow/public$', workflow_views.api_workflow_public),  # Jonas worklog added
+    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic),  # Jonas worklog added
+    url(r'^api/workflow/share$', workflow_views.api_workflow_share),  # Jonas worklog added
+    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare),  # Jonas worklog added
+    url(r'^api/workflow/job_types', workflow_views.api_workflow_job_types),  # Jonas
+    url(r'^api/workflow/office_items', workflow_views.api_workflow_office_items),  # Jonas
+    url(r'^api/workflow/job_type/candidate', workflow_views.api_workflow_job_type_candidate),  # Jonas
+    url(r'^api/workflow/role/allocation/list', workflow_views.api_workflow_role_allocation_list),  # Jonas
+    url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create),  # Jonas
+    url(r'^api/workflow/role/allocation/remove', workflow_views.api_workflow_role_allocation_remove),  # Jonas
+    url(r'^api/workflow/role/allocation/bulk_update', workflow_views.api_workflow_role_allocation_bulk_update),  # Jonas
+    url(r'^api/workflow/role/allocation/image_update', workflow_views.api_workflow_role_allocation_image_update),
+    # Jonas
 )
 
 urlpatterns += (
@@ -178,14 +179,14 @@ urlpatterns += (
     url(r'^api/group/delete$', group_views.delete_selected_group),
     url(r'^api/group/update$', group_views.update_group),
     url(r'^api/group/addManager$', group_views.group_add_manager),
-    url(r'^api/group/addAssistant$', group_views.group_add_assistant), #Jonas
+    url(r'^api/group/addAssistant$', group_views.group_add_assistant),  # Jonas
     url(r'^api/group/updateManager$', group_views.group_update_manager),
     url(r'^api/group/resetManager$', group_views.group_reset_manager),
     url(r'^api/group/getOwnGroup$', group_views.get_own_group),
     url(r'^api/group/getInstructorItemList$', group_views.get_instructor_items),
     url(r'^api/group/saveInstructors$', group_views.set_instructors),
     url(r'^api/group/createInstructors$', group_views.create_instructors),
-    url(r'^api/group/all-list$', group_views.get_groups_all_list), #Jonas
+    url(r'^api/group/all-list$', group_views.get_groups_all_list),  # Jonas
     url(r'^api/group/checkUserGroup$', group_views.check_user_group),
     url(r'^api/group/deleteGroupManager$', group_views.delete_group_manager),
     url(r'^api/group/deleteGroupInstructor$', group_views.delete_group_instructor),
@@ -195,7 +196,7 @@ urlpatterns += (
     url(r'^api/company/deleteCompany$', group_views.delete_selected_company),
     url(r'^api/company/updateCompany$', group_views.update_company),
     url(r'^api/company/addCManager$', group_views.add_company_manager),
-    url(r'^api/company/addCAssistant$', group_views.add_company_assistant), #Jonas
+    url(r'^api/company/addCAssistant$', group_views.add_company_assistant),  # Jonas
     url(r'^api/company/updateCManager$', group_views.update_company_manager),
     url(r'^api/company/pCResetManager$', group_views.reset_company_manager),
     url(r'^api/company/deleteCompanyManager$', group_views.delete_company_manager),
@@ -210,8 +211,8 @@ urlpatterns += (
 )
 
 urlpatterns += (
-    url(r'^api/userManager/getNormalUsers$', userManage_views.get_normal_users), # Jonas Updated for assistant set
-    url(r'^api/userManager/getManageUsers$', userManage_views.get_manage_users), # Jonas Updated for assistant set
+    url(r'^api/userManager/getNormalUsers$', userManage_views.get_normal_users),  # Jonas Updated for assistant set
+    url(r'^api/userManager/getManageUsers$', userManage_views.get_manage_users),  # Jonas Updated for assistant set
     url(r'^api/userManager/getInstructorUsers$', userManage_views.get_instructor_users),
     url(r'^api/userManager/getStudentUsers$', userManage_views.get_student_users),
     url(r'^api/userManager/getGroupUsers$', userManage_views.get_group_users),
@@ -327,9 +328,18 @@ urlpatterns += (
     url(r'^api/business/doc/team/status/update$', business_views.api_business_doc_team_staus_update),
     url(r'^api/business/prev/doc/get$', business_views.api_buisness_prev_doc_get),
     url(r'^api/business/doc/create/prev$', business_views.api_business_doc_create_from_prev),
+
     url(r'^api/business/survey$', business_views.api_business_survey),
+    url(r'^api/business/survey/public/list$', business_views.api_business_survey_public_list),
+    url(r'^api/business/survey/public/detail$', business_views.api_business_survey_public_detail),
     url(r'^api/business/survey/createOrUpdate$', business_views.api_business_survey_create_or_update),
-    url(r'^api/business/survey/setSelectQuestions', business_views.api_business_survey_set_select_questions)
+    url(r'^api/business/survey/setSelectQuestions$', business_views.api_business_survey_set_select_questions),
+    url(r'^api/business/survey/setBlankQuestions$', business_views.api_business_survey_set_blank_questions),
+    url(r'^api/business/survey/setNormalQuestions$', business_views.api_business_survey_set_normal_questions),
+    url(r'^api/business/survey/publish$', business_views.api_business_survey_publish),
+    url(r'^api/business/survey/answer$', business_views.api_business_survey_answer),
+    url(r'^api/business/survey/report$', business_views.api_business_survey_report),
+    url(r'^api/business/survey/report/export$', business_views.api_business_survey_report_export)
     # added by ser for edit module *end
 )
 urlpatterns += (
