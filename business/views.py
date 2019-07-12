@@ -4905,7 +4905,7 @@ def api_business_survey_public_list(request):
         size = request.GET.get("size", 10)
         search = request.GET.get("search", "")
 
-        bsQs = BusinessSurvey.objects.filter(target=0, title__contains=search)
+        bsQs = BusinessSurvey.objects.filter(target=0, title__contains=search).order_by('-create_time')
         paginator = Paginator(bsQs, size)
         try:
             bsurveyQs = paginator.page(page)
