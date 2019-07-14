@@ -25,7 +25,7 @@ from utils.request_auth import auth_check
 from project.models import ProjectJump
 from workflow.models import Flow, FlowNode, FlowTrans, FlowProcess, FlowDocs, FlowRole, FlowRoleAllocation, \
     FlowRoleActionNew, FlowRolePosition, RoleImage, RoleImageType, FlowNodeDocs, FlowAction, FlowPosition, \
-    ProcessRoleActionNew, ProcessAction
+    ProcessRoleActionNew, ProcessAction, FlowNodeSelectDecide, SelectDecideItem
 from workflow.service import bpmn_parse, flow_nodes, get_end_node, flow_doc_save
 from django.forms.models import model_to_dict
 
@@ -2401,6 +2401,72 @@ def api_workflow_role_allocation_image_update(request):
 
         FlowRoleAllocation.objects.filter(node_id=node_id, role_id=role_id, no=no).update(image_id=image_id)
         resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_image_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_selectDecide_get_setting(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        flowNode_id = request.POST.get('flowNode_id', None)
+        settings = FlowNodeSelectDecide.objects.filter(flowNode_id=flowNode_id).first()
+        resp = code.get_msg(code.SUCCESS)
+        if settings is None:
+            resp['d'] = {
+                'title': '',
+                'description': '',
+                'mode': 0,
+                'items': []
+            }
+        else:
+            resp['d'] = {
+                'title': settings.title,
+                'description': settings.description,
+                'mode': settings.mode,
+                'items': [{
+                    'id': item.pk,
+                    'itemTitle': item.itemTitle,
+                    'itemDescription': item.itemDescription,
+                } for item in settings.items.all()]
+            }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_image_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_workflow_selectDecide_set_setting(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    if not permission_check(request, 'code_set_workflow'):
+        resp = code.get_msg(code.PERMISSION_DENIED)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        flowNode_id = request.POST.get('flowNode_id', None)
+        data = eval(request.POST.get('data', None))
+        settings = FlowNodeSelectDecide.objects.create(
+            flowNode_id=flowNode_id,
+            title=data['title'],
+            description=data['description'],
+            mode=data['mode'],
+        )
+        for item in data['items']:
+            settings.items.add(SelectDecideItem.objects.create(
+                itemTitle=item['itemTitle'],
+                itemDescription=item['itemDescription'],
+            ))
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_workflow_role_allocation_image_update Exception:{0}'.format(str(e)))

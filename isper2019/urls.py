@@ -170,6 +170,8 @@ urlpatterns += (
     url(r'^api/workflow/role/allocation/remove', workflow_views.api_workflow_role_allocation_remove), #Jonas
     url(r'^api/workflow/role/allocation/bulk_update', workflow_views.api_workflow_role_allocation_bulk_update), #Jonas
     url(r'^api/workflow/role/allocation/image_update', workflow_views.api_workflow_role_allocation_image_update), #Jonas
+    url(r'^api/workflow/selectDecide/get_setting', workflow_views.api_workflow_selectDecide_get_setting),
+    url(r'^api/workflow/selectDecide/set_setting', workflow_views.api_workflow_selectDecide_set_setting),
 )
 
 urlpatterns += (
@@ -329,7 +331,10 @@ urlpatterns += (
     url(r'^api/business/doc/create/prev$', business_views.api_business_doc_create_from_prev),
     url(r'^api/business/survey$', business_views.api_business_survey),
     url(r'^api/business/survey/createOrUpdate$', business_views.api_business_survey_create_or_update),
-    url(r'^api/business/survey/setSelectQuestions', business_views.api_business_survey_set_select_questions)
+    url(r'^api/business/survey/setSelectQuestions', business_views.api_business_survey_set_select_questions),
+
+    url(r'^api/business/selectDecide/getSetting', business_views.api_business_selectDecide_get_setting),
+    url(r'^api/business/selectDecide/saveResult', business_views.api_business_selectDecide_save_result),
     # added by ser for edit module *end
 )
 urlpatterns += (

@@ -25,7 +25,7 @@ from utils import const, code, tools, easemob
 from utils.request_auth import auth_check
 from workflow.models import FlowNode, FlowAction, FlowRoleActionNew, FlowRolePosition, \
     FlowPosition, RoleImage, Flow, ProcessRoleActionNew, FlowDocs, FlowRole, FlowRoleAllocation, \
-    FlowRoleAllocationAction, ProcessRoleAllocationAction
+    FlowRoleAllocationAction, ProcessRoleAllocationAction, FlowNodeSelectDecide, SelectDecideItem
 from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
 from django.utils import timezone
@@ -4603,6 +4603,7 @@ def api_business_survey_create_or_update(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_business_survey_set_select_questions(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -4666,5 +4667,64 @@ def api_business_survey_set_select_questions(request):
 
     except Exception as e:
         logger.exception('api_business_create_or_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_selectDecide_get_setting(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        flowNode_id = request.POST.get('flowNode_id', None)
+        alloc_id = request.POST.get('alloc_id', None)
+        settings = FlowNodeSelectDecide.objects.filter(flowNode_id=flowNode_id).first()
+        result = SelectDecideResult.objects.filter(business_role_allocation_id=alloc_id).first()
+        resp = code.get_msg(code.SUCCESS)
+        if settings is None:
+            resp['d'] = {
+                'status': 0
+            }
+        elif result is not None:
+            resp['d'] = {
+                'status': 1
+            }
+        else:
+            resp['d'] = {
+                'title': settings.title,
+                'description': settings.description,
+                'mode': settings.mode,
+                'items': [{
+                    'value': item.pk,
+                    'text': item.itemTitle,
+                    'description': item.itemDescription,
+                } for item in settings.items.all()],
+                'status': 2
+            }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_image_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_selectDecide_save_result(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        selectedItems = eval(request.POST.get('selectedItems', []))
+        alloc_id = request.POST.get('alloc_id', None)
+        resp = code.get_msg(code.SUCCESS)
+        result = SelectDecideResult.objects.create(
+            business_role_allocation_id=alloc_id
+        )
+        for item in selectedItems:
+            result.selectedItems.add(SelectDecideItem.objects.get(pk=item))
+
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_workflow_role_allocation_image_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
