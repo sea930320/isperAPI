@@ -249,6 +249,7 @@ class FlowRoleActionNew(models.Model):
     def __unicode__(self):
         return u""
 
+
 # 角色动作设置
 class FlowRoleAllocationAction(models.Model):
     flow = models.ForeignKey(Flow, verbose_name=u'流程')
@@ -263,6 +264,7 @@ class FlowRoleAllocationAction(models.Model):
 
     def __unicode__(self):
         return u""
+
 
 # 角色场景动画设置
 class ProcessRoleActionNew(models.Model):
@@ -279,6 +281,7 @@ class ProcessRoleActionNew(models.Model):
 
     def __unicode__(self):
         return u""
+
 
 class ProcessRoleAllocationAction(models.Model):
     flow = models.ForeignKey(Flow, verbose_name=u'流程')
@@ -330,6 +333,35 @@ class FlowRolePosition(models.Model):
 
     def __unicode__(self):
         return u""
+
+
+# 角色站位
+class SelectDecideItem(models.Model):
+    itemTitle = models.CharField(max_length=255, verbose_name=u'ItemTitle')
+    itemDescription = models.CharField(max_length=255, verbose_name=u'ItemDescription')
+
+    class Meta:
+        db_table = "t_selectDecideItem"
+        verbose_name_plural = verbose_name = u"判断与选择_Item"
+
+    def __unicode__(self):
+        return self.itemTitle
+
+
+# 角色站位
+class FlowNodeSelectDecide(models.Model):
+    flowNode_id = models.IntegerField(verbose_name=u'FlowNodeId')
+    title = models.CharField(max_length=255, verbose_name=u'Title')
+    description = models.CharField(max_length=255, verbose_name=u'Description')
+    mode = models.IntegerField(verbose_name=u'Mode', default=0)
+    items = models.ManyToManyField(SelectDecideItem)
+
+    class Meta:
+        db_table = "t_flow_node_selectDecide"
+        verbose_name_plural = verbose_name = u"判断与选择"
+
+    def __unicode__(self):
+        return self.title
 
 
 # 流程流转

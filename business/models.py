@@ -7,7 +7,7 @@ from utils import const
 from project.models import Project, ProjectDoc
 from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts
 from project.models import ProjectRoleAllocation
-from workflow.models import FlowNode
+from workflow.models import FlowNode, SelectDecideItem
 
 
 def get_business_doc_upload_to(instance, filename):
@@ -407,7 +407,19 @@ class BusinessDocTeamStatus(models.Model):
         verbose_name_plural = verbose_name = u"BusinessDocTeamStatus"
 
     def __unicode__(self):
-        return self.name
+        return u''
+
+
+class SelectDecideResult(models.Model):
+    business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
+    selectedItems = models.ManyToManyField(SelectDecideItem, verbose_name=u'Selected Items')
+
+    class Meta:
+        db_table = "t_selectDecideResult"
+        verbose_name_plural = verbose_name = u"selectDecideResult"
+
+    def __unicode__(self):
+        return u''
 
 
 class VoteItem(models.Model):

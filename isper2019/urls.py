@@ -157,20 +157,21 @@ urlpatterns += (
     url(r'^api/workflow/trans/query$', workflow_views.api_workflow_trans_query),
     url(r'^api/workflow/opt/import$', workflow_views.api_workflow_opt_import),
     url(r'^api/workflow/opt/export$', workflow_views.workflow_opt_export),
-    url(r'^api/workflow/protected$', workflow_views.api_workflow_protected),  # Jonas
-    url(r'^api/workflow/public$', workflow_views.api_workflow_public),  # Jonas worklog added
-    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic),  # Jonas worklog added
-    url(r'^api/workflow/share$', workflow_views.api_workflow_share),  # Jonas worklog added
-    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare),  # Jonas worklog added
-    url(r'^api/workflow/job_types', workflow_views.api_workflow_job_types),  # Jonas
-    url(r'^api/workflow/office_items', workflow_views.api_workflow_office_items),  # Jonas
-    url(r'^api/workflow/job_type/candidate', workflow_views.api_workflow_job_type_candidate),  # Jonas
-    url(r'^api/workflow/role/allocation/list', workflow_views.api_workflow_role_allocation_list),  # Jonas
-    url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create),  # Jonas
-    url(r'^api/workflow/role/allocation/remove', workflow_views.api_workflow_role_allocation_remove),  # Jonas
-    url(r'^api/workflow/role/allocation/bulk_update', workflow_views.api_workflow_role_allocation_bulk_update),  # Jonas
-    url(r'^api/workflow/role/allocation/image_update', workflow_views.api_workflow_role_allocation_image_update),
-    # Jonas
+    url(r'^api/workflow/protected$', workflow_views.api_workflow_protected), #Jonas
+    url(r'^api/workflow/public$', workflow_views.api_workflow_public), #Jonas worklog added
+    url(r'^api/workflow/unpublic$', workflow_views.api_workflow_unpublic), #Jonas worklog added
+    url(r'^api/workflow/share$', workflow_views.api_workflow_share), #Jonas worklog added
+    url(r'^api/workflow/unshare$', workflow_views.api_workflow_unshare), #Jonas worklog added
+    url(r'^api/workflow/job_types', workflow_views.api_workflow_job_types), #Jonas
+    url(r'^api/workflow/office_items', workflow_views.api_workflow_office_items), #Jonas
+    url(r'^api/workflow/job_type/candidate', workflow_views.api_workflow_job_type_candidate), #Jonas
+    url(r'^api/workflow/role/allocation/list', workflow_views.api_workflow_role_allocation_list), #Jonas
+    url(r'^api/workflow/role/allocation/create$', workflow_views.api_workflow_role_allocation_create), #Jonas
+    url(r'^api/workflow/role/allocation/remove', workflow_views.api_workflow_role_allocation_remove), #Jonas
+    url(r'^api/workflow/role/allocation/bulk_update', workflow_views.api_workflow_role_allocation_bulk_update), #Jonas
+    url(r'^api/workflow/role/allocation/image_update', workflow_views.api_workflow_role_allocation_image_update), #Jonas
+    url(r'^api/workflow/selectDecide/get_setting', workflow_views.api_workflow_selectDecide_get_setting),
+    url(r'^api/workflow/selectDecide/set_setting', workflow_views.api_workflow_selectDecide_set_setting),
 )
 
 urlpatterns += (
@@ -340,6 +341,9 @@ urlpatterns += (
     url(r'^api/business/survey/answer$', business_views.api_business_survey_answer),
     url(r'^api/business/survey/report$', business_views.api_business_survey_report),
     url(r'^api/business/survey/report/export$', business_views.api_business_survey_report_export)
+
+    url(r'^api/business/selectDecide/getSetting', business_views.api_business_selectDecide_get_setting),
+    url(r'^api/business/selectDecide/saveResult', business_views.api_business_selectDecide_save_result),
     # added by ser for edit module *end
 )
 urlpatterns += (
