@@ -340,7 +340,7 @@ urlpatterns += (
     url(r'^api/business/survey/publish$', business_views.api_business_survey_publish),
     url(r'^api/business/survey/answer$', business_views.api_business_survey_answer),
     url(r'^api/business/survey/report$', business_views.api_business_survey_report),
-    url(r'^api/business/survey/report/export$', business_views.api_business_survey_report_export)
+    url(r'^api/business/survey/report/export$', business_views.api_business_survey_report_export),
 
     url(r'^api/business/selectDecide/getSetting', business_views.api_business_selectDecide_get_setting),
     url(r'^api/business/selectDecide/saveResult', business_views.api_business_selectDecide_save_result),

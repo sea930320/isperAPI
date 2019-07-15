@@ -4923,7 +4923,8 @@ def api_business_survey_public_list(request):
                 'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
                 'end_time': qs.end_time.strftime(
                     '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
-                'link': '/survey/' + str(qs.id)
+                'link': '/survey/' + str(qs.id),
+                'is_ended': qs.business.node_id != qs.node_id
             }
             selectQuestions = BusinessQuestion.objects.filter(
                 survey_id=qs.pk, type=0
