@@ -233,7 +233,7 @@ def api_account_login(request):
                             'part_id': '',
                             'part_name': ''
                         }
-                    elif login_type ==5:
+                    elif login_type in [5, 9]:
                         company = user.tcompany
                         group = company.group
                         position = user.tposition

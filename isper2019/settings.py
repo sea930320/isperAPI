@@ -37,7 +37,8 @@ INSTALLED_APPS = (
     'team',
     'cms',
     'business',
-    'socketio'
+    'socketio',
+    'student'
 )
 
 MIDDLEWARE = (

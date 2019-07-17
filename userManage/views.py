@@ -624,7 +624,7 @@ def get_company_users(request):
         page = int(request.POST.get("page", 1))
         size = int(request.POST.get("size", const.ROW_SIZE))
 
-        qs = Tuser.objects.filter(Q(roles=5) & Q(tcompany=company_id) & Q(is_review=1)).order_by('-id')
+        qs = Tuser.objects.filter(Q(roles__in=[5, 9]) & Q(tcompany=company_id) & Q(is_review=1)).order_by('-id')
 
         if search:
             qs = qs.filter(name__icontains=search)
@@ -695,7 +695,7 @@ def create_company_excelUsers(request):
             newUser = Tuser(
                 username=item[u'username'].encode('utf8'),
                 name=item[u'name'].encode('utf8'),
-                password=make_password('1234567890'),
+                password=make_password('123456'),
                 phone=item[u'phone'],
                 email=item[u'email'].encode('utf8'),
                 is_superuser=0,
@@ -718,7 +718,7 @@ def create_company_excelUsers(request):
                     parts=TParts.objects.filter(Q(company_id=6) & Q(name=item[u'part'].encode('utf8')))))) > 0 else None
             )
             newUser.save()
-            newUser.roles.add(TRole.objects.get(id=5))
+            newUser.roles.add(TRole.objects.get(id=9))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
