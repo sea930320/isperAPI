@@ -8,7 +8,6 @@ from datetime import datetime
 from account.service import user_simple_info
 from django.db import transaction
 from django.db.models import Q
-from course.models import CourseClass
 from project.models import ProjectRole, Project, ProjectRoleAllocation, ProjectJump, ProjectDocRole, ProjectDoc
 from team.models import Team, TeamMember
 from utils import code, const, query, tools

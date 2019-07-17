@@ -16,7 +16,7 @@ from group.models import AllGroups
 from account.models import TCompany
 from workflow.models import *
 from experiment.models import Experiment
-from course.models import Course, CourseClass
+from course.models import Course
 from utils.request_auth import auth_check
 from utils import query, code, public_fun, tools
 from django.core.cache import cache
@@ -1113,67 +1113,6 @@ def api_project_copy(request):
         logger.exception('api_project_copy Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-# 查询和项目相关的实验
-def api_project_related(request):
-    resp = auth_check(request, 'GET')
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-    try:
-        project_id = request.GET.get('project_id', None)
-        if project_id is None:
-            resp = code.get_msg(code.PARAMETER_ERROR)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-        project = Project.objects.filter(pk=project_id).first()
-        if project:
-            experiments = Experiment.objects.filter(project_id=project_id, del_flag=0)
-            experiment_list = []
-            for exp in experiments:
-                course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
-                if course_class and course_class.teacher1:
-                    teacher_name = course_class.teacher1.name
-                else:
-                    teacher_name = None
-                team = Team.objects.filter(pk=exp.team_id).first()
-                experiment_list.append({
-                    'id': exp.id, 'name': u'{0} {1}'.format(exp.id, exp.name), 'teacher_name': teacher_name,
-                    'team_id': exp.team_id, 'team_name': team.name if team else None, 'status': exp.status,
-                    'course_class': u'{0} {1} {2}'.format(course_class.name, course_class.no,
-                                                          course_class.term) if course_class else None
-                })
-            # 跳转项目相关实验
-            project_ids = ProjectJump.objects.filter(jump_project_id=project_id).values_list('project_id',
-                                                                                             flat=True)
-            jump_experiments = Experiment.objects.filter(project_id__in=project_ids, del_flag=0)
-            for exp in jump_experiments:
-                course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
-                if course_class and course_class.teacher1:
-                    teacher_name = course_class.teacher1.name
-                else:
-                    teacher_name = None
-                team = Team.objects.filter(pk=exp.team_id).first()
-                experiment_list.append({
-                    'id': exp.id, 'name': u'{0} {1}'.format(exp.id, exp.name), 'teacher_name': teacher_name,
-                    'team_id': exp.team_id, 'team_name': team.name if team else None, 'status': exp.status,
-                    'course_class': u'{0} {1} {2}'.format(course_class.name, course_class.no,
-                                                          course_class.term) if course_class else None
-                })
-
-            resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {
-                'experiments': experiment_list, 'id': project.id, 'name': project.name, 'level': project.level,
-                'ability_tartget': project.ability_target, 'exp_count': experiments.count(), 'type': project.type
-            }
-        else:
-            resp = code.get_msg(code.PROJECT_NOT_EXIST)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    except Exception as e:
-        logger.exception('api_project_related Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
 # 项目跳转设置

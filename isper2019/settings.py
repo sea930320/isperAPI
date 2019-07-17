@@ -35,7 +35,6 @@ INSTALLED_APPS = (
     'course',
     'experiment',
     'team',
-    'cms',
     'business',
     'socketio',
     'student'
