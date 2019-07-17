@@ -8,7 +8,6 @@ import xlrd
 import xlwt
 import uuid
 import re
-from course.models import CourseClassStudent, CourseClass
 from group.models import AllGroups
 from group.models import TGroupManagerAssistants
 from django.db.models import Q
@@ -188,6 +187,7 @@ def api_account_login(request):
                     resp['d']['admin'] = user.is_admin
                     resp['d']['company_id'] = user.tcompany.id if user.tcompany else ''
                     resp['d']['company_name'] = user.tcompany.name if user.tcompany else ''
+                    resp['d']['companyType_id'] = user.tcompany.companyType_id if user.tcompany else ''
                     resp['d']['director'] = user.director
                     resp['d']['last_experiment_id'] = user.last_experiment_id
                     manager_info = {}
@@ -1534,16 +1534,6 @@ def api_course_user_delete(request):
             # 我的十二指肠都被绕痛了 这个项目的各种神逻辑回路太长 我现在只想删数据库跑路
             # 一期，二期都是谁设计的业务逻辑， 三期又是谁设计的业务逻辑， 神奇
             # 关联课堂不能被删除的
-            cc = CourseClassStudent.objects.filter(student_id=delete_id)
-            if cc:
-                resp = {'c': 3333, 'm': u'关联课堂不能被删除的'}
-                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-            # 用户管理-删除实验者指导者功能中，教师如果关联了课堂是不能被删除的
-            classes = CourseClass.objects.filter(Q(teacher1_id=delete_id) | Q(teacher2_id=delete_id))
-            if classes:
-                resp = {'c': 3333, 'm': u'有教师关联了课堂不能被删除的'}
-                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 关联小组的用户不能被删除
             team_member = TeamMember.objects.filter(user_id=delete_id, del_flag=0)

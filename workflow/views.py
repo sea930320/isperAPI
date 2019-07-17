@@ -8,7 +8,6 @@ from docx import Document
 
 from account.models import Tuser, TJobType, OfficeItems
 from django.shortcuts import redirect
-from course.models import CourseClass
 from django.core.paginator import Paginator, EmptyPage
 from django.db.models import Q
 from django.db import transaction
@@ -1428,19 +1427,19 @@ def api_workflow_related(request):
             for pro in projects:
                 experiments = Experiment.objects.filter(project_id=pro.id, del_flag=0)
                 experiment_list = []
-                for exp in experiments:
-                    course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
-                    if course_class and course_class.teacher1:
-                        teacher_name = course_class.teacher1.name
-                    else:
-                        teacher_name = None
-                    team = Team.objects.filter(pk=exp.team_id).first()
-                    experiment_list.append({
-                        'id': exp.id, 'name': u'{0} {1}'.format(exp.id, exp.name), 'teacher_name': teacher_name,
-                        'team_id': exp.team_id, 'team_name': team.name if team else None, 'status': exp.status,
-                        'course_class': u'{0} {1} {2}'.format(course_class.name, course_class.no,
-                                                              course_class.term) if course_class else None
-                    })
+                # for exp in experiments:
+                    # course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
+                    # if course_class and course_class.teacher1:
+                    #     teacher_name = course_class.teacher1.name
+                    # else:
+                    #     teacher_name = None
+                    # team = Team.objects.filter(pk=exp.team_id).first()
+                    # experiment_list.append({
+                    #     'id': exp.id, 'name': u'{0} {1}'.format(exp.id, exp.name), 'teacher_name': teacher_name,
+                    #     'team_id': exp.team_id, 'team_name': team.name if team else None, 'status': exp.status,
+                    #     'course_class': u'{0} {1} {2}'.format(course_class.name, course_class.no,
+                    #                                           course_class.term) if course_class else None
+                    # })
                 project_list.append({
                     'experiments': experiment_list, 'id': pro.id, 'name': pro.name, 'level': pro.level,
                     'ability_tartget': pro.ability_target, 'exp_count': experiments.count(), 'type': pro.type

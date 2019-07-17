@@ -6,7 +6,6 @@ from django.conf.urls import include, url
 from django.contrib import admin
 
 from account import views as account_views
-from cms import views as cms_views
 from api import views as api_views
 from course import views as course_views
 from project import views as project_views
@@ -66,30 +65,7 @@ urlpatterns += (
 )
 
 urlpatterns += (
-    url(r'^api/cms/to/user/list$', cms_views.api_cms_to_user_list),
-    url(r'^api/cms/send/msg$', cms_views.api_cms_send_msg),
-    url(r'^api/cms/msg/list$', cms_views.api_cms_msg_list),
-    url(r'^api/cms/new/msg/num$', cms_views.api_cms_new_msg_num),
-    url(r'^api/cms/to/user/list-business$', cms_views.api_cms_to_user_list_business),
-    url(r'^api/cms/msg/list-business$', cms_views.api_cms_msg_list_business),
-    url(r'^api/cms/send/msg-business$', cms_views.api_cms_send_msg_business),
-    url(r'^api/cms/new/msg-business/num$', cms_views.api_cms_new_msg_num_business),
-)
-
-urlpatterns += (
-    url(r'^api/course/class/list$', course_views.api_course_class_list),
     url(r'^api/course/list$', course_views.api_course_list),
-    url(r'^api/course/class/list/teacher/$', course_views.api_course_list_class_teacher),
-    url(r'^api/course/student/list$', course_views.api_course_student_list),
-    url(r'^api/course/delete$', course_views.api_course_delete),
-    url(r'^api/course/list/v3$', course_views.api_course_list_v3),
-    url(r'^api/course/student/list/export$', course_views.api_course_student_list_export),
-    url(r'^api/course/class/student/v3$', course_views.api_course_class_student_v3),
-    url(r'^api/course/class/update$', course_views.api_course_class_update),
-    url(r'^api/course/student/list/import$', course_views.api_course_student_list_import),
-    url(r'^api/course/class/student/delete$', course_views.api_course_class_student_delete),
-    url(r'^api/course/student/save$', course_views.api_course_student_save),
-    url(r'^api/course/share$', course_views.api_course_share),
 )
 
 urlpatterns += (
@@ -109,7 +85,6 @@ urlpatterns += (
     url(r'^api/project/delete$', project_views.api_project_delete),
     url(r'^api/project/copy$', project_views.api_project_copy),
     url(r'^api/project/list$', project_views.api_project_list),
-    url(r'^api/project/related$', project_views.api_project_related),
     url(r'^api/project/protected', project_views.api_project_protected),
     url(r'^api/project/share', project_views.api_project_share),
     url(r'^api/project/unshare', project_views.api_project_unshare),
