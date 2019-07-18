@@ -160,15 +160,15 @@ def api_student_watch_course_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = Course.objects.filter(tcompany=user.tcompany)
+        qs = Course.objects.filter(tcompany=user.tcompany, type=0)
         data = [{
             'value': item.id,
             'text': item.courseName,
             'courseId': item.courseId,
             'courseSeqNum': item.courseSeqNum,
             'courseSemester': item.courseSemester,
-            'teacherName': item.teacherName,
-            'teacherId': item.teacherId,
+            'teacherName': item.teacher.name if item.teacher else None,
+            'teacher': model_to_dict(item.teacher, fields=['id', 'name', 'username']) if item.teacher else None,
             'courseCount': item.courseCount,
             'experienceTime': item.experienceTime,
             'studentCount': item.studentCount,
@@ -278,7 +278,8 @@ def api_student_business_team_list(request):
 
         for item in teams:
             result = model_to_dict(item, fields=['id', 'name', 'type'])
-            result['team_leader'] = model_to_dict(item.team_leader, fields=['id', 'name', 'username']) if item.team_leader else None
+            result['team_leader'] = model_to_dict(item.team_leader,
+                                                  fields=['id', 'name', 'username']) if item.team_leader else None
             result['create_time'] = item.create_time.strftime('%Y-%m-%d') if item.create_time else None
             results.append(result)
 
@@ -297,5 +298,81 @@ def api_student_business_team_list(request):
 
     except Exception as e:
         logger.exception('api_student_business_team_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_teacher_list(request):
+    try:
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        qs = Tuser.objects.filter(tcompany=user.tcompany, teacher_id__isnull=False, roles=4)
+        data = [{
+            'value': item.id,
+            'text': item.name,
+            'username': item.username,
+            'teacher_id': item.teacher_id
+        } for item in qs]
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': data}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_student_teacher_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_watch_start(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        user = request.user
+        watch_config = request.POST.get("watch_config", None)
+        if watch_config is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        watch_config = json.loads(watch_config)
+        sel_business = Business.objects.get(pk=watch_config['selected_business']['id'])
+        if watch_config['team_mode'] == 0:
+            sel_team = StudentWatchingTeam.objects.get(pk=watch_config['selected_team']['id'])
+        else:
+            new_team = watch_config(['new_team'])
+            sel_team = StudentWatchingTeam.objects.create(university=user.tcompany, name=new_team['name'],
+                                                          type=new_team['public_mode'], team_leader=user)
+            for sel_user in new_team['users']:
+                tuser = Tuser.objects.filter(pk=sel_user.id).first()
+                if not tuser:
+                    continue
+                sel_team.members.add(tuser)
+
+        sel_team.members.add(user)
+        is_created = False
+        if watch_config['mode'] == 0:
+            sel_course = Course.objects.get(pk=watch_config['selected_course'])
+            if (
+            StudentWatchingBusiness.objects.filter(university=user.tcompany, course=sel_course, business=sel_business,
+                                                   team=sel_team).first()):
+                is_created = True
+        else:
+            extra_course = watch_config['extra_course']
+            sel_course = Course.objects.create(courseName=extra_course['name'],
+                                               teacher=Tuser.objects.get(pk=extra_course['teacher']), created_by=user)
+        if not is_created:
+            StudentWatchingBusiness.objects.create(university=user.tcompany, course=sel_course, business=sel_business,
+                                                   team=sel_team, created_by=request.user)
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_survey_set_select_questions Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

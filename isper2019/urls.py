@@ -331,6 +331,8 @@ urlpatterns += (
     url(r'^api/student/watch-course-list$', student_views.api_student_watch_course_list),
     url(r'^api/student/watch-company-user-list$', student_views.api_student_watch_company_user_list),
     url(r'^api/student/business-team-list$', student_views.api_student_business_team_list),
+    url(r'^api/student/teacher/list$', student_views.api_student_teacher_list),
+    url(r'^api/student/watch-start$', student_views.api_student_watch_start),
 )
 
 urlpatterns += (

@@ -3826,6 +3826,8 @@ def api_business_result(request):
             # 小组成员
             member_list = []
             for uid in members:
+                if uid is None:
+                    continue
                 user = Tuser.objects.get(pk=uid)
                 member_list.append(user.name)
 
@@ -4964,6 +4966,7 @@ def api_business_survey_public_list(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_business_selectDecide_get_setting(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -5113,6 +5116,7 @@ def api_business_survey_report(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_business_survey_report_export(request):
     try:
         survey_id = request.GET.get("survey_id", None)
@@ -5209,7 +5213,8 @@ def api_business_survey_report_export(request):
         logger.exception('api_business_survey_report_export Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        
+
+
 def api_business_selectDecide_save_result(request):
     resp = auth_check(request, "POST")
     if resp != {}:

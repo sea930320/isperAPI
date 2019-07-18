@@ -7,14 +7,14 @@ from account.models import Tuser, TCompany, TCompanyManagers
 
 # 课堂
 class Course(models.Model):
-    courseId = models.CharField(max_length=16, verbose_name=u'courseId')
+    courseId = models.CharField(max_length=16, verbose_name=u'courseId', null=True)
     courseName = models.CharField(max_length=48, verbose_name=u'courseName')
-    courseSeqNum = models.IntegerField(verbose_name=u'courseSeqNum')
-    courseSemester = models.CharField(max_length=48, verbose_name=u'courseSemester')
+    courseSeqNum = models.IntegerField(verbose_name=u'courseSeqNum', null=True)
+    courseSemester = models.CharField(max_length=48, verbose_name=u'courseSemester', null=True)
     teacher = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'teacher', related_name="teacher")
-    courseCount = models.IntegerField(verbose_name=u'courseCount')
-    experienceTime = models.CharField(max_length=48, verbose_name=u'experienceTime')
-    studentCount = models.IntegerField(verbose_name=u'studentCount')
+    courseCount = models.IntegerField(verbose_name=u'courseCount', null=True)
+    experienceTime = models.CharField(max_length=48, verbose_name=u'experienceTime', null=True)
+    studentCount = models.IntegerField(verbose_name=u'studentCount', null=True)
     tcompany = models.ForeignKey(TCompany, on_delete=models.CASCADE)
     created_by = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'创建者', related_name="created_by")
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')

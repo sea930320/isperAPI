@@ -9,7 +9,7 @@ from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts
 from project.models import ProjectRoleAllocation
 from workflow.models import FlowNode, SelectDecideItem
 from business.models import *
-
+from course.models import *
 
 # 课堂
 class StudentWatchingTeam(models.Model):
@@ -33,6 +33,7 @@ class StudentWatchingTeam(models.Model):
 
 class StudentWatchingBusiness(models.Model):
     university = models.ForeignKey(TCompany, on_delete=models.CASCADE, verbose_name=u'University')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name=u'Course')
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Watching Business')
     team = models.ForeignKey(StudentWatchingTeam, on_delete=models.CASCADE, verbose_name=u'Watching Team')
     created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Created By')

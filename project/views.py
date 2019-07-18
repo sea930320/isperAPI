@@ -964,7 +964,7 @@ def api_project_list(request):
                 'officeItem_name': project.officeItem.name if project.officeItem else None,
                 'course': project.course_id,
                 'target_users': [{'id': item.id, 'text': item.username} for item in project.target_users.all()],
-                'course_name': project.course.name if project.course else None, 'reference': project.reference,
+                'course_name': project.course.courseName if project.course else None, 'reference': project.reference,
                 'public_status': project.public_status, 'level': project.level,
                 'entire_graph': project.entire_graph, 'type': project.officeItem.name if project.officeItem else '',
                 'can_redo': project.can_redo,
