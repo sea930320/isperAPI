@@ -67,6 +67,8 @@ urlpatterns += (
 
 urlpatterns += (
     url(r'^api/course/list$', course_views.api_course_list),
+    url(r'^api/course/full_list$', course_views.api_course_full_list),
+    url(r'^api/course/save_new$', course_views.api_course_save_new),
 )
 
 urlpatterns += (
