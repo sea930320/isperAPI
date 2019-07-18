@@ -68,6 +68,12 @@ urlpatterns += (
     url(r'^api/course/list$', course_views.api_course_list),
     url(r'^api/course/full_list$', course_views.api_course_full_list),
     url(r'^api/course/save_new$', course_views.api_course_save_new),
+    url(r'^api/course/save_edit$', course_views.api_course_save_edit),
+    url(r'^api/course/get_teacher_list$', course_views.api_course_get_teacher_list),
+    url(r'^api/course/save_teacher_change$', course_views.api_course_save_teacher_change),
+    url(r'^api/course/delete_course$', course_views.api_course_delete_course),
+    url(r'^api/course/sampleCourseExcel$', course_views.api_course_download_excel),
+    url(r'^api/course/excel_data_save$', course_views.api_course_excel_data_save),
 )
 
 urlpatterns += (

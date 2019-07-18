@@ -3,6 +3,7 @@
 
 import json
 import logging
+import os
 
 import re
 import xlrd
@@ -14,13 +15,14 @@ from django.core.paginator import Paginator, EmptyPage
 from django.utils.http import urlquote
 
 from django.db.models import Q, Count
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from course.models import *
 from group.models import AllGroups
 from project.models import Project
 from team.models import TeamMember
 from utils import code, const, query
 from utils.request_auth import auth_check
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ def api_course_list(request):
         search = request.GET.get("search", None)  # 搜索关键字
 
         if search:
-            qs = Course.objects.filter(Q(Q(name__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) & Q(del_flag=0))
+            qs = Course.objects.filter(Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) & Q(del_flag=0))
         else:
             qs = Course.objects.all(del_flag=0)
 
@@ -66,7 +68,7 @@ def api_course_full_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(courseName__icontains=search) &
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
                 Q(del_flag=0) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
             )
@@ -88,7 +90,8 @@ def api_course_full_list(request):
             results = [{
                 'id': flow.id,
                 'courseId': flow.courseId,
-                'courseName': flow.courseName + '-' + flow.teacher.name + '-' + flow.courseId,
+                'courseName': flow.courseName,
+                'courseFullName': flow.courseName + '-' + flow.teacher.name + '-' + flow.courseId,
                 'courseSeqNum': flow.courseSeqNum,
                 'courseSemester': flow.courseSemester,
                 'teacherName': flow.teacher.name,
@@ -141,6 +144,7 @@ def api_course_save_new(request):
             name=teacherName,
             teacher_id=teacherId,
             password=make_password('1234567890'),
+            tcompany=request.user.tcompanymanagers_set.get().tcompany,
             is_review=1,
         )
         user.roles.add(TRole.objects.get(id=4))
@@ -164,5 +168,178 @@ def api_course_save_new(request):
 
     except Exception as e:
         logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_save_edit(request):
+
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id")
+        courseName = request.POST.get("courseName")
+        courseSemester = request.POST.get("courseSemester")
+        courseCount = request.POST.get("courseCount")
+        experienceTime = request.POST.get("experienceTime")
+
+        Course.objects.filter(pk=id).update(
+            courseName=courseName,
+            courseSemester=courseSemester,
+            courseCount=courseCount,
+            experienceTime=experienceTime
+        )
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_get_teacher_list(request):
+
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        teachers = AllGroups.objects.get(id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.filter(
+            tcompany_id=request.user.tcompanymanagers_set.get().tcompany.id,
+            teacher_id__isnull=False
+        )
+
+        list = [{
+            'value': user.id,
+            'text': user.name
+        } for user in teachers]
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': list}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_save_teacher_change(request):
+
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        id = request.POST.get("id")
+        teacher = request.POST.get("teacher")
+
+        Course.objects.filter(pk=id).update(teacher_id=teacher)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_delete_course(request):
+
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        ids = eval(request.POST.get("ids", '[]'))
+
+        Course.objects.filter(pk__in=ids).update(del_flag=1)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_course_download_excel(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    file_path = os.path.join(settings.MEDIA_ROOT, u'课堂列表.xls')
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as fh:
+            response = HttpResponse(fh.read(), content_type="application/vnd.ms-excel")
+            response['Content-Disposition'] = 'attachment; filename="课堂列表.xls"'
+            return response
+    raise Http404
+
+
+def api_course_excel_data_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 3:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        excelData = request.POST.get("excelData", None)
+
+        for item in json.loads(excelData):
+            courseId = str(item[u'courseId']).encode('utf8')
+            courseName = str(item[u'courseName']).encode('utf8')
+            courseSeqNum = int(item[u'courseSeqNum'])
+            courseSemester = str(item[u'courseSemester']).encode('utf8')
+            teacherName = str(item[u'teacherName']).encode('utf8')
+            teacherId = str(item[u'teacherId']).encode('utf8')
+            courseCount = int(item[u'courseCount'])
+            experienceTime = str(item[u'experienceTime']).encode('utf8')
+            studentCount = int(item[u'studentCount'])
+
+            user = AllGroups.objects.get(id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
+                username=teacherName + '-' + teacherId,
+                name=teacherName,
+                teacher_id=teacherId,
+                password=make_password('1234567890'),
+                tcompany=request.user.tcompanymanagers_set.get().tcompany,
+                is_review=1,
+            )
+            user.roles.add(TRole.objects.get(id=4))
+
+            Course.objects.create(
+                courseId=courseId,
+                courseName=courseName,
+                courseSeqNum=int(courseSeqNum),
+                courseSemester=courseSemester,
+                teacher=user,
+                courseCount=int(courseCount),
+                experienceTime=experienceTime,
+                studentCount=int(studentCount),
+                tcompany_id=request.user.tcompanymanagers_set.get().tcompany.id,
+                created_by=request.user,
+            )
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('create_company_excelUsers Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
