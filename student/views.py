@@ -365,7 +365,7 @@ def api_student_watch_start(request):
         else:
             extra_course = watch_config['extra_course']
             sel_course = Course.objects.create(courseName=extra_course['name'],
-                                               teacher=Tuser.objects.get(pk=extra_course['teacher']), created_by=user)
+                                               teacher=Tuser.objects.get(pk=extra_course['teacher']), created_by=user, type=2)
         if not is_created:
             StudentWatchingBusiness.objects.create(university=user.tcompany, course=sel_course, business=sel_business,
                                                    team=sel_team, created_by=request.user)
