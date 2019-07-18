@@ -2,7 +2,7 @@
 # -*- coding=utf-8 -*-
 
 from django.db import models
-from account.models import Tuser, TCompany
+from account.models import Tuser, TCompany, TCompanyManagers
 
 
 # 课堂
@@ -33,8 +33,8 @@ class Course(models.Model):
 class UniversityLinkedCompany(models.Model):
     university = models.ForeignKey(TCompany, on_delete=models.CASCADE, related_name="university_set")
     linked_company = models.ForeignKey(TCompany, on_delete=models.CASCADE, related_name="linked_company_set")
-    seted_company_manager = models.ForeignKey(TCompany, on_delete=models.CASCADE, related_name="seted_company_manager")
-    created_by = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'创建者')
+    seted_company_manager = models.ForeignKey(TCompanyManagers, on_delete=models.CASCADE, related_name="seted_company_manager")
+    created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者')
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     seted_time = models.DateTimeField(verbose_name=u'seted_time')
     message = models.CharField(max_length=100, verbose_name=u'message')
