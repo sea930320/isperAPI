@@ -187,7 +187,7 @@ def api_account_login(request):
                     resp['d']['admin'] = user.is_admin
                     resp['d']['company_id'] = user.tcompany.id if user.tcompany else ''
                     resp['d']['company_name'] = user.tcompany.name if user.tcompany else ''
-                    resp['d']['companyType_id'] = user.tcompany.companyType_id if user.tcompany else ''
+                    resp['d']['companyType_name'] = user.tcompany.companyType.name if user.tcompany else ''
                     resp['d']['director'] = user.director
                     resp['d']['last_experiment_id'] = user.last_experiment_id
                     manager_info = {}

@@ -9,7 +9,7 @@ import re
 import xlrd
 import xlwt
 
-from account.models import TClass, TRole
+from account.models import TClass, TRole, TNotifications
 from django.contrib.auth.hashers import make_password
 from django.core.paginator import Paginator, EmptyPage
 from django.utils.http import urlquote
@@ -40,7 +40,7 @@ def api_course_list(request):
         if search:
             qs = Course.objects.filter(Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) & Q(del_flag=0))
         else:
-            qs = Course.objects.all(del_flag=0)
+            qs = Course.objects.filter(del_flag=0)
 
         data = [{'value': item.id, 'text': item.courseName + '-' + item.teacher.name + '-' + item.courseId} for item in qs]
 
@@ -341,5 +341,123 @@ def api_course_excel_data_save(request):
 
     except Exception as e:
         logger.exception('create_company_excelUsers Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_get_init_attention_data(request):
+
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        search = request.GET.get("search", None)
+        page = int(request.GET.get("page", 1))
+        size = int(request.GET.get("size", const.ROW_SIZE))
+
+        if search:
+            qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany, linked_company__name__icontains=search)
+        else:
+            qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany)
+
+        groupID = request.user.tcompanymanagers_set.get().tcompany.group_id
+        clist = [{'value': item.id, 'text': item.name} for item in TCompany.objects.filter(Q(group_id=groupID, is_default=0) & ~Q(companyType__name='学校'))]
+
+        paginator = Paginator(qs, size)
+
+        try:
+            flows = paginator.page(page)
+        except EmptyPage:
+            flows = paginator.page(1)
+
+        results = [{
+            'id': flow.id,
+            'linked_company': flow.linked_company.name,
+            'setter': flow.seted_company_manager.username if flow.seted_company_manager is not None else '',
+            'created_by': flow.created_by.username,
+            'create_time': flow.create_time.strftime('%Y-%m-%d'),
+            'seted_time': flow.seted_time.strftime('%Y-%m-%d') if flow.seted_time is not None else '',
+            'message': flow.message,
+            'status': '申请中' if flow.status == 0 else '已关注' if flow.status == 1 else '已拒绝' if flow.status == 2 else '取消已关注'
+        } for flow in flows]
+
+        paging = {
+            'count': paginator.count,
+            'has_previous': flows.has_previous(),
+            'has_next': flows.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': flows.number,
+        }
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'companyList': clist, 'paging': paging}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_groups_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_send_request_data(request):
+
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        requestMsg = request.POST.get("requestMsg")
+        targetCompany = request.POST.get("targetCompany")
+
+        newRequest = UniversityLinkedCompany.objects.create(
+            university=request.user.tcompanymanagers_set.get().tcompany,
+            linked_company_id=targetCompany,
+            created_by=request.user,
+            message=requestMsg,
+            status=0
+        )
+
+        newNotification = TNotifications.objects.create(
+            type='attentionRequest_' + str(newRequest.id),
+            content=request.user.tcompanymanagers_set.get().tcompany.name + '单位申请了关注我单位业务。',
+            link='request-check',
+            role=TRole.objects.get(id=3),
+            mode=0
+        )
+
+        for userItem in TCompany.objects.get(id=targetCompany).tcompanymanagers_set.all():
+            newNotification.targets.add(userItem.tuser)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_send_cancel_data(request):
+
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        ids = eval(request.POST.get("ids", '[]'))
+
+        UniversityLinkedCompany.objects.filter(pk__in=ids).update(status=3)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_course_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
