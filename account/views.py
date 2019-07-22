@@ -8,6 +8,8 @@ import xlrd
 import xlwt
 import uuid
 import re
+
+from course.models import UniversityLinkedCompany
 from group.models import AllGroups
 from group.models import TGroupManagerAssistants
 from django.db.models import Q
@@ -187,7 +189,7 @@ def api_account_login(request):
                     resp['d']['admin'] = user.is_admin
                     resp['d']['company_id'] = user.tcompany.id if user.tcompany else ''
                     resp['d']['company_name'] = user.tcompany.name if user.tcompany else ''
-                    resp['d']['companyType_id'] = user.tcompany.companyType_id if user.tcompany else ''
+                    resp['d']['companyType_name'] = user.tcompany.companyType.name if user.tcompany else ''
                     resp['d']['director'] = user.director
                     resp['d']['last_experiment_id'] = user.last_experiment_id
                     resp['d']['position'] = model_to_dict(user.tposition) if user.tposition else None
@@ -2171,12 +2173,20 @@ def get_own_messages(request):
             'id': item.id,
             'content': eval(item.content) if bool(re.search('^businessMoreTeammate_', item.type)) else item.content,
             'moreTeammates': 1 if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
+            'attentionCheck': 1 if bool(re.search('^attentionRequest_', item.type)) else 0,
             'businessInfo': {
                 'id': item.type.split("businessMoreTeammate_", 1)[1],
                 'title': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().name,
                 'created_by': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().created_by.name,
                 'created_time': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S')
             } if bool(re.search('^businessMoreTeammate_', item.type)) else {},
+            'attentionInfo': {
+                'id': item.type.split("attentionRequest_", 1)[1],
+                'created_time': UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'message': UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).first().message,
+                'created_by': UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).first().created_by.username,
+                'university': UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).first().university.name
+            } if bool(re.search('^attentionRequest_', item.type)) else {},
             'business_id': item.type.split("businessMoreTeammate_", 1)[1] if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
             'link': item.link
         } for item in TNotifications.objects.filter(Q(role=role) & Q(targets__in=[uid]))]

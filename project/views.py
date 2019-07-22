@@ -437,7 +437,7 @@ def api_project_update(request):
         use_to = request.POST.get("use_to", None)
 
         # 课程没有就保存
-        Course.objects.get_or_create(name=course)
+        TCourse.objects.get_or_create(courseName=course)
 
         obj = Project.objects.filter(id=project_id, del_flag=0).first()
         if obj:
@@ -554,7 +554,7 @@ def api_project_delete(request):
                 # 三期 - 如果一个课程下面的项目全部删除了，同时删除课程
                 project_list = Project.objects.filter(course=obj.course, del_flag=0)
                 if not project_list:
-                    cc = Course.objects.filter(name=obj.course)
+                    cc = TCourse.objects.filter(courseName=obj.course)
                     cc.delete()
 
                 resp = code.get_msg(code.SUCCESS)
@@ -718,7 +718,7 @@ def api_project_create(request):
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             # 课程没有就保存
-            # Course.objects.get_or_create(name=course)
+            # TCourse.objects.get(courseName=course)
             with transaction.atomic():
                 obj = Project.objects.create(
                     flow_id=flow_id, name=name, all_role=all_role, course=TCourse.objects.get(id=course),

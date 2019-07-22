@@ -1,3 +1,4 @@
+html2text
 python-docx==0.8.6
 MySQL-python==1.2.5
 Pillow==4.0.0

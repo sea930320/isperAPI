@@ -1,10 +1,10 @@
 #!/usr/bin/python
 # -*- coding=utf-8 -*-
-
+from course.models import *
 from django.db import models
 from utils.storage import *
 from utils import const
-from account.models import Tuser, TJobType, TParts, TCourse, TRole, OfficeItems
+from account.models import Tuser, TJobType, TParts, TRole, OfficeItems, TCourse
 from workflow.models import FlowNode
 from course.models import Course
 

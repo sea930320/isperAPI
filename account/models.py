@@ -313,13 +313,13 @@ class TCompanyChange(models.Model):
 
 
 class TCourse(models.Model):
-    name = models.CharField(max_length=48, default='')
+    courseName = models.CharField(max_length=48, verbose_name=u'courseName')
 
     class Meta:
         db_table = "t_course"
 
     def __unicode__(self):
-        return self.name
+        return self.courseName
 
 
 class TNotifications(models.Model):
