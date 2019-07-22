@@ -58,31 +58,17 @@ io.on('connection', function (socket) {
     // 'getMessage' in the client side
     socket.on('message', function (msgObject) {
         console.log(msgObject)
-        // url of the view that will process
-        // var url = 'http://' + host + ':' + port + '/save_message/';
-        // // when the request finishes
-        // xhttp.onreadystatechange = function () {
-        //     // it checks if the request was succeeded
-        //     if (this.readyState === 4 && this.status === 200) {
-        //         // if the value returned from the view is error
-        //         var resp = JSON.parse(xhttp.responseText)
-        //         console.log(resp)
-        //         if (resp['m'] == 'success') {
         io.emit('getMessage', {
-            'result': msgObject,
-            // 'result': resp['d']
+            'result': msgObject
         });
-        // }
-        // // if the value returned from the view is success
-        // else if (xhttp.responseText === "error")
-        //     console.log("error saving message");
-        // }
-        // };
+    });
 
-        // prepares to send
-        // xhttp.open('POST', url, true);
-        // sends the data to the view
-        // xhttp.send(JSON.stringify(msgObject));
+    // 'getStudentMessage' in the client side
+    socket.on('student_message', function (msgObject) {
+        console.log(msgObject)
+        io.emit('getStudentMessage', {
+            'result': msgObject
+        });
     });
 
 });

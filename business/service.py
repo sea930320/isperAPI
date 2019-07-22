@@ -146,7 +146,9 @@ def get_business_detail(business):
         'username': member.user.username if member.user is not None else '',
         'type': member.user.type if member.user is not None else '',
         'gender': member.user.gender if member.user is not None else '',
-    } for member in BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, del_flag=0)]
+        'position': model_to_dict(member.user.tposition) if member.user is not None and member.user.tposition else None
+    } for member in
+        BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, del_flag=0)]
     # 项目信息
 
     if project:
@@ -162,9 +164,11 @@ def get_business_detail(business):
         process = node.process
         print process.type
         if process.type == 11:
-            bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id, node_id=node.id, target__in=[0,1]).first()
+            bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id,
+                                                    node_id=node.id, target__in=[0, 1]).first()
             if bSurvey:
-                allocations = BusinessRoleAllocation.objects.filter(business_id=business.id, project_id=business.cur_project_id, node_id=node.id)
+                allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
+                                                                    project_id=business.cur_project_id, node_id=node.id)
                 allocations.update(can_take_in=True)
         cur_node = {
             'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': process.type,
@@ -199,7 +203,11 @@ def get_business_detail(business):
         'create_time': business.create_time.strftime('%Y-%m-%d'), 'team': team_dict,
         'name': u'{0} {1}'.format(business.id, business.name),
         'project': project_dict, 'node': cur_node, 'huanxin_id': business.huanxin_id,
-        'role_allocs': role_allocs
+        'role_allocs': role_allocs,
+        'company': model_to_dict(business.target_company, fields=['id',
+                                                                  'name']) if business.target_company_id else model_to_dict(
+            business.target_part.company, fields=['id',
+                                                  'name']) if business.target_part_id else None
     }
     return data
 
@@ -361,7 +369,7 @@ def get_business_templates(business, node_id, role_alloc_id, usage, pra=None, ed
         if usage and usage == '3':
             if edit_module is None:
                 docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id,
-                                                     business_role_allocation_id=role_alloc_id)
+                                                         business_role_allocation_id=role_alloc_id)
             else:
                 docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id)
 
@@ -1201,7 +1209,8 @@ def action_exp_node_end(bus, role_alloc_id, data):
             if data['tran_id'] == 0 or data['tran_id'] == '0':
                 next_node = None
             elif data['process_type'] == const.PROCESS_EXPERIENCE_TYPE:
-                bpt = BusinessProjectTrack.objects.filter(business_id=bus.id, process_type=const.PROCESS_NEST_TYPE).last()
+                bpt = BusinessProjectTrack.objects.filter(business_id=bus.id,
+                                                          process_type=const.PROCESS_NEST_TYPE).last()
                 if bpt is None or bpt.project_id == bus.cur_project_id:
                     tran = FlowTrans.objects.get(pk=data['tran_id'])
                     next_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
@@ -1224,11 +1233,17 @@ def action_exp_node_end(bus, role_alloc_id, data):
             if next_node is None:
                 # 结束实验，验证实验心得
                 experience_count = BusinessExperience.objects.filter(business_id=bus.id, del_flag=0).count()
-                bras = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=bus.node_id, can_take_in=True)
+                bras = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=bus.node_id,
+                                                             can_take_in=True)
                 user_ids = []
                 for bra in bras:
-                    print BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0, business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)
-                    user_ids = list(set(user_ids) | set(BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0, business_role_id=bra.role_id, no=bra.no).values_list('user_id', flat=True)))
+                    print BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
+                                                            business_role_id=bra.role_id, no=bra.no).values_list(
+                        'user_id', flat=True)
+                    user_ids = list(set(user_ids) | set(
+                        BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
+                                                          business_role_id=bra.role_id, no=bra.no).values_list(
+                            'user_id', flat=True)))
                 # logger.info(role_ids)
                 print user_ids
                 user_count = len(user_ids)
@@ -1989,5 +2004,3 @@ def get_business_display_file_read_status(doc_list, can_terminate, user_id):
 
         res_list.append(doc)
     return res_list
-
-

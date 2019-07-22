@@ -19,6 +19,7 @@ from business import views as business_views
 from partPosition import views as partPosition_views
 from socketio import views as socketIO_views
 from student import views as student_views
+from cms import views as cms_views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
@@ -190,6 +191,14 @@ urlpatterns += (
     url(r'^api/dic/deleteItemSave$', dictionary_views.delete_item_save),
 )
 
+
+urlpatterns += (
+    url(r'^api/cms/to/user/list-business$', cms_views.api_cms_to_user_list_business),
+    url(r'^api/cms/msg/list-business$', cms_views.api_cms_msg_list_business),
+    url(r'^api/cms/send/msg-business$', cms_views.api_cms_send_msg_business),
+    url(r'^api/cms/new/msg-business/num$', cms_views.api_cms_new_msg_num_business),
+)
+
 urlpatterns += (
     url(r'^api/userManager/getNormalUsers$', userManage_views.get_normal_users),  # Jonas Updated for assistant set
     url(r'^api/userManager/getManageUsers$', userManage_views.get_manage_users),  # Jonas Updated for assistant set
@@ -333,6 +342,11 @@ urlpatterns += (
     url(r'^api/student/business-team-list$', student_views.api_student_business_team_list),
     url(r'^api/student/teacher/list$', student_views.api_student_teacher_list),
     url(r'^api/student/watch-start$', student_views.api_student_watch_start),
+    url(r'^api/student/team/detail$', student_views.api_student_team_detail),
+    url(r'^api/student/request-assist$', student_views.api_student_request_assist),
+    url(r'^api/student/request-assist-list$', student_views.api_student_request_assist_list),
+    url(r'^api/student/send-msg$', student_views.api_student_send_msg),
+    url(r'^api/student/msg-list$', student_views.api_student_msg_list),
 )
 
 urlpatterns += (

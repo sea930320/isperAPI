@@ -11,12 +11,14 @@ from workflow.models import FlowNode, SelectDecideItem
 from business.models import *
 from course.models import *
 
+
 # 课堂
 class StudentWatchingTeam(models.Model):
     university = models.ForeignKey(TCompany, on_delete=models.CASCADE)
     name = models.CharField(max_length=48, verbose_name=u'Team Name')
     type = models.IntegerField(default=0, verbose_name=u'Team Type')  # 0=>public, 1=>ask access
-    team_leader = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Team Leader', related_name="student_team_leader_set")
+    team_leader = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Team Leader',
+                                    related_name="student_team_leader_set")
     members = models.ManyToManyField(Tuser, verbose_name=u'Team Members')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
 
@@ -26,6 +28,7 @@ class StudentWatchingTeam(models.Model):
     class Meta:
         db_table = "t_student_watching_team"
         verbose_name_plural = verbose_name = u"StudentWatchingTeams"
+        ordering = ['-create_time']
 
     def __unicode__(self):
         return str(self.name)
@@ -45,6 +48,46 @@ class StudentWatchingBusiness(models.Model):
     class Meta:
         db_table = "t_student_watching_business"
         verbose_name_plural = verbose_name = u"StudentWatchingBusinesses"
+        ordering = ['-create_time']
 
     def __unicode__(self):
         return str(self.university_id)
+
+
+class StudentRequestAssistStatus(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Watching Business')
+    university = models.ForeignKey(TCompany, on_delete=models.CASCADE, verbose_name=u'University')
+    requestedFrom = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Requested From',
+                                      related_name='requested_from')
+    requestedTo = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Requested To',
+                                    related_name='requestedTo')
+    status = models.IntegerField(default=0, verbose_name=u'Requested Status')  # 0=>pending, 2=>accepted, 3=>rejected
+
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
+    class Meta:
+        db_table = "t_student_request_assist_status"
+        verbose_name_plural = verbose_name = u"StudentRequestAssistStatuses"
+        ordering = ['-create_time']
+
+    def __unicode__(self):
+        return str(self.business.id)
+
+
+class StudentChatLog(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    from_user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'From User', related_name="sent_from")
+    msg = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'消息内容')
+    msg_type = models.IntegerField(default=0, verbose_name=u'Message Type')  # 0=> class group chat,
+    ext = models.TextField(verbose_name=u'Message Ext')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_student_chatlog"
+        verbose_name_plural = verbose_name = u"StudentChatLogs"
+
+    def __unicode__(self):
+        return str(self.business.id)

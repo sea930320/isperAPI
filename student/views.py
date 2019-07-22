@@ -61,7 +61,7 @@ def api_student_watch_business_list(request):
 
         user = request.user
         login_type = request.session['login_type']
-        if login_type not in [9]:
+        if login_type not in [5, 9]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -79,8 +79,10 @@ def api_student_watch_business_list(request):
                 studentwatchingbusiness__university=user.tcompany,
                 studentwatchingbusiness__team__members__id=user.pk)
         else:
-            qs = Business.objects.filter(studentwatchingbusiness__university=user.tcompany,
-                                         studentwatchingbusiness__team__members__id=user.pk)
+            ids = Business.objects.filter(studentwatchingbusiness__university=user.tcompany,
+                                          studentwatchingbusiness__team__members__id=user.pk).values_list('id',
+                                                                                                          flat=True).distinct()
+            qs = Business.objects.filter(pk__in=ids)
 
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
@@ -156,7 +158,7 @@ def api_student_watch_course_list(request):
     try:
         user = request.user
         login_type = request.session['login_type']
-        if login_type not in [9]:
+        if login_type not in [5, 9]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -185,6 +187,57 @@ def api_student_watch_course_list(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+def api_student_team_detail(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        business_id = request.GET.get("business_id", None)
+
+        if business_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if login_type == 9:
+            stwbs = StudentWatchingBusiness.objects.filter(university=user.tcompany, business_id=business_id)
+        elif login_type == 5:
+            stwbs = StudentWatchingBusiness.objects.filter(business_id=business_id)
+        teams = []
+        for stwb in stwbs:
+            stwt = StudentWatchingTeam.objects.filter(pk=stwb.team_id).first()
+            if stwt is None:
+                continue
+            teacher = model_to_dict(stwb.course.teacher, fields=['id', 'username', 'name', 'teacher_id', 'gender'])
+            members = [model_to_dict(member, fields=['id', 'username', 'name', 'student_id', 'gender']) for member in
+                       stwt.members.all()]
+            team = {'teacher': teacher, 'members': members, 'name': stwt.name, 'id': stwt.id,
+                    'create_time': stwt.create_time.strftime('%Y-%m-%d') if stwt.create_time else None,
+                    'leader': model_to_dict(stwt.team_leader,
+                                            fields=['id', 'username', 'name',
+                                                    'student_id', 'gender'])}
+            teams.append(team)
+        resp = code.get_msg(code.SUCCESS)
+        data = get_business_detail(business)
+        resp['d'] = {'results': teams, 'business': data}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_student_team_detail Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
 def api_student_watch_company_user_list(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -197,7 +250,7 @@ def api_student_watch_company_user_list(request):
 
         user = request.user
         login_type = request.session['login_type']
-        if login_type not in [9]:
+        if login_type not in [5, 9]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -257,7 +310,7 @@ def api_student_business_team_list(request):
 
         user = request.user
         login_type = request.session['login_type']
-        if login_type not in [9]:
+        if login_type not in [5, 9]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -306,7 +359,7 @@ def api_student_teacher_list(request):
     try:
         user = request.user
         login_type = request.session['login_type']
-        if login_type not in [9]:
+        if login_type not in [5, 9]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -345,11 +398,11 @@ def api_student_watch_start(request):
         if watch_config['team_mode'] == 0:
             sel_team = StudentWatchingTeam.objects.get(pk=watch_config['selected_team']['id'])
         else:
-            new_team = watch_config(['new_team'])
+            new_team = watch_config['new_team']
             sel_team = StudentWatchingTeam.objects.create(university=user.tcompany, name=new_team['name'],
                                                           type=new_team['public_mode'], team_leader=user)
             for sel_user in new_team['users']:
-                tuser = Tuser.objects.filter(pk=sel_user.id).first()
+                tuser = Tuser.objects.filter(pk=sel_user['id']).first()
                 if not tuser:
                     continue
                 sel_team.members.add(tuser)
@@ -358,21 +411,219 @@ def api_student_watch_start(request):
         is_created = False
         if watch_config['mode'] == 0:
             sel_course = Course.objects.get(pk=watch_config['selected_course'])
-            if (
-            StudentWatchingBusiness.objects.filter(university=user.tcompany, course=sel_course, business=sel_business,
-                                                   team=sel_team).first()):
+            stwb = StudentWatchingBusiness.objects.filter(university=user.tcompany, course=sel_course,
+                                                          business=sel_business,
+                                                          team=sel_team).first()
+            if (stwb):
                 is_created = True
         else:
             extra_course = watch_config['extra_course']
             sel_course = Course.objects.create(courseName=extra_course['name'],
-                                               teacher=Tuser.objects.get(pk=extra_course['teacher']), created_by=user, type=2)
+                                               teacher=Tuser.objects.get(pk=extra_course['teacher']), created_by=user,
+                                               type=2, tcompany=user.tcompany)
         if not is_created:
-            StudentWatchingBusiness.objects.create(university=user.tcompany, course=sel_course, business=sel_business,
-                                                   team=sel_team, created_by=request.user)
+            stwb = StudentWatchingBusiness.objects.create(university=user.tcompany, course=sel_course,
+                                                          business=sel_business,
+                                                          team=sel_team, created_by=request.user)
         resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'results': stwb.id
+        }
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
         logger.exception('api_business_survey_set_select_questions Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_request_assist(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        business_id = request.POST.get("business_id", None)
+        job_user_id = request.POST.get("job_user_id", None)
+        if None in [business_id, job_user_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        StudentRequestAssistStatus.objects.update_or_create(business_id=business_id, university=user.tcompany,
+                                                            requestedFrom=user,
+                                                            requestedTo_id=job_user_id, status=0)
+
+        srases = StudentRequestAssistStatus.objects.filter(business_id=business_id, university=user.tcompany,
+                                                           requestedFrom_id=user.id, del_flag=0)
+        results = []
+        for sras in srases:
+            results.append({
+                "business_id": business_id,
+                "university": model_to_dict(user.tcompany, fields=['name', 'comment', 'created_by_id']),
+                "requestedTo": model_to_dict(sras.requestedTo,
+                                             fields=['id', 'name', 'username']) if sras.requestedTo else None,
+                "requestedFrom": model_to_dict(sras.requestedFrom,
+                                               fields=['id', 'name', 'username']) if sras.requestedFrom else None,
+                "status": sras.status,
+                'create_time': sras.create_time.strftime('%Y-%m-%d') if sras.create_time else None,
+            })
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'results': results
+        }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_student_request_assist Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_request_assist_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        business_id = request.GET.get("business_id", None)
+        if None in [business_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if login_type == 9:
+            srases = StudentRequestAssistStatus.objects.filter(business_id=business_id, university=user.tcompany,
+                                                               requestedFrom_id=user.id, del_flag=0)
+        else:
+            srases = StudentRequestAssistStatus.objects.filter(business_id=business_id,
+                                                               requestedTo_id=user.id, del_flag=0)
+
+        results = []
+        for sras in srases:
+            results.append({
+                "business_id": business_id,
+                "university": model_to_dict(sras.university, fields=['name', 'comment', 'created_by_id']),
+                "requestedTo": model_to_dict(sras.requestedTo,
+                                             fields=['id', 'name', 'username']) if sras.requestedTo else None,
+                "requestedFrom": model_to_dict(sras.requestedFrom,
+                                               fields=['id', 'name', 'username']) if sras.requestedFrom else None,
+                "status": sras.status,
+                'create_time': sras.create_time.strftime('%Y-%m-%d') if sras.create_time else None,
+            })
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'results': results
+        }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_student_request_assist_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_send_msg(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        to = request.POST.get("to", None)
+        msg = request.POST.get("msg", None)
+        msg_type = int(request.POST.get("msg_type", 0))
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [business_id, to, msg]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        ext = {}
+        if msg_type == 0:
+            fromUser = model_to_dict(user, fields=['id', 'name', 'username'])
+            fromUser['login_type'] = login_type
+            ext = {'business_id': business_id, "from_user": fromUser, "to": json.loads(to), "msg": msg,
+                   "msg_type": msg_type}
+            print ext
+        scl = StudentChatLog.objects.create(business_id=business_id, from_user=user, msg=msg, msg_type=msg_type,
+                                            ext=json.dumps(ext))
+        resp = code.get_msg(code.SUCCESS)
+        msgDict = ext
+        msgDict['id'] = scl.id
+        msgDict['create_time'] = scl.create_time.strftime('%Y-%m-%d %H:%M:%S')
+        with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
+            socketIO.emit('student_message', msgDict)
+            socketIO.wait_for_callbacks(seconds=1)
+    except Exception as e:
+        logger.exception('api_student_send_msg Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_msg_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get("business_id", None)
+        msg_type = int(request.GET.get("msg_type", 0))
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [business_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        scls = StudentChatLog.objects.filter(business_id=business_id, msg_type=msg_type)
+        message_list = []
+        for m in scls:
+            ext = json.loads(m.ext)
+            ext['id'] = m.id
+            ext['create_time'] = m.create_time.strftime('%Y-%m-%d %H:%M:%S')
+            message_list.append(ext)
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'results': message_list
+        }
+    except Exception as e:
+        logger.exception('api_student_msg_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

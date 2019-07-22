@@ -190,6 +190,9 @@ def api_account_login(request):
                     resp['d']['companyType_id'] = user.tcompany.companyType_id if user.tcompany else ''
                     resp['d']['director'] = user.director
                     resp['d']['last_experiment_id'] = user.last_experiment_id
+                    resp['d']['position'] = model_to_dict(user.tposition) if user.tposition else None
+                    resp['d']['teacher_id'] = user.teacher_id
+                    resp['d']['student_id'] = user.student_id
                     manager_info = {}
                     if login_type == 2:
                         group = user.allgroups_set.get()
