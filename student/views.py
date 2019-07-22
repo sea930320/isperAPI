@@ -314,11 +314,12 @@ def api_student_business_team_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = StudentWatchingTeam.objects.filter(studentwatchingbusiness__university=user.tcompany,
-                                                studentwatchingbusiness__business__id=business_id, type=0, del_flag=0)
+        ids = StudentWatchingTeam.objects.filter(studentwatchingbusiness__university=user.tcompany,
+                                                 studentwatchingbusiness__business__id=business_id, type=0,
+                                                 del_flag=0).values_list('id', flat=True).distinct()
+        qs = StudentWatchingTeam.objects.filter(pk__in=ids)
         if search:
-            qs = qs.filter(Q(name__icontains=search) | Q(username__icontains=search))
-            qs = qs.filter(del_flag=0)
+            qs = qs.filter(Q(name__icontains=search))
 
         paginator = Paginator(qs, size)
 
@@ -351,6 +352,116 @@ def api_student_business_team_list(request):
 
     except Exception as e:
         logger.exception('api_student_business_team_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_team_my_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        search = request.GET.get("search", None)  # 关键字
+        page = int(request.GET.get("page", 1))  # 页码
+        size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        qs = StudentWatchingTeam.objects.filter(university=user.tcompany, del_flag=0, members__id=user.id)
+        if search:
+            qs = qs.filter(Q(name__icontains=search))
+
+        paginator = Paginator(qs, size)
+
+        try:
+            teams = paginator.page(page)
+        except EmptyPage:
+            teams = paginator.page(1)
+
+        results = []
+
+        for item in teams:
+            result = model_to_dict(item, fields=['id', 'name', 'type'])
+            result['team_leader'] = model_to_dict(item.team_leader,
+                                                  fields=['id', 'name', 'username']) if item.team_leader else None
+            result['create_time'] = item.create_time.strftime('%Y-%m-%d') if item.create_time else None
+            results.append(result)
+
+        paging = {
+            'count': paginator.count,
+            'has_previous': teams.has_previous(),
+            'has_next': teams.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': teams.number,
+            'page_size': size
+        }
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'paging': paging}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_student_team_my_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_team_available_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        search = request.GET.get("search", None)  # 关键字
+        page = int(request.GET.get("page", 1))  # 页码
+        size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        qs = StudentWatchingTeam.objects.filter(university=user.tcompany, del_flag=0).exclude(members__id=user.id)
+        if search:
+            qs = qs.filter(Q(name__icontains=search))
+
+        paginator = Paginator(qs, size)
+
+        try:
+            teams = paginator.page(page)
+        except EmptyPage:
+            teams = paginator.page(1)
+
+        results = []
+
+        for item in teams:
+            result = model_to_dict(item, fields=['id', 'name', 'type'])
+            result['team_leader'] = model_to_dict(item.team_leader,
+                                                  fields=['id', 'name', 'username']) if item.team_leader else None
+            result['create_time'] = item.create_time.strftime('%Y-%m-%d') if item.create_time else None
+            results.append(result)
+
+        paging = {
+            'count': paginator.count,
+            'has_previous': teams.has_previous(),
+            'has_next': teams.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': teams.number,
+            'page_size': size
+        }
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'paging': paging}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_student_team_available_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -445,7 +556,7 @@ def api_student_request_assist(request):
     try:
         user = request.user
         login_type = request.session['login_type']
-        if login_type not in [5, 9]:
+        if login_type not in [9]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         business_id = request.POST.get("business_id", None)
@@ -459,6 +570,11 @@ def api_student_request_assist(request):
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+        isRequestExist = StudentRequestAssistStatus.objects.filter(business_id=business_id, university=user.tcompany,
+                                                                   requestedFrom=user, status__in=[0, 1]).count()
+        if isRequestExist > 0:
+            resp = code.get_msg(code.REQUEST_ALREADY_EXISTS)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         StudentRequestAssistStatus.objects.update_or_create(business_id=business_id, university=user.tcompany,
                                                             requestedFrom=user,
                                                             requestedTo_id=job_user_id, status=0)
@@ -467,11 +583,20 @@ def api_student_request_assist(request):
                                                            requestedFrom_id=user.id, del_flag=0)
         results = []
         for sras in srases:
+            requestedTo = {
+                'id': sras.requestedTo_id,
+                'name': sras.requestedTo.name if sras.requestedTo is not None else '',
+                'username': sras.requestedTo.username if sras.requestedTo is not None else '',
+                'type': sras.requestedTo.type if sras.requestedTo is not None else '',
+                'gender': sras.requestedTo.gender if sras.requestedTo is not None else '',
+                'position': model_to_dict(
+                    sras.requestedTo.tposition) if sras.requestedTo is not None and sras.requestedTo.tposition else None
+            }
             results.append({
+                "id": sras.id,
                 "business_id": business_id,
                 "university": model_to_dict(user.tcompany, fields=['name', 'comment', 'created_by_id']),
-                "requestedTo": model_to_dict(sras.requestedTo,
-                                             fields=['id', 'name', 'username']) if sras.requestedTo else None,
+                "requestedTo": requestedTo,
                 "requestedFrom": model_to_dict(sras.requestedFrom,
                                                fields=['id', 'name', 'username']) if sras.requestedFrom else None,
                 "status": sras.status,
@@ -481,6 +606,41 @@ def api_student_request_assist(request):
         resp['d'] = {
             'results': results
         }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_student_request_assist Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_request_assist_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        id = request.POST.get("id", None)
+        status = request.POST.get("status", None)
+        del_flag = int(request.POST.get("del_flag", 0))
+        if None in [id, status]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        sras = StudentRequestAssistStatus.objects.filter(pk=id).first()
+        if not sras:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        sras.status = status
+        sras.del_flag = del_flag
+        sras.save()
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
@@ -513,17 +673,26 @@ def api_student_request_assist_list(request):
         if login_type == 9:
             srases = StudentRequestAssistStatus.objects.filter(business_id=business_id, university=user.tcompany,
                                                                requestedFrom_id=user.id, del_flag=0)
-        else:
+        elif login_type == 5:
             srases = StudentRequestAssistStatus.objects.filter(business_id=business_id,
                                                                requestedTo_id=user.id, del_flag=0)
 
         results = []
         for sras in srases:
+            requestedTo = {
+                'id': sras.requestedTo_id,
+                'name': sras.requestedTo.name if sras.requestedTo is not None else '',
+                'username': sras.requestedTo.username if sras.requestedTo is not None else '',
+                'type': sras.requestedTo.type if sras.requestedTo is not None else '',
+                'gender': sras.requestedTo.gender if sras.requestedTo is not None else '',
+                'position': model_to_dict(
+                    sras.requestedTo.tposition) if sras.requestedTo is not None and sras.requestedTo.tposition else None
+            }
             results.append({
+                "id": sras.id,
                 "business_id": business_id,
                 "university": model_to_dict(sras.university, fields=['name', 'comment', 'created_by_id']),
-                "requestedTo": model_to_dict(sras.requestedTo,
-                                             fields=['id', 'name', 'username']) if sras.requestedTo else None,
+                "requestedTo": requestedTo,
                 "requestedFrom": model_to_dict(sras.requestedFrom,
                                                fields=['id', 'name', 'username']) if sras.requestedFrom else None,
                 "status": sras.status,
@@ -565,13 +734,12 @@ def api_student_send_msg(request):
         if business is None:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        ext = {}
-        if msg_type == 0:
-            fromUser = model_to_dict(user, fields=['id', 'name', 'username'])
-            fromUser['login_type'] = login_type
-            ext = {'business_id': business_id, "from_user": fromUser, "to": json.loads(to), "msg": msg,
-                   "msg_type": msg_type}
-            print ext
+
+        fromUser = model_to_dict(user, fields=['id', 'name', 'username'])
+        fromUser['login_type'] = login_type
+        ext = {'business_id': business_id, "from_user": fromUser, "to": json.loads(to), "msg": msg,
+               "msg_type": msg_type}
+
         scl = StudentChatLog.objects.create(business_id=business_id, from_user=user, msg=msg, msg_type=msg_type,
                                             ext=json.dumps(ext))
         resp = code.get_msg(code.SUCCESS)
@@ -615,6 +783,14 @@ def api_student_msg_list(request):
         message_list = []
         for m in scls:
             ext = json.loads(m.ext)
+            toUsers = ext['to']
+            toMe = False
+            for to in toUsers:
+                if str(to["id"]) == str(user.id):
+                    toMe = True
+                    break;
+            if not toMe:
+                continue
             ext['id'] = m.id
             ext['create_time'] = m.create_time.strftime('%Y-%m-%d %H:%M:%S')
             message_list.append(ext)
@@ -624,6 +800,268 @@ def api_student_msg_list(request):
         }
     except Exception as e:
         logger.exception('api_student_msg_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_todo_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get("business_id", None)
+        created_by_id = request.GET.get("created_by_id", None)
+        student_id = request.GET.get("student_id", None)
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [business_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if login_type == 5:
+            created_by_id = user.id
+        if login_type == 9:
+            student_id = user.id
+
+        stl = StudentTodoList.objects.filter(business_id=business_id, del_flag=0)
+        if created_by_id is not None:
+            stl = stl.filter(created_by_id=created_by_id)
+        if student_id is not None:
+            stl = stl.filter(student_id=student_id)
+        results = []
+        for st in stl:
+            results.append({
+                'id': st.id,
+                'created_by': model_to_dict(st.created_by,
+                                            fields=['id', 'name', 'username']) if st.created_by else None,
+                'student': model_to_dict(st.student,
+                                         fields=['id', 'name', 'username']) if st.student else None,
+                'name': st.name,
+                'create_time': st.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'business_id': st.business_id
+            })
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'results': results
+        }
+    except Exception as e:
+        logger.exception('api_student_todo_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_todo_list_add(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        student_id = request.POST.get("student_id", None)
+        name = request.POST.get("name", "")
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [business_id] or name == "":
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if student_id:
+            student_id = int(student_id)
+        StudentTodoList.objects.create(business_id=business_id, del_flag=0, created_by=user, student_id=student_id,
+                                       name=name)
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_student_todo_list_add Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_todo_list_remove(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        st_id = request.POST.get("id", None)
+
+        login_type = request.session['login_type']
+        if login_type not in [5]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        StudentTodoList.objects.filter(pk=st_id).update(del_flag=1)
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_student_todo_list_remove Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_todo_list_update(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        st_id = request.POST.get("id", None)
+        student_id = request.POST.get("student_id", None)
+        name = request.POST.get("name", "")
+
+        login_type = request.session['login_type']
+        if login_type not in [5]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [st_id] or name == "":
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        StudentTodoList.objects.filter(pk=st_id).update(student_id=student_id, name=name)
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_student_todo_list_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_team_users(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        search = request.GET.get("search", None)  # 关键字
+        page = int(request.GET.get("page", 1))  # 页码
+        size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
+
+        team_id = request.GET.get("id", None)
+
+        login_type = request.session['login_type']
+        if login_type not in [9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [team_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
+        members = [model_to_dict(member, fields=['id', 'name', 'username']) for member in swt.members.all()]
+
+        qs = Tuser.objects.filter(tcompany=request.user.tcompany, roles__id=9).exclude(pk=request.user.id)
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(username__icontains=search))
+
+        paginator = Paginator(qs, size)
+
+        try:
+            users = paginator.page(page)
+        except EmptyPage:
+            users = paginator.page(1)
+
+        university_users = [model_to_dict(student, fields=['id', 'name', 'username']) for student in users]
+
+        paging = {
+            'count': paginator.count,
+            'has_previous': users.has_previous(),
+            'has_next': users.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': users.number,
+            'page_size': size
+        }
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'members': members,
+            'university_users': university_users,
+            'paging': paging
+        }
+    except Exception as e:
+        logger.exception('api_student_team_users Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_team_add_user(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        team_id = request.POST.get("id", None)
+        student_id = request.POST.get("student_id", None)
+
+        login_type = request.session['login_type']
+        if login_type not in [9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [team_id, student_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
+        swt.members.add(Tuser.objects.filter(pk=student_id).first())
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_student_todo_list_update Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_team_remove_user(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        team_id = request.POST.get("id", None)
+        student_id = request.POST.get("student_id", None)
+
+        login_type = request.session['login_type']
+        if login_type not in [9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [team_id, student_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
+        swt.members.remove(Tuser.objects.filter(pk=student_id).first())
+        members = swt.members.all()
+        print swt.team_leader.id
+        print student_id
+        if int(swt.team_leader.id) == int(student_id):
+            print members
+            if members.count() == 0:
+                swt.del_flag =1
+            else:
+                swt.team_leader = members[0]
+            swt.save()
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_student_todo_list_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
