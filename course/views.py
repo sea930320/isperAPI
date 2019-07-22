@@ -13,6 +13,7 @@ from account.models import TClass, TRole, TNotifications
 from django.contrib.auth.hashers import make_password
 from django.core.paginator import Paginator, EmptyPage
 from django.utils.http import urlquote
+from datetime import datetime
 
 from django.db.models import Q, Count
 from django.http import HttpResponse, Http404
@@ -42,7 +43,7 @@ def api_course_list(request):
         else:
             qs = Course.objects.filter(del_flag=0)
 
-        data = [{'value': item.id, 'text': item.courseName + '-' + item.teacher.name + '-' + item.courseId} for item in qs]
+        data = [{'value': item.id, 'text': item.courseName + '-' + item.teacher.name + '-'} for item in qs]
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': data}
@@ -232,6 +233,37 @@ def api_course_get_teacher_list(request):
 
 
 # 课程列表
+def api_course_check_attention(request):
+
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        notificationID = request.GET.get("notificationID")
+        universityID = request.GET.get("universityID")
+        set = request.GET.get("set")
+
+        if UniversityLinkedCompany.objects.get(pk=universityID) is not None:
+            UniversityLinkedCompany.objects.filter(pk=universityID).update(
+                status=set,
+                seted_company_manager=request.user.tcompanymanagers_set.first().id,
+                seted_time=datetime.now()
+            )
+            if TNotifications.objects.get(pk=notificationID) is not None:
+                TNotifications.objects.filter(pk=notificationID).delete()
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
 def api_course_save_teacher_change(request):
 
     resp = auth_check(request, "POST")
@@ -375,7 +407,7 @@ def api_course_get_init_attention_data(request):
         results = [{
             'id': flow.id,
             'linked_company': flow.linked_company.name,
-            'setter': flow.seted_company_manager.username if flow.seted_company_manager is not None else '',
+            'setter': flow.seted_company_manager.tuser.username if flow.seted_company_manager is not None else '',
             'created_by': flow.created_by.username,
             'create_time': flow.create_time.strftime('%Y-%m-%d'),
             'seted_time': flow.seted_time.strftime('%Y-%m-%d') if flow.seted_time is not None else '',

@@ -525,6 +525,8 @@ class BusinessSurvey(models.Model):
     end_time = models.DateTimeField(blank=True, null=True, verbose_name=u'结束时间')
     end_quote = models.TextField(verbose_name=u'Survey End Quotion')
     target = models.IntegerField(default=0, verbose_name=u'Survey Target', choices=const.BUSINESS_SURVEY_TARGET)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'Create Time')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'Update Time')
 
     class Meta:
         db_table = "t_business_survey"
@@ -561,12 +563,27 @@ class BusinessQuestionCase(models.Model):
         return self.case
 
 
+class BusinessSurveyAnsweredUser(models.Model):
+    survey = models.ForeignKey(BusinessSurvey, on_delete=models.CASCADE, verbose_name=u'Business Survey')
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者', null=True, default=None)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'Create Time')
+    update_time = models.DateTimeField(auto_now=True, verbose_name=u'Update Time')
+
+    class Meta:
+        db_table = "t_business_survey_answered_user"
+        verbose_name_plural = verbose_name = u"t_business_survey_answered_users"
+
+    def __unicode__(self):
+        return self.id
+
 class BusinessAnswer(models.Model):
     survey = models.ForeignKey(BusinessSurvey, on_delete=models.CASCADE, verbose_name=u'Business Survey')
     question = models.ForeignKey(BusinessQuestion, on_delete=models.CASCADE, verbose_name=u'Business Question')
     answer = models.TextField(verbose_name=u'Business Answer')
+    question_title = models.TextField(verbose_name=u'Question Title', default='')
     question_cases = models.ManyToManyField(BusinessQuestionCase, verbose_name=u'Qustion Case Answer')
-
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者', null=True, default=None)
+    answeredUser = models.ForeignKey(BusinessSurveyAnsweredUser, on_delete=models.CASCADE, verbose_name=u'Answered User', null=True, default=None)
     class Meta:
         db_table = "t_business_answer"
         verbose_name_plural = verbose_name = u"t_business_answers"
