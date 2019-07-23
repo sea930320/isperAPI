@@ -20,7 +20,9 @@ from django.http import HttpResponse, Http404
 from course.models import *
 from group.models import AllGroups
 from project.models import Project
+from student.models import StudentWatchingBusiness, StudentWatchingTeam
 from team.models import TeamMember
+from business.models import *
 from utils import code, const, query
 from utils.request_auth import auth_check
 from django.conf import settings
@@ -102,6 +104,18 @@ def api_course_full_list(request):
                 'studentCount': flow.studentCount,
                 'created_by': flow.created_by.username,
                 'create_time': flow.create_time.strftime('%Y-%m-%d'),
+                'linked_business': [{
+                    'id': item.id,
+                    'name': item.name,
+                    'target_company': item.target_company.name if item.target_company else item.target_part.company.name,
+                } for item in Business.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()],
+                'linked_team': [{
+                    'id': team.id,
+                    'name': team.name,
+                    'leader': team.team_leader.username,
+                    'create_time': team.create_time.strftime('%Y-%m-%d'),
+                    'member_count': team.members.count(),
+                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()]
             } for flow in flows]
 
             paging = {
