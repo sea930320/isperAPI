@@ -72,11 +72,11 @@ def api_course_full_list(request):
         if search:
             qs = Course.objects.filter(
                 Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
-                Q(del_flag=0) &
+                Q(del_flag=0) & Q(type=0) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
             )
         else:
-            qs = Course.objects.filter(Q(del_flag=0) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+            qs = Course.objects.filter(Q(del_flag=0) & Q(type=0) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -102,6 +102,148 @@ def api_course_full_list(request):
                 'courseCount': flow.courseCount,
                 'experienceTime': flow.experienceTime,
                 'studentCount': flow.studentCount,
+                'created_by': flow.created_by.username,
+                'create_time': flow.create_time.strftime('%Y-%m-%d'),
+                'linked_business': [{
+                    'id': item.id,
+                    'name': item.name,
+                    'target_company': item.target_company.name if item.target_company else item.target_part.company.name,
+                } for item in Business.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()],
+                'linked_team': [{
+                    'id': team.id,
+                    'name': team.name,
+                    'leader': team.team_leader.username,
+                    'create_time': team.create_time.strftime('%Y-%m-%d'),
+                    'member_count': team.members.count(),
+                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()]
+            } for flow in flows]
+
+            paging = {
+                'count': paginator.count,
+                'has_previous': flows.has_previous(),
+                'has_next': flows.has_next(),
+                'num_pages': paginator.num_pages,
+                'cur_page': flows.number,
+            }
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': results, 'paging': paging}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_groups_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_outside_list(request):
+
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        search = request.GET.get("search", None)
+        page = int(request.GET.get("page", 1))
+        size = int(request.GET.get("size", const.ROW_SIZE))
+
+        if search:
+            qs = Course.objects.filter(
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
+                Q(del_flag=0) & Q(type=2) &
+                Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
+            )
+        else:
+            qs = Course.objects.filter(Q(del_flag=0) & Q(type=2) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+
+        if len(qs) == 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': [], 'paging': {}}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        else:
+            paginator = Paginator(qs, size)
+
+            try:
+                flows = paginator.page(page)
+            except EmptyPage:
+                flows = paginator.page(1)
+
+            results = [{
+                'id': flow.id,
+                'courseName': flow.courseName,
+                'teacherName': flow.teacher.name,
+                'created_by': flow.created_by.username,
+                'create_time': flow.create_time.strftime('%Y-%m-%d'),
+                'linked_business': [{
+                    'id': item.id,
+                    'name': item.name,
+                    'target_company': item.target_company.name if item.target_company else item.target_part.company.name,
+                } for item in Business.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()],
+                'linked_team': [{
+                    'id': team.id,
+                    'name': team.name,
+                    'leader': team.team_leader.username,
+                    'create_time': team.create_time.strftime('%Y-%m-%d'),
+                    'member_count': team.members.count(),
+                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()]
+            } for flow in flows]
+
+            paging = {
+                'count': paginator.count,
+                'has_previous': flows.has_previous(),
+                'has_next': flows.has_next(),
+                'num_pages': paginator.num_pages,
+                'cur_page': flows.number,
+            }
+
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': results, 'paging': paging}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_groups_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+# 课程列表
+def api_course_hobby_list(request):
+
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        search = request.GET.get("search", None)
+        page = int(request.GET.get("page", 1))
+        size = int(request.GET.get("size", const.ROW_SIZE))
+
+        if search:
+            qs = Course.objects.filter(
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
+                Q(del_flag=0) & Q(type=1) &
+                Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
+            )
+        else:
+            qs = Course.objects.filter(Q(del_flag=0) & Q(type=1) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+
+        if len(qs) == 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': [], 'paging': {}}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        else:
+            paginator = Paginator(qs, size)
+
+            try:
+                flows = paginator.page(page)
+            except EmptyPage:
+                flows = paginator.page(1)
+
+            results = [{
+                'id': flow.id,
+                'courseName': flow.courseName,
+                'teacherName': flow.teacher.name,
                 'created_by': flow.created_by.username,
                 'create_time': flow.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
