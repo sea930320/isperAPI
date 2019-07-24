@@ -351,14 +351,27 @@ urlpatterns += (
     url(r'^api/student/watch-business-list$', student_views.api_student_watch_business_list),
     url(r'^api/student/watch-course-list$', student_views.api_student_watch_course_list),
     url(r'^api/student/watch-company-user-list$', student_views.api_student_watch_company_user_list),
+
     url(r'^api/student/business-team-list$', student_views.api_student_business_team_list),
+    url(r'^api/student/team/my-list$', student_views.api_student_team_my_list),
+    url(r'^api/student/team/available-list$', student_views.api_student_team_available_list),
+    url(r'^api/student/team/detail$', student_views.api_student_team_detail),
+    url(r'^api/student/team/users', student_views.api_student_team_users),
+    url(r'^api/student/team/add-user', student_views.api_student_team_add_user),
+    url(r'^api/student/team/remove-user', student_views.api_student_team_remove_user),
+
     url(r'^api/student/teacher/list$', student_views.api_student_teacher_list),
     url(r'^api/student/watch-start$', student_views.api_student_watch_start),
-    url(r'^api/student/team/detail$', student_views.api_student_team_detail),
     url(r'^api/student/request-assist$', student_views.api_student_request_assist),
+    url(r'^api/student/request-assist/update$', student_views.api_student_request_assist_update),
     url(r'^api/student/request-assist-list$', student_views.api_student_request_assist_list),
     url(r'^api/student/send-msg$', student_views.api_student_send_msg),
     url(r'^api/student/msg-list$', student_views.api_student_msg_list),
+
+    url(r'^api/student/todo-list$', student_views.api_student_todo_list),
+    url(r'^api/student/todo-list/add$', student_views.api_student_todo_list_add),
+    url(r'^api/student/todo-list/remove', student_views.api_student_todo_list_remove),
+    url(r'^api/student/todo-list/update', student_views.api_student_todo_list_update),
 )
 
 urlpatterns += (

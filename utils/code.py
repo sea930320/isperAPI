@@ -204,6 +204,8 @@ MESSAGE_SITTING_UP_CANNOT_SPEAKER = 60005
 # 课程下面有学生，无法删除
 MESSAGE_COURSE_STUDENT_EXISTS = 70001
 
+REQUEST_ALREADY_EXISTS = 80001
+
 #
 ADVERTISING_NAME_ALREADY_EXISTS = 90001
 
@@ -286,6 +288,7 @@ MSG = {
 
     70001: u'该课程下存在学生，不能删除该课程',
 
+    80001: u'只能当一个人的助理',
     90001: u'公告名称已存在'
 
 }

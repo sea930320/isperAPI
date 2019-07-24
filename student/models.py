@@ -61,7 +61,7 @@ class StudentRequestAssistStatus(models.Model):
                                       related_name='requested_from')
     requestedTo = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Requested To',
                                     related_name='requestedTo')
-    status = models.IntegerField(default=0, verbose_name=u'Requested Status')  # 0=>pending, 2=>accepted, 3=>rejected
+    status = models.IntegerField(default=0, verbose_name=u'Requested Status')  # 0=>pending, 1=>accepted, 2=>rejected
 
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
@@ -91,3 +91,21 @@ class StudentChatLog(models.Model):
 
     def __unicode__(self):
         return str(self.business.id)
+
+class StudentTodoList(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Created By', related_name="todo_created_by")
+    name = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'todo name')
+    student = models.ForeignKey(Tuser, on_delete=models.CASCADE, blank=True, null=True, verbose_name=u'Student', related_name="student")
+
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
+
+    class Meta:
+        db_table = "t_student_todo_list"
+        verbose_name_plural = verbose_name = u"StudentTodos"
+
+    def __unicode__(self):
+        return str(self.name)
