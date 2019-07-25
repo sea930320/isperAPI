@@ -238,6 +238,21 @@ def api_account_login(request):
                             'part_id': '',
                             'part_name': ''
                         }
+                    elif login_type in [4,8]:
+                        company = user.tcompany
+                        group = company.group
+                        position = user.tposition
+                        part = None
+                        if position:
+                            part = position.parts
+                        manager_info = {
+                            'company_id': company.id,
+                            'company_name': company.name,
+                            'group_id': group.id,
+                            'group_name': group.name,
+                            'part_id': part.id if part else '',
+                            'part_name': part.name if part else ''
+                        }
                     elif login_type in [5, 9]:
                         company = user.tcompany
                         group = company.group

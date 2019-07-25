@@ -370,6 +370,10 @@ urlpatterns += (
     url(r'^api/student/todo-list/add$', student_views.api_student_todo_list_add),
     url(r'^api/student/todo-list/remove', student_views.api_student_todo_list_remove),
     url(r'^api/student/todo-list/update', student_views.api_student_todo_list_update),
+
+    url(r'^api/student/teacher/course-list$', student_views.api_student_teacher_course_list),
+    url(r'^api/student/teacher/watching-list/by-course$', student_views.api_student_teacher_watching_list_by_course),
+    url(r'^api/student/teacher/team-list/by-course$', student_views.api_student_teacher_team_list_by_course),
 )
 
 urlpatterns += (

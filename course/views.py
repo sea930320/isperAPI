@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 # 课程列表
 def api_course_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -39,7 +38,8 @@ def api_course_list(request):
         search = request.GET.get("search", None)  # 搜索关键字
 
         if search:
-            qs = Course.objects.filter(Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) & Q(del_flag=0))
+            qs = Course.objects.filter(Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                courseId__icontains=search)) & Q(del_flag=0))
         else:
             qs = Course.objects.filter(del_flag=0)
 
@@ -57,7 +57,6 @@ def api_course_list(request):
 
 # 课程列表
 def api_course_full_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -69,7 +68,8 @@ def api_course_full_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                    courseId__icontains=search)) &
                 Q(del_flag=0) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
             )
@@ -92,7 +92,7 @@ def api_course_full_list(request):
                 'id': flow.id,
                 'courseId': flow.courseId,
                 'courseName': flow.courseName,
-                'courseFullName': flow.courseName + '-' + flow.teacher.name + '-' + flow.courseId,
+                'courseFullName': flow.courseName if flow.courseName else '' + '-' + flow.teacher.name if flow.teacher else '' + '-' + flow.courseId if flow.courseId else '',
                 'courseSeqNum': flow.courseSeqNum,
                 'courseSemester': flow.courseSemester,
                 'teacherName': flow.teacher.name,
@@ -124,7 +124,6 @@ def api_course_full_list(request):
 
 # 课程列表
 def api_course_save_new(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -140,7 +139,8 @@ def api_course_save_new(request):
         experienceTime = request.POST.get("experienceTime")
         studentCount = request.POST.get("studentCount")
 
-        user = AllGroups.objects.get(id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
+        user = AllGroups.objects.get(
+            id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
             username=teacherName + '-' + teacherId,
             name=teacherName,
             teacher_id=teacherId,
@@ -175,7 +175,6 @@ def api_course_save_new(request):
 
 # 课程列表
 def api_course_save_edit(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -206,13 +205,13 @@ def api_course_save_edit(request):
 
 # 课程列表
 def api_course_get_teacher_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        teachers = AllGroups.objects.get(id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.filter(
+        teachers = AllGroups.objects.get(
+            id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.filter(
             tcompany_id=request.user.tcompanymanagers_set.get().tcompany.id,
             teacher_id__isnull=False
         )
@@ -234,7 +233,6 @@ def api_course_get_teacher_list(request):
 
 # 课程列表
 def api_course_check_attention(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -265,7 +263,6 @@ def api_course_check_attention(request):
 
 # 课程列表
 def api_course_save_teacher_change(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -288,7 +285,6 @@ def api_course_save_teacher_change(request):
 
 # 课程列表
 def api_course_delete_course(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -344,7 +340,8 @@ def api_course_excel_data_save(request):
             experienceTime = str(item[u'experienceTime']).encode('utf8')
             studentCount = int(item[u'studentCount'])
 
-            user = AllGroups.objects.get(id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
+            user = AllGroups.objects.get(
+                id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
                 username=teacherName + '-' + teacherId,
                 name=teacherName,
                 teacher_id=teacherId,
@@ -379,7 +376,6 @@ def api_course_excel_data_save(request):
 
 # 课程列表
 def api_course_get_init_attention_data(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -390,12 +386,14 @@ def api_course_get_init_attention_data(request):
         size = int(request.GET.get("size", const.ROW_SIZE))
 
         if search:
-            qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany, linked_company__name__icontains=search)
+            qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany,
+                                                        linked_company__name__icontains=search)
         else:
             qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany)
 
         groupID = request.user.tcompanymanagers_set.get().tcompany.group_id
-        clist = [{'value': item.id, 'text': item.name} for item in TCompany.objects.filter(Q(group_id=groupID, is_default=0) & ~Q(companyType__name='学校'))]
+        clist = [{'value': item.id, 'text': item.name} for item in
+                 TCompany.objects.filter(Q(group_id=groupID, is_default=0) & ~Q(companyType__name='学校'))]
 
         paginator = Paginator(qs, size)
 
@@ -435,7 +433,6 @@ def api_course_get_init_attention_data(request):
 
 # 课程列表
 def api_course_send_request_data(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -475,7 +472,6 @@ def api_course_send_request_data(request):
 
 # 课程列表
 def api_course_send_cancel_data(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
