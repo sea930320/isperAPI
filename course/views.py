@@ -45,7 +45,9 @@ def api_course_list(request):
         else:
             qs = Course.objects.filter(del_flag=0)
 
-        data = [{'value': item.id, 'text': (item.courseName + '-' + item.teacher.name + '-' + item.courseId) if item.courseId else (item.courseName + '-' + item.teacher.name)} for item in qs]
+        data = [{'value': item.id,
+                 'text': (item.courseName + '-' + item.teacher.name + '-' + item.courseId) if item.courseId else (
+                     item.courseName + '-' + item.teacher.name)} for item in qs]
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': data}
@@ -70,12 +72,14 @@ def api_course_full_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                    courseId__icontains=search)) &
                 Q(del_flag=0) & Q(type=0) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
             )
         else:
-            qs = Course.objects.filter(Q(del_flag=0) & Q(type=0) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+            qs = Course.objects.filter(
+                Q(del_flag=0) & Q(type=0) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -137,7 +141,6 @@ def api_course_full_list(request):
 
 # 课程列表
 def api_course_outside_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -149,12 +152,14 @@ def api_course_outside_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                    courseId__icontains=search)) &
                 Q(del_flag=0) & Q(type=2) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
             )
         else:
-            qs = Course.objects.filter(Q(del_flag=0) & Q(type=2) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+            qs = Course.objects.filter(
+                Q(del_flag=0) & Q(type=2) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -208,7 +213,6 @@ def api_course_outside_list(request):
 
 # 课程列表
 def api_course_hobby_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -220,12 +224,14 @@ def api_course_hobby_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                    courseId__icontains=search)) &
                 Q(del_flag=0) & Q(type=1) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
             )
         else:
-            qs = Course.objects.filter(Q(del_flag=0) & Q(type=1) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+            qs = Course.objects.filter(
+                Q(del_flag=0) & Q(type=1) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -478,13 +484,19 @@ def api_course_excel_data_save(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if request.session['login_type'] not in [3, 7]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        excelData = request.POST.get("excelData", None)
+        company = request.user.tcompanymanagers_set.get().tcompany if request.session['login_type'] == 3 \
+            else request.user.t_company_set_assistants.get()
+        companyId = company.id
 
-        for item in json.loads(excelData):
+        excelData = request.POST.get("excelData", None)
+        excelData = json.loads(excelData)
+        for course in excelData:
+            print course['item']
+            item = course['item'][0]
             courseId = str(item[u'courseId']).encode('utf8')
             courseName = str(item[u'courseName']).encode('utf8')
             courseSeqNum = int(item[u'courseSeqNum'])
@@ -495,29 +507,68 @@ def api_course_excel_data_save(request):
             experienceTime = str(item[u'experienceTime']).encode('utf8')
             studentCount = int(item[u'studentCount'])
 
-            user = AllGroups.objects.get(
-                id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
-                username=teacherName + '-' + teacherId,
-                name=teacherName,
-                teacher_id=teacherId,
-                password=make_password('1234567890'),
-                tcompany=request.user.tcompanymanagers_set.get().tcompany,
-                is_review=1,
-            )
-            user.roles.add(TRole.objects.get(id=4))
+            tcourse = Course.objects.filter(courseId=courseId).first()
+            if tcourse is None:
+                try:
+                    user = AllGroups.objects.get(id=company.group_id) \
+                        .groupInstructors.create(
+                        username=teacherName + '-' + teacherId,
+                        name=teacherName,
+                        teacher_id=teacherId,
+                        password=make_password('1234567890'),
+                        tcompany=company,
+                        is_review=1,
+                    )
+                    user.roles.add(TRole.objects.get(id=4))
+                except Exception as e:
+                    user = AllGroups.objects.get(id=company.group_id) \
+                        .groupInstructors.filter(
+                        username=teacherName + '-' + teacherId
+                    ).first()
+                    if not user:
+                        continue
 
-            Course.objects.create(
-                courseId=courseId,
-                courseName=courseName,
-                courseSeqNum=int(courseSeqNum),
-                courseSemester=courseSemester,
-                teacher=user,
-                courseCount=int(courseCount),
-                experienceTime=experienceTime,
-                studentCount=int(studentCount),
-                tcompany_id=request.user.tcompanymanagers_set.get().tcompany.id,
-                created_by=request.user,
-            )
+                tcourse = Course.objects.create(
+                    courseId=courseId,
+                    courseName=courseName,
+                    courseSeqNum=int(courseSeqNum),
+                    courseSemester=courseSemester,
+                    teacher=user,
+                    courseCount=int(courseCount),
+                    experienceTime=experienceTime,
+                    studentCount=int(studentCount),
+                    tcompany_id=companyId,
+                    created_by=request.user,
+                )
+            for student in course['item']:
+                studentNo = int(student[u'studentNo'])
+                studentName = str(student[u'studentName']).encode('utf8')
+                studentClassName = str(student[u'studentClassName']).encode('utf8') if student[
+                    u'studentClassName'] else None
+                try:
+                    if studentClassName:
+                        tclass = TClass.objects.filter(name=studentClassName).first()
+                        if not tclass:
+                            tclass = TClass.objects.create(name=studentClassName)
+                    else:
+                        tclass = None
+                    newStudent = Tuser(
+                        username=str(companyId) + '_' + str(studentNo),
+                        name=studentName,
+                        student_id=studentNo,
+                        class_name=studentClassName,
+                        tclass=tclass,
+                        password=make_password('123456'),
+                        tcompany=company,
+                        is_review=1,
+                        course_id=tcourse.id
+                    )
+                    newStudent.save()
+                    newStudent.roles.add(TRole.objects.get(id=9))
+                except Exception as e:
+                    print "student Exception"
+                    print e
+                    continue
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
