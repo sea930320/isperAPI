@@ -71,4 +71,12 @@ io.on('connection', function (socket) {
         });
     });
 
+    // 'guiderMessage' in the client side
+    socket.on('guider_message', function (msgObject) {
+        console.log(msgObject)
+        io.emit('getGuiderMessage', {
+            'result': msgObject
+        });
+    });
+
 });

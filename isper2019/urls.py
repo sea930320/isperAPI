@@ -193,6 +193,10 @@ urlpatterns += (
     url(r'^api/company/updateCManager$', group_views.update_company_manager),
     url(r'^api/company/pCResetManager$', group_views.reset_company_manager),
     url(r'^api/company/deleteCompanyManager$', group_views.delete_company_manager),
+    url(r'^api/group/groupChangeInfo', group_views.group_change_info),
+    url(r'^api/group/companyChangeInfo', group_views.company_change_info),
+    url(r'^api/group/groupChangeRequest', group_views.group_change_request),
+    url(r'^api/group/companyChangeRequest', group_views.company_change_request),
 )
 
 urlpatterns += (
@@ -346,6 +350,7 @@ urlpatterns += (
     url(r'^api/business/selectDecide/saveResult', business_views.api_business_selectDecide_save_result),
 
     url(r'^api/business/getGuiderList', business_views.api_business_get_guider_list),
+    url(r'^api/business/setGuider', business_views.api_business_set_guider),
 )
 
 urlpatterns += (
