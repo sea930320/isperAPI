@@ -154,7 +154,8 @@ def get_business_detail(business):
     if project:
         project_dict = {
             'id': project.id, 'name': project.name,
-            'office_item': project.officeItem.name if project.officeItem else None
+            'office_item': project.officeItem.name if project.officeItem else None,
+            'office_item_id': project.officeItem.id if project.officeItem else None,
         }
     else:
         project_dict = None

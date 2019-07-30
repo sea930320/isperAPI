@@ -5235,3 +5235,37 @@ def api_business_selectDecide_save_result(request):
         logger.exception('api_workflow_role_allocation_image_update Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_get_guider_list(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        login_type = request.session['login_type']
+        id = request.POST.get('id', None)
+        if login_type not in [5]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        GI = request.user.tcompany.group.groupInstructors.filter(instructorItems__id=id)
+        GIA = request.user.tcompany.group.groupInstructorAssistants.filter(instructorItems__id=id)
+        result = [{
+            'value': {'id': instructor.id, 'role': 4},
+            'html': instructor.username + " (指导者)"
+        } for instructor in GI]
+
+        result += [{
+            'value': {'id': instructor.id, 'role': 8},
+            'html': instructor.username + " (指导者助理)"
+        } for instructor in GIA]
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = result
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_own_group Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

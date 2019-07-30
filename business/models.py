@@ -5,7 +5,7 @@ from django.db import models
 from utils.storage import *
 from utils import const
 from project.models import Project, ProjectDoc
-from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts
+from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts, TRole
 from project.models import ProjectRoleAllocation
 from workflow.models import FlowNode, SelectDecideItem
 
@@ -576,6 +576,7 @@ class BusinessSurveyAnsweredUser(models.Model):
     def __unicode__(self):
         return self.id
 
+
 class BusinessAnswer(models.Model):
     survey = models.ForeignKey(BusinessSurvey, on_delete=models.CASCADE, verbose_name=u'Business Survey')
     question = models.ForeignKey(BusinessQuestion, on_delete=models.CASCADE, verbose_name=u'Business Question')
@@ -584,6 +585,28 @@ class BusinessAnswer(models.Model):
     question_cases = models.ManyToManyField(BusinessQuestionCase, verbose_name=u'Qustion Case Answer')
     user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者', null=True, default=None)
     answeredUser = models.ForeignKey(BusinessSurveyAnsweredUser, on_delete=models.CASCADE, verbose_name=u'Answered User', null=True, default=None)
+
+    class Meta:
+        db_table = "t_business_answer"
+        verbose_name_plural = verbose_name = u"t_business_answers"
+
+    def __unicode__(self):
+        return self.id
+
+
+class BusinessGuide(models.Model):
+    # business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
+    # guider = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Guider')
+    # role = models.ForeignKey(TRole, on_delete=models.CASCADE, verbose_name=u'Role')
+    #
+    # survey = models.ForeignKey(BusinessSurvey, on_delete=models.CASCADE, verbose_name=u'Business Survey')
+    # question = models.ForeignKey(BusinessQuestion, on_delete=models.CASCADE, verbose_name=u'Business Question')
+    # answer = models.TextField(verbose_name=u'Business Answer')
+    # question_title = models.TextField(verbose_name=u'Question Title', default='')
+    # question_cases = models.ManyToManyField(BusinessQuestionCase, verbose_name=u'Qustion Case Answer')
+    # user = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'创建者', null=True, default=None)
+    # answeredUser = models.ForeignKey(BusinessSurveyAnsweredUser, on_delete=models.CASCADE, verbose_name=u'Answered User', null=True, default=None)
+
     class Meta:
         db_table = "t_business_answer"
         verbose_name_plural = verbose_name = u"t_business_answers"
