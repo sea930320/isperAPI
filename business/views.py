@@ -37,6 +37,7 @@ from utils.public_fun import getProjectIDByGroupManager, \
     getProjectIDByGroupManagerAssistant
 from django.forms.models import model_to_dict
 from socketio.socketIO_client import SocketIO, LoggingNamespace
+from django.forms.models import model_to_dict
 import codecs
 import pypandoc
 from system.models import UploadFile
@@ -3708,6 +3709,8 @@ def api_save_poll_data(request):
                 newMember.save()
                 newPoll.members.add(newMember)
 
+            poll = newPoll
+
             if not poll.members.filter(user_id=request.user.pk).exists():
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {'status': 2, 'data': "请等到投票结束"}
@@ -5245,24 +5248,62 @@ def api_business_get_guider_list(request):
     try:
         login_type = request.session['login_type']
         id = request.POST.get('id', None)
+        bid = request.POST.get('bid', None)
         if login_type not in [5]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        GI = request.user.tcompany.group.groupInstructors.filter(instructorItems__id=id)
-        GIA = request.user.tcompany.group.groupInstructorAssistants.filter(instructorItems__id=id)
-        result = [{
-            'value': {'id': instructor.id, 'role': 4},
-            'html': instructor.username + " (指导者)"
-        } for instructor in GI]
+        businessGuide = BusinessGuide.objects.filter(business_id=bid).first()
+        if businessGuide is None:
+            GI = request.user.tcompany.group.groupInstructors.filter(instructorItems__id=id)
+            GIA = request.user.tcompany.group.groupInstructorAssistants.filter(instructorItems__id=id)
+            result = [{
+                'value': {'id': instructor.id, 'role': 4},
+                'html': instructor.username + " (指导者)"
+            } for instructor in GI]
 
-        result += [{
-            'value': {'id': instructor.id, 'role': 8},
-            'html': instructor.username + " (指导者助理)"
-        } for instructor in GIA]
+            result += [{
+                'value': {'id': instructor.id, 'role': 8},
+                'html': instructor.username + " (指导者助理)"
+            } for instructor in GIA]
 
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'status': 0, 'results': result}
+        else:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id'])}
+
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_own_group Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_set_guider(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        login_type = request.session['login_type']
+        guiderRole = request.POST.get('guiderRole', None)
+        guiderId = request.POST.get('guiderId', None)
+        bid = request.POST.get('bid', None)
+        if login_type not in [5]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        businessGuide = BusinessGuide.objects.create(
+            guider_id=guiderId,
+            role_id=guiderRole,
+            business_id=bid
+        )
+        
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = result
+        resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id'])}
+
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:

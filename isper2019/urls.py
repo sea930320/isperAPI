@@ -346,6 +346,7 @@ urlpatterns += (
     url(r'^api/business/selectDecide/saveResult', business_views.api_business_selectDecide_save_result),
 
     url(r'^api/business/getGuiderList', business_views.api_business_get_guider_list),
+    url(r'^api/business/setGuider', business_views.api_business_set_guider),
 )
 
 urlpatterns += (
