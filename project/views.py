@@ -721,7 +721,7 @@ def api_project_create(request):
             # TCourse.objects.get(courseName=course)
             with transaction.atomic():
                 obj = Project.objects.create(
-                    flow_id=flow_id, name=name, all_role=all_role, course=TCourse.objects.get(id=course),
+                    flow_id=flow_id, name=name, all_role=all_role, course=Course.objects.get(id=course),
                     reference=reference, public_status=public_status, level=level, officeItem_id=officeItem,
                     entire_graph=entire_graph, can_redo=can_redo, is_open=is_open,
                     ability_target=ability_target, start_time=start_time, end_time=end_time,
