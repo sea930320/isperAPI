@@ -45,7 +45,7 @@ def api_course_list(request):
         else:
             qs = Course.objects.filter(del_flag=0)
 
-        data = [{'value': item.id, 'text': item.courseName + '-' + item.teacher.name + '-'} for item in qs]
+        data = [{'value': item.id, 'text': (item.courseName + '-' + item.teacher.name + '-' + item.courseId) if item.courseId else (item.courseName + '-' + item.teacher.name)} for item in qs]
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': data}

@@ -344,7 +344,8 @@ urlpatterns += (
 
     url(r'^api/business/selectDecide/getSetting', business_views.api_business_selectDecide_get_setting),
     url(r'^api/business/selectDecide/saveResult', business_views.api_business_selectDecide_save_result),
-    # added by ser for edit module *end
+
+    url(r'^api/business/getGuiderList', business_views.api_business_get_guider_list),
 )
 
 urlpatterns += (
