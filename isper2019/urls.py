@@ -362,9 +362,12 @@ urlpatterns += (
     url(r'^api/student/team/my-list$', student_views.api_student_team_my_list),
     url(r'^api/student/team/available-list$', student_views.api_student_team_available_list),
     url(r'^api/student/team/detail$', student_views.api_student_team_detail),
-    url(r'^api/student/team/users', student_views.api_student_team_users),
-    url(r'^api/student/team/add-user', student_views.api_student_team_add_user),
-    url(r'^api/student/team/remove-user', student_views.api_student_team_remove_user),
+    url(r'^api/student/team/users$', student_views.api_student_team_users),
+    url(r'^api/student/team/add-user$', student_views.api_student_team_add_user),
+    url(r'^api/student/team/add-users$', student_views.api_student_team_add_users),
+    url(r'^api/student/team/remove-user$', student_views.api_student_team_remove_user),
+    url(r'^api/student/team/set-leader$', student_views.api_student_team_set_leader),
+    url(r'^api/student/team/remove$', student_views.api_student_team_remove),
 
     url(r'^api/student/teacher/list$', student_views.api_student_teacher_list),
     url(r'^api/student/watch-start$', student_views.api_student_watch_start),
@@ -382,6 +385,8 @@ urlpatterns += (
     url(r'^api/student/teacher/course-list$', student_views.api_student_teacher_course_list),
     url(r'^api/student/teacher/watching-list/by-course$', student_views.api_student_teacher_watching_list_by_course),
     url(r'^api/student/teacher/team-list/by-course$', student_views.api_student_teacher_team_list_by_course),
+
+    url(r'^api/student/instructor/new-team$', student_views.api_student_instructor_new_team),
 )
 
 urlpatterns += (

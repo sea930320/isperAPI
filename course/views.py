@@ -221,17 +221,21 @@ def api_course_hobby_list(request):
         search = request.GET.get("search", None)
         page = int(request.GET.get("page", 1))
         size = int(request.GET.get("size", const.ROW_SIZE))
+        login_type = request.session['login_type']
 
         if search:
             qs = Course.objects.filter(
                 Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
                     courseId__icontains=search)) &
-                Q(del_flag=0) & Q(type=1) &
-                Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
+                Q(del_flag=0) & Q(type=1)
             )
         else:
             qs = Course.objects.filter(
-                Q(del_flag=0) & Q(type=1) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+                Q(del_flag=0) & Q(type=1))
+        if login_type in [4, 8]:
+            qs = qs.filter(created_by=request.user)
+        else:
+            qs = qs.filter(Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -241,36 +245,39 @@ def api_course_hobby_list(request):
             paginator = Paginator(qs, size)
 
             try:
-                flows = paginator.page(page)
+                courses = paginator.page(page)
             except EmptyPage:
-                flows = paginator.page(1)
+                courses = paginator.page(1)
 
             results = [{
-                'id': flow.id,
-                'courseName': flow.courseName,
-                'teacherName': flow.teacher.name,
-                'created_by': flow.created_by.username,
-                'create_time': flow.create_time.strftime('%Y-%m-%d'),
+                'id': course.id,
+                'courseName': course.courseName,
+                'courseSemester': course.courseSemester,
+                'courseCount': course.courseCount,
+                'experienceTime': course.experienceTime,
+                'teacherName': course.teacher.name,
+                'created_by': course.created_by.username,
+                'create_time': course.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
                     'id': item.id,
                     'name': item.name,
                     'target_company': item.target_company.name if item.target_company else item.target_part.company.name,
-                } for item in Business.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()],
+                } for item in Business.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()],
                 'linked_team': [{
                     'id': team.id,
                     'name': team.name,
                     'leader': team.team_leader.username,
                     'create_time': team.create_time.strftime('%Y-%m-%d'),
                     'member_count': team.members.count(),
-                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()]
-            } for flow in flows]
+                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()]
+            } for course in courses]
 
             paging = {
                 'count': paginator.count,
-                'has_previous': flows.has_previous(),
-                'has_next': flows.has_next(),
+                'has_previous': courses.has_previous(),
+                'has_next': courses.has_next(),
                 'num_pages': paginator.num_pages,
-                'cur_page': flows.number,
+                'cur_page': courses.number,
             }
 
             resp = code.get_msg(code.SUCCESS)
@@ -300,17 +307,28 @@ def api_course_save_new(request):
         experienceTime = request.POST.get("experienceTime")
         studentCount = request.POST.get("studentCount")
 
-        user = AllGroups.objects.get(
-            id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
-            username=teacherName + '-' + teacherId,
-            name=teacherName,
-            teacher_id=teacherId,
-            password=make_password('1234567890'),
-            tcompany=request.user.tcompanymanagers_set.get().tcompany,
-            is_review=1,
-        )
-        user.roles.add(TRole.objects.get(id=4))
+        login_type = request.session['login_type']
 
+        if login_type not in [4, 8, 3, 7]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if login_type not in [4, 8]:
+            user = AllGroups.objects.get(
+                id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
+                username=teacherName + '-' + teacherId,
+                name=teacherName,
+                teacher_id=teacherId,
+                password=make_password('1234567890'),
+                tcompany=request.user.tcompanymanagers_set.get().tcompany,
+                is_review=1,
+            )
+            user.roles.add(TRole.objects.get(id=4))
+            type = 0
+            tcompany_id = request.user.tcompanymanagers_set.get().tcompany.id
+        else:
+            user = request.user
+            type = 1
+            tcompany_id = request.user.tcompany.id
         Course.objects.create(
             courseId=courseId,
             courseName=courseName,
@@ -320,8 +338,9 @@ def api_course_save_new(request):
             courseCount=int(courseCount),
             experienceTime=experienceTime,
             studentCount=int(studentCount),
-            tcompany_id=request.user.tcompanymanagers_set.get().tcompany.id,
+            tcompany_id=tcompany_id,
             created_by=request.user,
+            type = type
         )
 
         resp = code.get_msg(code.SUCCESS)
