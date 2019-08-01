@@ -5253,7 +5253,7 @@ def api_business_get_guider_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        businessGuide = BusinessGuide.objects.filter(business_id=bid).first()
+        businessGuide = BusinessGuide.objects.filter(business_id=bid, request=request.user).first()
         if businessGuide is None:
             GI = request.user.tcompany.group.groupInstructors.filter(instructorItems__id=id)
             GIA = request.user.tcompany.group.groupInstructorAssistants.filter(instructorItems__id=id)
@@ -5271,7 +5271,7 @@ def api_business_get_guider_list(request):
             resp['d'] = {'status': 0, 'results': result}
         else:
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id'])}
+            resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id', 'request_id'])}
 
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -5298,11 +5298,12 @@ def api_business_set_guider(request):
         businessGuide = BusinessGuide.objects.create(
             guider_id=guiderId,
             role_id=guiderRole,
-            business_id=bid
+            business_id=bid,
+            request_id=request.user.id,
         )
         
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id'])}
+        resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id', 'request_id'])}
 
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -5310,3 +5311,201 @@ def api_business_set_guider(request):
         logger.exception('get_own_group Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_get_guider_message(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        guider_id = request.GET.get("guider_id", None)
+
+        message = GuideChatLog.objects.filter(guide_id=guider_id)
+        message_list = []
+        for m in message:
+            message_list.append({
+                'sender': m.sender_id,
+                'name': m.sender.username,
+                'msg': m.msg,
+                'create_time': m.create_time.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'results': message_list
+        }
+    except Exception as e:
+        logger.exception('api_student_msg_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_get_chatRoom_id(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        officeItem = request.GET.get("officeItem", None)
+
+        group_id = request.user.tcompany.group_id
+        ba = BusinessAsk.objects.filter(office_id=officeItem, group_id=group_id).first()
+        if ba is None:
+            ba = BusinessAsk.objects.create(
+                office_id=officeItem,
+                group_id=group_id
+            )
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'room_id': ba.id}
+    except Exception as e:
+        logger.exception('api_business_get_chatRoom_id Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_send_guider_message(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        guide_id = request.POST.get("guide_id", None)
+        msg = request.POST.get("msg", None)
+
+        if None in [guide_id, msg]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        gcl = GuideChatLog.objects.create(guide_id=guide_id, msg=msg, sender=request.user)
+        resp = code.get_msg(code.SUCCESS)
+        msgDict = {'guide_id': gcl.guide_id, 'sender': gcl.sender_id, 'name': gcl.sender.username, 'msg': gcl.msg, 'create_time': gcl.create_time.strftime('%Y-%m-%d %H:%M:%S')}
+        with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
+            socketIO.emit('guider_message', msgDict)
+            socketIO.wait_for_callbacks(seconds=1)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_get_business_guide_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        businessGuide = BusinessGuide.objects.filter(guider_id=request.user.id, role_id=request.session['login_type'])
+
+        resp = code.get_msg(code.SUCCESS)
+        if businessGuide is not None:
+            resp['d'] = [{
+                'id': bg.id,
+                'business_id': bg.business_id,
+                'business_name': bg.business.name,
+                'create_time': bg.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'request': bg.request.username,
+            } for bg in businessGuide]
+        else:
+            resp['d'] = []
+
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_own_group Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_get_chatRooms(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        login_type = request.session['login_type']
+        if login_type not in [4, 8]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        group_id = None
+        if login_type == 4:
+            group_id = request.user.allgroups_set_instructors.get().id
+        else:
+            group_id = request.user.allgroups_set_instructor_assistants.get().id
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = []
+        for item in request.user.instructorItems.all():
+            ba = BusinessAsk.objects.filter(office=item, group_id=group_id).first()
+            if ba is None:
+                ba = BusinessAsk.objects.create(
+                    office=item,
+                    group_id=group_id
+                )
+            resp['d'].append({
+                'room_id': ba.id,
+                'group_id': group_id,
+                'officeItem': item.name
+            })
+
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_own_group Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_get_chatRoom_messages(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        room_id = request.POST.get("room_id", None)
+
+        messages = AskChatLog.objects.filter(ask_id=room_id)
+        message_list = []
+        for m in messages:
+            message_list.append({
+                'sender': m.sender_id,
+                'name': m.sender.username,
+                'role': m.sender_role_id,
+                'msg': m.msg,
+                'create_time': m.create_time.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'results': message_list
+        }
+    except Exception as e:
+        logger.exception('api_student_msg_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_send_ask_messages(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        login_type = request.session['login_type']
+        room_id = request.POST.get("room_id", None)
+        msg = request.POST.get("msg", None)
+
+        if None in [room_id, msg]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        acl = AskChatLog.objects.create(ask_id=room_id, msg=msg, sender=request.user, sender_role_id=login_type)
+        resp = code.get_msg(code.SUCCESS)
+        msgDict = {'room_id': acl.ask_id, 'sender': acl.sender_id, 'name': acl.sender.username, 'role': acl.sender_role_id, 'msg': acl.msg, 'create_time': acl.create_time.strftime('%Y-%m-%d %H:%M:%S')}
+        with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
+            socketIO.emit('ask_message', msgDict)
+            socketIO.wait_for_callbacks(seconds=1)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

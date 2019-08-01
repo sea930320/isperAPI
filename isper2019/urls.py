@@ -347,6 +347,13 @@ urlpatterns += (
 
     url(r'^api/business/getGuiderList', business_views.api_business_get_guider_list),
     url(r'^api/business/setGuider', business_views.api_business_set_guider),
+    url(r'^api/business/getGuiderMessage', business_views.api_business_get_guider_message),
+    url(r'^api/business/sendGuiderMessage', business_views.api_business_send_guider_message),
+    url(r'^api/business/getBusinessGuideList', business_views.api_business_get_business_guide_list),
+    url(r'^api/business/getChatRooms', business_views.api_business_get_chatRooms),
+    url(r'^api/business/getChatRoomMessages', business_views.api_business_get_chatRoom_messages),
+    url(r'^api/business/sendAskMessage', business_views.api_business_send_ask_messages),
+    url(r'^api/business/getChatRoomId', business_views.api_business_get_chatRoom_id),
 )
 
 urlpatterns += (

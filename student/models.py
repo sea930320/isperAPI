@@ -92,6 +92,7 @@ class StudentChatLog(models.Model):
     def __unicode__(self):
         return str(self.business.id)
 
+
 class StudentTodoList(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Created By', related_name="todo_created_by")

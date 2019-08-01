@@ -732,6 +732,7 @@ def add_company_assistant(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def update_company_manager(request):
     resp = auth_check(request, "POST")
     if resp != {}:
