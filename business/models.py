@@ -7,6 +7,7 @@ from utils import const
 from project.models import Project, ProjectDoc
 from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts, TRole
 from project.models import ProjectRoleAllocation
+from group.models import *
 from workflow.models import FlowNode, SelectDecideItem
 
 
@@ -596,8 +597,10 @@ class BusinessAnswer(models.Model):
 
 class BusinessGuide(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
-    guider = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Guider')
+    guider = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Guider', related_name="guider_set")
+    request = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Request', related_name="request_set")
     role = models.ForeignKey(TRole, on_delete=models.CASCADE, verbose_name=u'Role')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
 
     class Meta:
         db_table = "t_business_guider"
@@ -605,3 +608,47 @@ class BusinessGuide(models.Model):
 
     def __unicode__(self):
         return self.id
+
+
+class GuideChatLog(models.Model):
+    guide = models.ForeignKey(BusinessGuide, on_delete=models.CASCADE, verbose_name=u'Guide')
+    msg = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'消息内容')
+    sender = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Tuser')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_guide_chatlog"
+        verbose_name_plural = verbose_name = u"GuideChatLog"
+
+    def __unicode__(self):
+        return str(self.guide_id)
+
+
+class BusinessAsk(models.Model):
+    office = models.ForeignKey(OfficeItems, on_delete=models.CASCADE, verbose_name=u'Office')
+    group = models.ForeignKey(AllGroups, on_delete=models.CASCADE, verbose_name=u'Group')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+
+    class Meta:
+        db_table = "t_business_ask"
+        verbose_name_plural = verbose_name = u"t_business_ask"
+
+    def __unicode__(self):
+        return self.id
+
+
+class AskChatLog(models.Model):
+    ask = models.ForeignKey(BusinessAsk, on_delete=models.CASCADE, verbose_name=u'Ask')
+    msg = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'消息内容')
+    sender = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Tuser')
+    sender_role = models.ForeignKey(TRole, on_delete=models.CASCADE, verbose_name=u'Sender Role')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_ask_chatlog"
+        verbose_name_plural = verbose_name = u"AskChatLog"
+
+    def __unicode__(self):
+        return str(self.ask_id)
