@@ -104,7 +104,7 @@ def api_student_watch_business_list(request):
             company = item.target_company if item.target_company else item.target_part.company if item.target_part else None
             company = {'id': company.pk, 'name': company.name} if company else None
 
-            if no_paging and type==1:
+            if no_paging and type == 1:
                 business = {
                     'id': item.id, 'name': item.name, 'show_nickname': item.show_nickname,
                     'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
@@ -182,7 +182,7 @@ def api_student_watch_course_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = Course.objects.filter(tcompany=user.tcompany, type__in=[0,1], del_flag=0)
+        qs = Course.objects.filter(tcompany=user.tcompany, type__in=[0, 1], del_flag=0)
         data = [{
             'value': item.id,
             'text': item.courseName,
@@ -241,7 +241,8 @@ def api_student_team_detail(request):
             stwt = StudentWatchingTeam.objects.filter(pk=stwb.team_id).first()
             if stwt is None:
                 continue
-            teacher = model_to_dict(stwb.course.teacher, fields=['id', 'username', 'name', 'teacher_id', 'gender'])
+            teacher = model_to_dict(stwb.course.teacher,
+                                    fields=['id', 'username', 'name', 'teacher_id', 'gender']) if stwb.course else {}
             members = [model_to_dict(member, fields=['id', 'username', 'name', 'student_id', 'gender']) for member in
                        stwt.members.all()]
             team = {'teacher': teacher, 'members': members, 'name': stwt.name, 'id': stwt.id,
@@ -555,9 +556,13 @@ def api_student_watch_start(request):
                 is_created = True
         else:
             extra_course = watch_config['extra_course']
-            sel_course = Course.objects.create(courseName=extra_course['name'],
-                                               teacher=Tuser.objects.get(pk=extra_course['teacher']), created_by=user,
-                                               type=2, tcompany=user.tcompany)
+            if not extra_course['name'] and not extra_course['teacher']:
+                sel_course = None
+            else:
+                sel_course = Course.objects.create(courseName=extra_course['name'],
+                                                   teacher=Tuser.objects.get(pk=extra_course['teacher']),
+                                                   created_by=user,
+                                                   type=2, tcompany=user.tcompany)
         if not is_created:
             stwb = StudentWatchingBusiness.objects.create(university=user.tcompany, course=sel_course,
                                                           business=sel_business,
@@ -1185,7 +1190,7 @@ def api_student_teacher_course_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = Course.objects.filter(teacher=teacher, del_flag=0, type__in=[0,1])
+        qs = Course.objects.filter(teacher=teacher, del_flag=0)
         courses = []
         for item in qs:
             course = model_to_dict(item, fields=['id', 'courseId', 'courseName', 'courseSeqNum', 'courseSemester',
@@ -1241,6 +1246,16 @@ def api_student_teacher_watching_list_by_course(request):
             team['team_leader'] = model_to_dict(swb.team.team_leader,
                                                 fields=['id', 'name', 'username']) if swb.team.team_leader else None
             team['create_time'] = swb.team.create_time.strftime('%Y-%m-%d') if swb.team.create_time else None
+            team['members'] = []
+            for member in swb.team.members.all():
+                team_member = model_to_dict(member,
+                                            fields=['id', 'username', 'name', 'student_id', 'gender', 'class_name'])
+                swbtme = StudentWatchingBusinessTeamMemberEval.objects.filter(stwb_id=swb.id,
+                                                                              member_id=member.id).first()
+                team_member['eval'] = ''
+                if swbtme:
+                    team_member['eval'] = swbtme.eval
+                team['members'].append(team_member)
 
             business = swb.business
             project = Project.objects.filter(pk=business.project_id).first()
@@ -1266,6 +1281,7 @@ def api_student_teacher_watching_list_by_course(request):
             result = {
                 'id': swb.id,
                 'course_id': swb.course_id,
+                'teamEval': swb.teamEval,
                 'created_by': user_simple_info(swb.created_by_id),
                 'team': team,
                 'university': model_to_dict(swb.university, fields=['id', 'name']),
@@ -1339,7 +1355,8 @@ def api_student_teacher_team_list_by_course(request):
 
         for item in teams:
             team = model_to_dict(item, fields=['id', 'name', 'type'])
-            business_ids = StudentWatchingBusiness.objects.filter(team_id=item.id, del_flag=0).values_list('business_id', flat=True)
+            business_ids = StudentWatchingBusiness.objects.filter(team_id=item.id, del_flag=0).values_list(
+                'business_id', flat=True)
             businessList = []
             for business_id in business_ids:
                 business = Business.objects.filter(pk=business_id).first()
@@ -1373,6 +1390,7 @@ def api_student_teacher_team_list_by_course(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_student_instructor_new_team(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -1404,6 +1422,44 @@ def api_student_instructor_new_team(request):
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_student_team_add_users Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_student_instructor_team_eval(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        stwb_id = request.POST.get("id", None)
+        teamEval = request.POST.get("teamEval", None)
+        member_evals = request.POST.get("member_evals", None)
+
+        login_type = request.session['login_type']
+        if login_type not in [4, 8]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        member_evals = json.loads(member_evals)
+        stwb = StudentWatchingBusiness.objects.filter(pk=stwb_id).first()
+        if not stwb:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        stwb.teamEval = teamEval
+        stwb.save()
+        for member_eval in member_evals:
+            swbtme = StudentWatchingBusinessTeamMemberEval.objects.filter(stwb=stwb,
+                                                                          member_id=member_eval['id']).first()
+            if not swbtme:
+                StudentWatchingBusinessTeamMemberEval.objects.create(stwb=stwb, member_id=member_eval['id'],
+                                                                     eval=member_eval['eval'])
+                continue
+            swbtme.eval = member_eval['eval']
+            swbtme.save()
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_student_instructor_team_eval Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

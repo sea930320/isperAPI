@@ -36,10 +36,11 @@ class StudentWatchingTeam(models.Model):
 
 class StudentWatchingBusiness(models.Model):
     university = models.ForeignKey(TCompany, on_delete=models.CASCADE, verbose_name=u'University')
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name=u'Course')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name=u'Course', null=True)
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Watching Business')
     team = models.ForeignKey(StudentWatchingTeam, on_delete=models.CASCADE, verbose_name=u'Watching Team')
     created_by = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Created By')
+    teamEval = models.TextField(verbose_name=u'Team Evaluation', default='')
 
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
@@ -53,6 +54,22 @@ class StudentWatchingBusiness(models.Model):
     def __unicode__(self):
         return str(self.university_id)
 
+class StudentWatchingBusinessTeamMemberEval(models.Model):
+    stwb = models.ForeignKey(StudentWatchingBusiness, on_delete=models.CASCADE, verbose_name=u'Student Watching Business')
+    member = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Team Member')
+    eval = models.TextField(verbose_name=u'Team Member Evaluation', default='')
+
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+
+    class Meta:
+        db_table = "t_student_watching_business_team_member_eval"
+        verbose_name_plural = verbose_name = u"StudentWatchingBusinessTeamMemberEvals"
+        ordering = ['-create_time']
+
+    def __unicode__(self):
+        return str(self.id)
 
 class StudentRequestAssistStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Watching Business')

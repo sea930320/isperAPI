@@ -394,6 +394,7 @@ urlpatterns += (
     url(r'^api/student/teacher/team-list/by-course$', student_views.api_student_teacher_team_list_by_course),
 
     url(r'^api/student/instructor/new-team$', student_views.api_student_instructor_new_team),
+    url(r'^api/student/instructor/team-eval$', student_views.api_student_instructor_team_eval),
 )
 
 urlpatterns += (
