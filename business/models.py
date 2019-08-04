@@ -652,3 +652,20 @@ class AskChatLog(models.Model):
 
     def __unicode__(self):
         return str(self.ask_id)
+
+
+class BusinessEvaluation(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE,  blank=True, null=True, verbose_name=u'business')
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE,  blank=True, null=True, verbose_name=u'user')
+    role_alloc = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,  blank=True, null=True, verbose_name=u'role_alloc')
+    comment = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'comment')
+    value = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'value')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_business_evaluation"
+        verbose_name_plural = verbose_name = u"BusinessEvaluation"
+
+    def __unicode__(self):
+        return str(self.pk)
