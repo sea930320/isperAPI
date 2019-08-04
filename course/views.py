@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 # 课程列表
 def api_course_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -41,11 +40,14 @@ def api_course_list(request):
         search = request.GET.get("search", None)  # 搜索关键字
 
         if search:
-            qs = Course.objects.filter(Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) & Q(del_flag=0))
+            qs = Course.objects.filter(Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                courseId__icontains=search)) & Q(del_flag=0))
         else:
             qs = Course.objects.filter(del_flag=0)
 
-        data = [{'value': item.id, 'text': (item.courseName + '-' + item.teacher.name + '-' + item.courseId) if item.courseId else (item.courseName + '-' + item.teacher.name)} for item in qs]
+        data = [{'value': item.id,
+                 'text': (item.courseName + '-' + item.teacher.name + '-' + item.courseId) if item.courseId else (
+                     item.courseName + '-' + item.teacher.name)} for item in qs]
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': data}
@@ -59,7 +61,6 @@ def api_course_list(request):
 
 # 课程列表
 def api_course_full_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -71,12 +72,14 @@ def api_course_full_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                    courseId__icontains=search)) &
                 Q(del_flag=0) & Q(type=0) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
             )
         else:
-            qs = Course.objects.filter(Q(del_flag=0) & Q(type=0) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+            qs = Course.objects.filter(
+                Q(del_flag=0) & Q(type=0) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -94,7 +97,7 @@ def api_course_full_list(request):
                 'id': flow.id,
                 'courseId': flow.courseId,
                 'courseName': flow.courseName,
-                'courseFullName': flow.courseName + '-' + flow.teacher.name + '-' + flow.courseId,
+                'courseFullName': flow.courseName if flow.courseName else '' + '-' + flow.teacher.name if flow.teacher else '' + '-' + flow.courseId if flow.courseId else '',
                 'courseSeqNum': flow.courseSeqNum,
                 'courseSemester': flow.courseSemester,
                 'teacherName': flow.teacher.name,
@@ -138,7 +141,6 @@ def api_course_full_list(request):
 
 # 课程列表
 def api_course_outside_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -150,12 +152,14 @@ def api_course_outside_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                    courseId__icontains=search)) &
                 Q(del_flag=0) & Q(type=2) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
             )
         else:
-            qs = Course.objects.filter(Q(del_flag=0) & Q(type=2) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+            qs = Course.objects.filter(
+                Q(del_flag=0) & Q(type=2) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -209,7 +213,6 @@ def api_course_outside_list(request):
 
 # 课程列表
 def api_course_hobby_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -218,15 +221,21 @@ def api_course_hobby_list(request):
         search = request.GET.get("search", None)
         page = int(request.GET.get("page", 1))
         size = int(request.GET.get("size", const.ROW_SIZE))
+        login_type = request.session['login_type']
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(courseId__icontains=search)) &
-                Q(del_flag=0) & Q(type=1) &
-                Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
+                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                    courseId__icontains=search)) &
+                Q(del_flag=0) & Q(type=1)
             )
         else:
-            qs = Course.objects.filter(Q(del_flag=0) & Q(type=1) & Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
+            qs = Course.objects.filter(
+                Q(del_flag=0) & Q(type=1))
+        if login_type in [4, 8]:
+            qs = qs.filter(created_by=request.user)
+        else:
+            qs = qs.filter(Q(tcompany=request.user.tcompanymanagers_set.get().tcompany))
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
@@ -236,36 +245,39 @@ def api_course_hobby_list(request):
             paginator = Paginator(qs, size)
 
             try:
-                flows = paginator.page(page)
+                courses = paginator.page(page)
             except EmptyPage:
-                flows = paginator.page(1)
+                courses = paginator.page(1)
 
             results = [{
-                'id': flow.id,
-                'courseName': flow.courseName,
-                'teacherName': flow.teacher.name,
-                'created_by': flow.created_by.username,
-                'create_time': flow.create_time.strftime('%Y-%m-%d'),
+                'id': course.id,
+                'courseName': course.courseName,
+                'courseSemester': course.courseSemester,
+                'courseCount': course.courseCount,
+                'experienceTime': course.experienceTime,
+                'teacherName': course.teacher.name,
+                'created_by': course.created_by.username,
+                'create_time': course.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
                     'id': item.id,
                     'name': item.name,
                     'target_company': item.target_company.name if item.target_company else item.target_part.company.name,
-                } for item in Business.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()],
+                } for item in Business.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()],
                 'linked_team': [{
                     'id': team.id,
                     'name': team.name,
                     'leader': team.team_leader.username,
                     'create_time': team.create_time.strftime('%Y-%m-%d'),
                     'member_count': team.members.count(),
-                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()]
-            } for flow in flows]
+                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()]
+            } for course in courses]
 
             paging = {
                 'count': paginator.count,
-                'has_previous': flows.has_previous(),
-                'has_next': flows.has_next(),
+                'has_previous': courses.has_previous(),
+                'has_next': courses.has_next(),
                 'num_pages': paginator.num_pages,
-                'cur_page': flows.number,
+                'cur_page': courses.number,
             }
 
             resp = code.get_msg(code.SUCCESS)
@@ -280,7 +292,6 @@ def api_course_hobby_list(request):
 
 # 课程列表
 def api_course_save_new(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -296,16 +307,28 @@ def api_course_save_new(request):
         experienceTime = request.POST.get("experienceTime")
         studentCount = request.POST.get("studentCount")
 
-        user = AllGroups.objects.get(id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
-            username=teacherName + '-' + teacherId,
-            name=teacherName,
-            teacher_id=teacherId,
-            password=make_password('1234567890'),
-            tcompany=request.user.tcompanymanagers_set.get().tcompany,
-            is_review=1,
-        )
-        user.roles.add(TRole.objects.get(id=4))
+        login_type = request.session['login_type']
 
+        if login_type not in [4, 8, 3, 7]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if login_type not in [4, 8]:
+            user = AllGroups.objects.get(
+                id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
+                username=teacherName + '-' + teacherId,
+                name=teacherName,
+                teacher_id=teacherId,
+                password=make_password('1234567890'),
+                tcompany=request.user.tcompanymanagers_set.get().tcompany,
+                is_review=1,
+            )
+            user.roles.add(TRole.objects.get(id=4))
+            type = 0
+            tcompany_id = request.user.tcompanymanagers_set.get().tcompany.id
+        else:
+            user = request.user
+            type = 1
+            tcompany_id = request.user.tcompany.id
         Course.objects.create(
             courseId=courseId,
             courseName=courseName,
@@ -315,8 +338,9 @@ def api_course_save_new(request):
             courseCount=int(courseCount),
             experienceTime=experienceTime,
             studentCount=int(studentCount),
-            tcompany_id=request.user.tcompanymanagers_set.get().tcompany.id,
+            tcompany_id=tcompany_id,
             created_by=request.user,
+            type = type
         )
 
         resp = code.get_msg(code.SUCCESS)
@@ -331,7 +355,6 @@ def api_course_save_new(request):
 
 # 课程列表
 def api_course_save_edit(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -362,13 +385,13 @@ def api_course_save_edit(request):
 
 # 课程列表
 def api_course_get_teacher_list(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        teachers = AllGroups.objects.get(id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.filter(
+        teachers = AllGroups.objects.get(
+            id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.filter(
             tcompany_id=request.user.tcompanymanagers_set.get().tcompany.id,
             teacher_id__isnull=False
         )
@@ -390,7 +413,6 @@ def api_course_get_teacher_list(request):
 
 # 课程列表
 def api_course_check_attention(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -421,7 +443,6 @@ def api_course_check_attention(request):
 
 # 课程列表
 def api_course_save_teacher_change(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -444,7 +465,6 @@ def api_course_save_teacher_change(request):
 
 # 课程列表
 def api_course_delete_course(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -483,13 +503,19 @@ def api_course_excel_data_save(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if request.session['login_type'] not in [3, 7]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        excelData = request.POST.get("excelData", None)
+        company = request.user.tcompanymanagers_set.get().tcompany if request.session['login_type'] == 3 \
+            else request.user.t_company_set_assistants.get()
+        companyId = company.id
 
-        for item in json.loads(excelData):
+        excelData = request.POST.get("excelData", None)
+        excelData = json.loads(excelData)
+        for course in excelData:
+            print course['item']
+            item = course['item'][0]
             courseId = str(item[u'courseId']).encode('utf8')
             courseName = str(item[u'courseName']).encode('utf8')
             courseSeqNum = int(item[u'courseSeqNum'])
@@ -500,28 +526,68 @@ def api_course_excel_data_save(request):
             experienceTime = str(item[u'experienceTime']).encode('utf8')
             studentCount = int(item[u'studentCount'])
 
-            user = AllGroups.objects.get(id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
-                username=teacherName + '-' + teacherId,
-                name=teacherName,
-                teacher_id=teacherId,
-                password=make_password('1234567890'),
-                tcompany=request.user.tcompanymanagers_set.get().tcompany,
-                is_review=1,
-            )
-            user.roles.add(TRole.objects.get(id=4))
+            tcourse = Course.objects.filter(courseId=courseId).first()
+            if tcourse is None:
+                try:
+                    user = AllGroups.objects.get(id=company.group_id) \
+                        .groupInstructors.create(
+                        username=teacherName + '-' + teacherId,
+                        name=teacherName,
+                        teacher_id=teacherId,
+                        password=make_password('1234567890'),
+                        tcompany=company,
+                        is_review=1,
+                    )
+                    user.roles.add(TRole.objects.get(id=4))
+                except Exception as e:
+                    user = AllGroups.objects.get(id=company.group_id) \
+                        .groupInstructors.filter(
+                        username=teacherName + '-' + teacherId
+                    ).first()
+                    if not user:
+                        continue
 
-            Course.objects.create(
-                courseId=courseId,
-                courseName=courseName,
-                courseSeqNum=int(courseSeqNum),
-                courseSemester=courseSemester,
-                teacher=user,
-                courseCount=int(courseCount),
-                experienceTime=experienceTime,
-                studentCount=int(studentCount),
-                tcompany_id=request.user.tcompanymanagers_set.get().tcompany.id,
-                created_by=request.user,
-            )
+                tcourse = Course.objects.create(
+                    courseId=courseId,
+                    courseName=courseName,
+                    courseSeqNum=int(courseSeqNum),
+                    courseSemester=courseSemester,
+                    teacher=user,
+                    courseCount=int(courseCount),
+                    experienceTime=experienceTime,
+                    studentCount=int(studentCount),
+                    tcompany_id=companyId,
+                    created_by=request.user,
+                )
+            for student in course['item']:
+                studentNo = int(student[u'studentNo'])
+                studentName = str(student[u'studentName']).encode('utf8')
+                studentClassName = str(student[u'studentClassName']).encode('utf8') if student[
+                    u'studentClassName'] else None
+                try:
+                    if studentClassName:
+                        tclass = TClass.objects.filter(name=studentClassName).first()
+                        if not tclass:
+                            tclass = TClass.objects.create(name=studentClassName)
+                    else:
+                        tclass = None
+                    newStudent = Tuser(
+                        username=str(companyId) + '_' + str(studentNo),
+                        name=studentName,
+                        student_id=studentNo,
+                        class_name=studentClassName,
+                        tclass=tclass,
+                        password=make_password('123456'),
+                        tcompany=company,
+                        is_review=1,
+                        course_id=tcourse.id
+                    )
+                    newStudent.save()
+                    newStudent.roles.add(TRole.objects.get(id=9))
+                except Exception as e:
+                    print "student Exception"
+                    print e
+                    continue
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -535,7 +601,6 @@ def api_course_excel_data_save(request):
 
 # 课程列表
 def api_course_get_init_attention_data(request):
-
     resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -546,12 +611,14 @@ def api_course_get_init_attention_data(request):
         size = int(request.GET.get("size", const.ROW_SIZE))
 
         if search:
-            qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany, linked_company__name__icontains=search)
+            qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany,
+                                                        linked_company__name__icontains=search)
         else:
             qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany)
 
         groupID = request.user.tcompanymanagers_set.get().tcompany.group_id
-        clist = [{'value': item.id, 'text': item.name} for item in TCompany.objects.filter(Q(group_id=groupID, is_default=0) & ~Q(companyType__name='学校'))]
+        clist = [{'value': item.id, 'text': item.name} for item in
+                 TCompany.objects.filter(Q(group_id=groupID, is_default=0) & ~Q(companyType__name='学校'))]
 
         paginator = Paginator(qs, size)
 
@@ -591,7 +658,6 @@ def api_course_get_init_attention_data(request):
 
 # 课程列表
 def api_course_send_request_data(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -631,7 +697,6 @@ def api_course_send_request_data(request):
 
 # 课程列表
 def api_course_send_cancel_data(request):
-
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

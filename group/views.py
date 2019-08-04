@@ -9,8 +9,8 @@ from django.db.models import Q
 from django.contrib.auth.hashers import (
     check_password, is_password_usable, make_password,
 )
-from group.models import AllGroups
-from account.models import Tuser, TRole, OfficeItems, TCompany, TCompanyType
+from group.models import AllGroups, TGroupChange
+from account.models import Tuser, TRole, OfficeItems, TCompany, TCompanyType, TCompanyChange
 from django.forms.models import model_to_dict
 from utils.permission import permission_check
 
@@ -49,7 +49,8 @@ def get_groups_list(request):
 
             results = []
             for flow in flows:
-                groupManager = [{'id': item.id, 'name': item.username, 'description': item.comment} for item in flow.groupManagers.all().order_by('-id')]
+                groupManager = [{'id': item.id, 'name': item.username, 'description': item.comment} for item in
+                                flow.groupManagers.all().order_by('-id')]
                 if groupManager is None:
                     groupManager = [{}]
                 results.append({
@@ -241,6 +242,7 @@ def group_add_manager(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def group_add_assistant(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -338,7 +340,8 @@ def get_own_group(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         id = request.user.id
-        group = AllGroups.objects.get(groupManagers=id) if login_type == 2 else request.user.allgroups_set_assistants.get()
+        group = AllGroups.objects.get(
+            groupManagers=id) if login_type == 2 else request.user.allgroups_set_assistants.get()
         groupInstructors = [{'id': instructor.id, 'name': instructor.username,
                              'instructorItems': [{'id': item.id, 'text': item.name} for item in
                                                  instructor.instructorItems.all()]} for instructor in
@@ -537,7 +540,8 @@ def create_new_company(request):
         login_type = request.session['login_type']
         user = request.user
         if TCompany.objects.filter(
-                Q(group=user.allgroups_set.get() if login_type == 2 else user.allgroups_set_assistants.get()) & Q(
+                        Q(
+                            group=user.allgroups_set.get() if login_type == 2 else user.allgroups_set_assistants.get()) & Q(
                     name=request.POST.get("name"))).count() > 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': 'nameError'}
@@ -626,7 +630,9 @@ def update_company(request):
         login_type = request.session['login_type']
         user = request.user
 
-        if TCompany.objects.filter(Q(group=user.allgroups_set.get() if login_type == 2 else user.allgroups_set_assistants.get()) & Q(name=name) & Q(companyType__name=type)).count() > 0:
+        if TCompany.objects.filter(Q(
+                group=user.allgroups_set.get() if login_type == 2 else user.allgroups_set_assistants.get()) & Q(
+            name=name) & Q(companyType__name=type)).count() > 0:
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': 'nameError'}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -689,8 +695,8 @@ def add_company_manager(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-def add_company_assistant(request):
 
+def add_company_assistant(request):
     resp = auth_check(request, "POST")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -821,7 +827,7 @@ def check_user_group(request):
         groupID = None
         results = None
         if len(Tuser.objects.filter(username=username)) == 0:
-            results = 0                                                                 # non Exist User
+            results = 0  # non Exist User
         else:
             user = Tuser.objects.get(username=username)
             userRoles = list(user.roles.values_list('id', flat=True))
@@ -844,15 +850,15 @@ def check_user_group(request):
                 groupID = user.allgroups_set_instructor_assistants.get().id
 
             if group == -1:
-                results = 2                                                             # Exist User
+                results = 2  # Exist User
             elif groupID == -1:
-                results = 4                                                             # Super User
+                results = 4  # Super User
             elif int(group) != groupID:
-                results = 2                                                             # Exist on Other Group
+                results = 2  # Exist on Other Group
             elif int(group) == groupID and int(role) in userRoles:
-                results = 3                                                             # Exist on this Group with the Role
+                results = 3  # Exist on this Group with the Role
             elif int(group) == groupID and int(role) not in userRoles:
-                results = 1                                                             # Exist on this Group without the Role
+                results = 1  # Exist on this Group without the Role
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': results}
@@ -949,12 +955,109 @@ def get_companyList_OfGroup(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         groupID = request.POST.get("groupID", None)
-        results = [{'value': item.id, 'text': item.name} for item in TCompany.objects.filter(group_id=groupID, is_default=0)]
+        results = [{'value': item.id, 'text': item.name} for item in
+                   TCompany.objects.filter(group_id=groupID, is_default=0)]
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('get_groups_all_list Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def group_change_request(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 5:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        group_id = request.POST.get("group_id", None)
+        reason = request.POST.get("reason", "")
+        if group_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        TGroupChange.objects.create(user=request.user, reason=reason, target_id=group_id)
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('group_change_request Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def company_change_request(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 5:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        company_id = request.POST.get("company_id", None)
+        reason = request.POST.get("reason", "")
+        if company_id is None:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        TCompanyChange.objects.create(user=request.user, reason=reason, target_id=company_id)
+        resp = code.get_msg(code.SUCCESS)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('company_change_request Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def group_change_info(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 5:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        gc = TGroupChange.objects.filter(user=request.user).filter(Q(sAgree=0) | Q(tAgree=0)).last()
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'id': gc.id,
+            'reason': gc.reason,
+            'target': model_to_dict(gc.target, fields=['id', 'name']),
+            'sAgree': gc.sAgree,
+            'tAgree': gc.tAgree
+        } if gc else {}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('group_change_info Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def company_change_info(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] != 5:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        cc = TCompanyChange.objects.filter(user=request.user).filter(Q(sAgree=0) | Q(tAgree=0)).last()
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'id': cc.id,
+            'reason': cc.reason,
+            'target': model_to_dict(cc.target, fields=['id', 'name']),
+            'sAgree': cc.sAgree,
+            'tAgree': cc.tAgree
+        } if cc else {}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('company_change_info Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

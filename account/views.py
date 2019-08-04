@@ -26,7 +26,8 @@ from django.http import JsonResponse
 from django.http import HttpResponse
 from account.models import Tuser, TCompany, TClass, LoginLog, WorkLog, TRole, TCompanyManagerAssistants, TPermission, \
     TAction, \
-    TNotifications
+    TNotifications, TCompanyChange
+from group.models import *
 from business.models import *
 from team.models import TeamMember
 from utils import code, const, query, easemob, tools, config
@@ -238,7 +239,7 @@ def api_account_login(request):
                             'part_id': '',
                             'part_name': ''
                         }
-                    elif login_type in [5, 9]:
+                    elif login_type in [4, 8]:
                         company = user.tcompany
                         group = company.group
                         position = user.tposition
@@ -252,6 +253,39 @@ def api_account_login(request):
                             'group_name': group.name,
                             'part_id': part.id if part else '',
                             'part_name': part.name if part else ''
+                        }
+                    elif login_type in [5, 9]:
+                        company = user.tcompany
+                        group = company.group
+                        changeRequestGroup = TGroupChange.objects.filter(user=user).filter(
+                            Q(sAgree=0) | Q(tAgree=0)).exclude(target=group).last()
+                        changeRequestCompany = TCompanyChange.objects.filter(user=user).filter(
+                            Q(sAgree=0) | Q(tAgree=0)).exclude(target=company).last()
+                        position = user.tposition
+                        part = None
+                        if position:
+                            part = position.parts
+                        manager_info = {
+                            'company_id': company.id,
+                            'company_name': company.name,
+                            'group_id': group.id,
+                            'group_name': group.name,
+                            'part_id': part.id if part else '',
+                            'part_name': part.name if part else '',
+                            'change_request_group': {
+                                'id': changeRequestGroup.id,
+                                'reason': changeRequestGroup.reason,
+                                'target': changeRequestGroup.target.name,
+                                'sAgree': changeRequestGroup.sAgree,
+                                'tAgree': changeRequestGroup.tAgree
+                            } if changeRequestGroup else None,
+                            'change_request_company': {
+                                'id': changeRequestCompany.id,
+                                'reason': changeRequestCompany.reason,
+                                'target': changeRequestCompany.target.name,
+                                'sAgree': changeRequestCompany.sAgree,
+                                'tAgree': changeRequestCompany.tAgree
+                            } if changeRequestCompany else None
                         }
                     resp['d']['manager_info'] = manager_info
                     # if user.last_experiment_id:
@@ -1642,7 +1676,8 @@ def api_get_loginlog_list(request):
             results.append({
                 'id': log.id, 'user_id': log.user.username, 'user_name': log.user.name, 'group': group,
                 'company': company,
-                'role': role, 'login_time': log.login_time is not None and log.login_time.strftime('%Y-%m-%d %H:%M:%S') or "",
+                'role': role,
+                'login_time': log.login_time is not None and log.login_time.strftime('%Y-%m-%d %H:%M:%S') or "",
                 'login_ip': log.login_ip
             })
         paging = {
@@ -2177,17 +2212,24 @@ def get_own_messages(request):
             'businessInfo': {
                 'id': item.type.split("businessMoreTeammate_", 1)[1],
                 'title': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().name,
-                'created_by': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().created_by.name,
-                'created_time': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S')
+                'created_by': Business.objects.filter(
+                    pk=item.type.split("businessMoreTeammate_", 1)[1]).first().created_by.name,
+                'created_time': Business.objects.filter(
+                    pk=item.type.split("businessMoreTeammate_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S')
             } if bool(re.search('^businessMoreTeammate_', item.type)) else {},
             'attentionInfo': {
                 'id': item.type.split("attentionRequest_", 1)[1],
-                'created_time': UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S'),
-                'message': UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).first().message,
-                'created_by': UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).first().created_by.username,
-                'university': UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).first().university.name
+                'created_time': UniversityLinkedCompany.objects.filter(
+                    pk=item.type.split("attentionRequest_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'message': UniversityLinkedCompany.objects.filter(
+                    pk=item.type.split("attentionRequest_", 1)[1]).first().message,
+                'created_by': UniversityLinkedCompany.objects.filter(
+                    pk=item.type.split("attentionRequest_", 1)[1]).first().created_by.username,
+                'university': UniversityLinkedCompany.objects.filter(
+                    pk=item.type.split("attentionRequest_", 1)[1]).first().university.name
             } if bool(re.search('^attentionRequest_', item.type)) else {},
-            'business_id': item.type.split("businessMoreTeammate_", 1)[1] if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
+            'business_id': item.type.split("businessMoreTeammate_", 1)[1] if bool(
+                re.search('^businessMoreTeammate_', item.type)) else 0,
             'link': item.link
         } for item in TNotifications.objects.filter(Q(role=role) & Q(targets__in=[uid]))]
         resp = code.get_msg(code.SUCCESS)
