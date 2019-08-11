@@ -358,6 +358,9 @@ urlpatterns += (
     url(r'^api/business/getChatRoomMessages', business_views.api_business_get_chatRoom_messages),
     url(r'^api/business/sendAskMessage', business_views.api_business_send_ask_messages),
     url(r'^api/business/getChatRoomId', business_views.api_business_get_chatRoom_id),
+
+    url(r'^api/business/getInitBusinessEvaluation', business_views.api_business_get_init_evaluation),
+    url(r'^api/business/evaluationSave', business_views.api_business_save_evaluation),
 )
 
 urlpatterns += (

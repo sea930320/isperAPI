@@ -5301,7 +5301,7 @@ def api_business_set_guider(request):
             business_id=bid,
             request_id=request.user.id,
         )
-        
+
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id', 'request_id'])}
 
@@ -5504,6 +5504,115 @@ def api_business_send_ask_messages(request):
         with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
             socketIO.emit('ask_message', msgDict)
             socketIO.wait_for_callbacks(seconds=1)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_get_init_evaluation(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        login_type = request.session['login_type']
+        if login_type not in [4, 8]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        page = request.GET.get("page", 1)
+        size = request.GET.get("size", 10)
+        if login_type == 4:
+            group_id = request.user.allgroups_set_instructors.get().id
+        else:
+            group_id = request.user.allgroups_set_instructor_assistants.get().id
+        allList = Business.objects.filter(Q(Q(target_company__group=group_id) | Q(target_part__company__group=group_id)) & Q(officeItem__in=request.user.instructorItems.all()))
+        paginator = Paginator(allList, size)
+        try:
+            allBusiness = paginator.page(page)
+        except EmptyPage:
+            allBusiness = paginator.page(1)
+        if allBusiness:
+            results = [{
+                'business_id': b.id,
+                'business_name': b.name,
+                'create_company': b.target_company.name if b.target_company else b.target_part.company.name,
+                'create_time': b.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'business_status': u'已完成',
+                'members': [{
+                    'business_id': b.id,
+                    'user_id': member.user_id,
+                    'name': member.user.username,
+                    'company': '' if not member.user.tcompany else member.user.tcompany.name if not member.user.tcompany.is_default else '',
+                    'part': member.user.tposition.parts.name if member.user.tposition else '',
+                    'position': member.user.tposition.name if member.user.tposition else '',
+                    'role': member.business_role.name,
+                    'value': BusinessEvaluation.objects.get(business_id=b.id, user_id=member.user_id).value if BusinessEvaluation.objects.filter(business_id=b.id, user_id=member.user_id).first() else '',
+                    'comment': BusinessEvaluation.objects.get(business_id=b.id, user_id=member.user_id).comment if BusinessEvaluation.objects.filter(business_id=b.id, user_id=member.user_id).first() else '',
+                    'node_evaluation': [{
+                        'alloc_id': alloc.id,
+                        'node_name': alloc.node.name,
+                        'node_comment': BusinessEvaluation.objects.get(role_alloc_id=alloc.id).comment if BusinessEvaluation.objects.filter(role_alloc_id=alloc.id).first() else '',
+                    }for alloc in BusinessRoleAllocation.objects.filter(role_id=member.business_role_id, no=member.no)]
+                }for member in BusinessTeamMember.objects.filter(business_id=b.id)]
+            } for b in allBusiness]
+        else:
+            results = []
+
+        paging = {
+            'count': paginator.count,
+            'has_previous': allBusiness.has_previous(),
+            'has_next': allBusiness.has_next(),
+            'num_pages': paginator.num_pages,
+            'cur_page': allBusiness.number,
+            'page_size': size
+        }
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': results, 'paging': paging}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('get_own_group Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_save_evaluation(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
