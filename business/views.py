@@ -4783,7 +4783,7 @@ def api_business_survey_set_normal_questions(request):
                 if bqQs is None:
                     continue
                 bqQs.title = nq['title']
-                bqQs.type = 1
+                bqQs.type = 2
                 bqQs.save()
             else:
                 bqQs = BusinessQuestion.objects.create(

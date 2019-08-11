@@ -633,6 +633,7 @@ def api_account_user_update(request):
         verification_code = request.POST.get('verification_code', None)
 
         user = Tuser.objects.get(pk=user_id)
+        need_ver_code = True if user.phone != phone else False
         user.assigned_by = request.user.id
         if username:
             user.username = username
@@ -670,12 +671,11 @@ def api_account_user_update(request):
             user.manage = False
 
         try:
-            print request.session['verification_code']
-            if (verification_code is None) or (
+            if need_ver_code and ((verification_code is None) or (
                             datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
                                                                "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
                         verification_code != request.session['verification_code']) or (
-                        phone != request.session['verification_phone']):
+                        phone != request.session['verification_phone'])):
                 resp = code.get_msg(code.PHONE_NOT_VERIFIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         except KeyError as e:

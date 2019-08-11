@@ -1059,12 +1059,13 @@ def api_workflow_docs_update(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         docs = request.POST.get("docs")  # 素材数据
+        flow_id = request.POST.get("flow_id")
         doc_list = json.loads(docs)
 
-        # 验证操作指南
-        if len(doc_list) == 0:
-            resp = code.get_msg(code.PARAMETER_ERROR)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        # # 验证操作指南
+        # if len(doc_list) == 0:
+        #     resp = code.get_msg(code.PARAMETER_ERROR)
+        #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         opt_list = []
         for doc in doc_list:
@@ -1080,7 +1081,6 @@ def api_workflow_docs_update(request):
                             resp = code.get_msg(code.FLOW_OPT_DOC_ONLY_ONE)
                             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        flow_id = None
         with transaction.atomic():
             for doc in doc_list:
                 obj = FlowDocs.objects.get(pk=doc['id'])

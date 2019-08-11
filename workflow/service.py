@@ -33,7 +33,13 @@ def bpmn_parse(xml_text):
     sequences = process.findall('bpmn:sequenceFlow', ns)
 
     for task in tasks:
-        nodes.append(task.attrib)
+        has_multi_instances = task.findall('bpmn:multiInstanceLoopCharacteristics', ns)
+        node = task.attrib
+        if len(has_multi_instances):
+            node['is_parallel'] = True
+        else:
+            node['is_parallel'] = False
+        nodes.append(node)
 
     for sequence in sequences:
         trans.append(sequence.attrib)
