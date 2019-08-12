@@ -1661,6 +1661,9 @@ def api_get_loginlog_list(request):
             qs = qs.filter(login_time__gt=datetime.strptime(start_date, '%Y-%m-%d'))
         if end_date:
             qs = qs.filter(login_time__lte=datetime.strptime(end_date, '%Y-%m-%d'))
+        print "group_id"
+        print group_id
+        print company_id
         # 分页
         paginator = Paginator(qs, size)
         try:
@@ -2281,7 +2284,7 @@ def api_get_worklog_statistic(request):
 
         flowLogQs = qs.filter(request_url__icontains="workflow")
         projectLogQs = qs.filter(request_url__icontains="project")
-        businessLogQs = qs.filter(request_url__icontains="experiment")
+        businessLogQs = qs.filter(request_url__icontains="business")
         systemLogQs = qs.filter(
             Q(request_url__icontains="dic") | Q(request_url__icontains="api/account/set/roles/actions"))
 
@@ -2319,15 +2322,15 @@ def api_get_user_statistic(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if login_type == 1:
-            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+            qs = LoginLog.objects.filter(del_flag=0)
         elif login_type in [2, 6]:
             group_id = user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id
-            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+            qs = LoginLog.objects.filter(del_flag=0)
         elif login_type in [3, 7]:
             company = user.tcompanymanagers_set.get().tcompany if login_type == 3 else user.t_company_set_assistants.get()
             company_id = company.id
             group_id = company.group.id
-            qs = WorkLog.objects.filter(del_flag=0).order_by("-log_at")
+            qs = LoginLog.objects.filter(del_flag=0)
         else:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2337,13 +2340,18 @@ def api_get_user_statistic(request):
         if company_id:
             qs = qs.filter(company__pk=int(company_id))
 
-        reviewedQs = qs.filter(request_url__icontains="set_Review")
+        print group_id
+        print company_id
+        # reviewedQs = qs.filter(request_url__icontains="set_Review")
         start_date = datetime.strptime(start_date, '%Y-%m-%d')
         end_date = datetime.strptime(end_date, '%Y-%m-%d')
         results = []
         for n in range(int((end_date - start_date).days)):
             iterDate = start_date + timedelta(n)
-            curReviewedQs = reviewedQs.filter(log_at__date=iterDate.date())
+            print iterDate.date()
+            print qs.count()
+            curReviewedQs = qs.filter(login_time__startswith=iterDate.date())
+            print curReviewedQs.count()
             results.append({
                 'x': int((iterDate - datetime(1970, 1, 1)).total_seconds()) * 1000,
                 'y': curReviewedQs.count()

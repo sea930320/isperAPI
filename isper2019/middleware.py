@@ -65,6 +65,9 @@ class LogMiddleware(MiddlewareMixin):
         '/api/project/create':'创建项目',
         '/api/project/docs/create': '创建素材',
         '/api/project/docs/delete': '删除素材',
+        # business
+        '/api/business/delete':'删除业务',
+        '/api/business/recovery': '恢复业务'
     }
 
     def process_request(self, request):

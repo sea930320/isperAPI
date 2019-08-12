@@ -89,7 +89,6 @@ def get_start_node(flow_id):
             return node.id
     return None
 
-
 def get_end_node(flow_id):
     """
     获取流程第一个环节
@@ -105,6 +104,107 @@ def get_end_node(flow_id):
             return node.id
     return None
 
+def get_out_nodes(node):
+    out_trans = FlowTrans.objects.filter(incoming=node.task_id)
+    nodes = []
+    for out_tran in out_trans:
+        out_node = FlowNode.objects.filter(task_id=out_tran.outgoing).first()
+        if out_node:
+            nodes.append(out_node)
+    return nodes
+
+def get_incoming_nodes(node):
+    incoming_trans = FlowTrans.objects.filter(outgoing=node.task_id)
+    nodes = []
+    for incoming_tran in incoming_trans:
+        incoming_node = FlowNode.objects.filter(task_id=incoming_tran.incoming).first()
+        if incoming_node:
+            nodes.append(incoming_node)
+    return nodes
+
+stacks = []
+merging_nodes = []
+
+def get_end_parallel_node(node_id):
+    global stacks
+    global merging_nodes
+    start_node = FlowNode.objects.filter(pk=node_id).first()
+    out_nodes = get_out_nodes(start_node)
+    stacks = [{
+        'parent': start_node,
+        'nodes': out_nodes
+    }]
+    merging_nodes = []
+    get_end_parallel_node_stack()
+    print stacks
+    print merging_nodes
+    return merging_nodes
+
+def get_end_parallel_node_stack():
+    global stacks
+    global merging_nodes
+    len_stacks = len(stacks)
+    if len_stacks == 0:
+        return True
+    print stacks
+    origin_stacks = stacks[:] # 초기 stacks
+    origin_last_stack = origin_stacks[len_stacks-1] # 마지막 초기 stack
+    origin_last_stack_nodes = origin_last_stack['nodes'][:] # 초기 마지막 stack의 nodes
+
+    last_stack_nodes = stacks[len_stacks-1]['nodes'] # 변경할 마지막 stack의 nodes
+
+    for origin_node in origin_last_stack_nodes:
+        out_nodes = get_out_nodes(origin_node)
+        if len(out_nodes) > 1:
+            stacks.append({
+                'parent': origin_node,
+                'nodes': out_nodes
+            })
+        elif len(out_nodes) == 1:
+            out_node = out_nodes[0]
+            out_node_incoming_nodes = get_incoming_nodes(out_node)
+            all_is_in = True
+            for out_node_incoming_node in out_node_incoming_nodes:
+                is_in = False
+                for stack in stacks:
+                    if out_node_incoming_node in stack['nodes']:
+                        is_in = True
+                        break
+                if not is_in:
+                    all_is_in = False
+                    break
+            if all_is_in:
+                first_changed_stack = None
+                for stack in stacks:
+                    for out_node_incoming_node in out_node_incoming_nodes:
+                        if out_node_incoming_node in stack['nodes']:
+                            stack['nodes'].remove(out_node_incoming_node)
+                            if not first_changed_stack:
+                                first_changed_stack = stack
+                dupStacks = stacks[:]
+
+                if len(out_node_incoming_nodes) > 1 and first_changed_stack and first_changed_stack['parent'].parallel_node_start:
+                    merging_nodes.append({
+                        'start': first_changed_stack['parent'],
+                        'end': out_node
+                    })
+                for dupStack in dupStacks:
+                    if len(dupStack['nodes']) == 0:
+                        for stack in stacks:
+                            if dupStack['parent'] in stack['nodes']:
+                                stack['nodes'].remove(dupStack['parent'])
+                                stack['nodes'].append(out_node)
+
+                        stacks.remove(dupStack)
+                if first_changed_stack is not None and not out_node in first_changed_stack['nodes']:
+                    first_changed_stack['nodes'].append(out_node)
+                    # for stack in stacks:
+                    #     if stack['parent'] == last_changed_stack['parent']:
+                    #         stack = last_changed_stack
+        else:
+            continue
+
+    get_end_parallel_node_stack()
 
 def bpmn_color(xml, tasks):
     """

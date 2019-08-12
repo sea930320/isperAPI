@@ -25,7 +25,7 @@ from project.models import ProjectJump
 from workflow.models import Flow, FlowNode, FlowTrans, FlowProcess, FlowDocs, FlowRole, FlowRoleAllocation, \
     FlowRoleActionNew, FlowRolePosition, RoleImage, RoleImageType, FlowNodeDocs, FlowAction, FlowPosition, \
     ProcessRoleActionNew, ProcessAction, FlowNodeSelectDecide, SelectDecideItem
-from workflow.service import bpmn_parse, flow_nodes, get_end_node, flow_doc_save
+from workflow.service import bpmn_parse, flow_nodes, get_end_node, flow_doc_save, get_end_parallel_node
 from django.forms.models import model_to_dict
 
 logger = logging.getLogger(__name__)
@@ -262,7 +262,7 @@ def api_workflow_flow_draw(request):
                             flow.save()
                             # 修改环节信息
                             for node in nodes:
-                                FlowNode.objects.filter(flow_id=flow_id, task_id=node['id']).update(name=node['name'])
+                                FlowNode.objects.filter(flow_id=flow_id, task_id=node['id']).update(name=node['name'], parallel_node_start=node['is_parallel'])
 
                             # 修改环节流转信息
                             for tran in trans:
@@ -283,7 +283,7 @@ def api_workflow_flow_draw(request):
                             # 保存环节信息
                             node_list = []
                             for node in nodes:
-                                node_list.append(FlowNode(flow_id=flow_id, name=node['name'], task_id=node['id']))
+                                node_list.append(FlowNode(flow_id=flow_id, name=node['name'], task_id=node['id'], parallel_node_start=node['is_parallel']))
                             FlowNode.objects.bulk_create(node_list)
 
                             # 环节流转信息
@@ -297,6 +297,14 @@ def api_workflow_flow_draw(request):
                                     FlowTrans(flow_id=flow_id, incoming=tran['sourceRef'], outgoing=tran['targetRef'],
                                               sequence_flow_id=tran['id'], name=name))
                             FlowTrans.objects.bulk_create(tran_list)
+                    nodes = FlowNode.objects.filter(flow_id=flow_id, del_flag=0)
+                    for node in nodes:
+                        if node.parallel_node_start:
+                            merging_nodes = get_end_parallel_node(node.id)
+                            for merging_node in merging_nodes:
+                                end_node = merging_node['end']
+                                end_node.is_parallel_merging = True
+                                end_node.save()
                     resp = code.get_msg(code.SUCCESS)
         else:
             resp = code.get_msg(code.METHOD_NOT_ALLOW)
@@ -593,7 +601,7 @@ def api_workflow_flow_copy(request):
             with transaction.atomic():
                 instance = Flow.objects.create(name=name, animation1=flow.animation1, animation2=flow.animation2,
                                                type_label=flow.type_label, task_label=flow.task_label, step=flow.step,
-                                               copy_from=flow_id, xml=flow.xml, created_by=request.user.id)
+                                               copy_from=flow_id, xml=flow.xml, created_by=request.user.id, created_role_id=request.session['login_type'])
                 # 复制环节流转信息
                 trans = FlowTrans.objects.filter(flow_id=flow_id)
                 tran_list = []
@@ -612,7 +620,8 @@ def api_workflow_flow_copy(request):
                 for node in nodes:
                     new = FlowNode.objects.create(flow_id=instance.id, name=node.name, task_id=node.task_id,
                                                   condition=node.condition, process=node.process, look_on=node.look_on,
-                                                  step=node.step)
+                                                  step=node.step, is_parallel_merging=node.is_parallel_merging,
+                                                  parallel_node_start=node.parallel_node_start)
                     node_map.append((node.id, new.id))
 
                 # 复制角色信息
@@ -1596,7 +1605,7 @@ def api_workflow_create(request):
         task_label = request.POST.get("task_label", None)  # 试验任务标签
 
         # 参数验证
-        if not all([name, animation1, animation2, type_label, task_label]):
+        if not all([name, type_label, task_label]):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 

@@ -50,6 +50,8 @@ class FlowNode(models.Model):
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'修改时间')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    parallel_node_start = models.BooleanField(default=False, verbose_name=u'Parallel_node_start')
+    is_parallel_merging = models.BooleanField(default=False, verbose_name=u'Parallel_node_end')
 
     class Meta:
         db_table = "t_flow_node"
