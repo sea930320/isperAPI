@@ -64,6 +64,7 @@ urlpatterns += (
     url(r'^api/account/get/getMessageData', account_views.get_own_messages),
     url(r'^api/account/get/worklog-statistic', account_views.api_get_worklog_statistic),  # Jonas
     url(r'^api/account/get/user-statistic', account_views.api_get_user_statistic),  # Jonas
+    url(r'^api/account/get/project_use_log-statistic', account_views.api_get_project_use_log_statistic),  # Jonas
 )
 
 urlpatterns += (
