@@ -477,10 +477,11 @@ def get_company_list(request):
                 group=user.allgroups_set.get().id if login_type == 2 else user.allgroups_set_assistants.get().id)
 
         data = data.filter(is_default=0).order_by('-id')
+        cTypes = [{'value': item.name, 'text': item.name} for item in TCompanyType.objects.all()]
 
         if len(data) == 0:
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': [], 'paging': {}}
+            resp['d'] = {'results': [], 'paging': {}, 'cTypes': cTypes}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         else:
             paginator = Paginator(data, size)
@@ -495,7 +496,7 @@ def get_company_list(request):
                 'name': item.name,
                 'type': item.companyType.name,
                 'creator': item.created_by.username,
-                'create_time': str(item.create_time),
+                'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                 'companyManagers': [{
                     'id': user.tuser.id,
                     'name': user.tuser.username,
@@ -510,8 +511,6 @@ def get_company_list(request):
                 'num_pages': paginator.num_pages,
                 'cur_page': flows.number,
             }
-
-            cTypes = [{'value': item.name, 'text': item.name} for item in TCompanyType.objects.all()]
 
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': result, 'paging': paging, 'cTypes': cTypes}

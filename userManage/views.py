@@ -179,7 +179,7 @@ def get_manage_users(request):
                 'id': item.id,
                 'name': item.username,
                 'company': company,
-                'created': str(item.create_time),
+                'created': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                 'group': item.allgroups_set.get().name if len(item.allgroups_set.all()) > 0 else
                 item.allgroups_set_assistants.get().name if len(item.allgroups_set_assistants.all()) > 0 else
                 item.tcompanymanagers_set.get().tcompany.group.name if len(item.tcompanymanagers_set.all()) > 0 else
@@ -246,7 +246,7 @@ def get_instructor_users(request):
                 'name': item.username,
                 'officeItem': [i.name for i in item.instructorItems.all()] if len(
                     item.instructorItems.all()) > 0 else [],
-                'created': str(item.create_time),
+                'created': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                 'group': item.allgroups_set_instructors.get().name if len(item.allgroups_set_instructors.all()) > 0 else
                 item.allgroups_set_instructor_assistants.get().name if len(
                     item.allgroups_set_instructor_assistants.all()) > 0 else '',

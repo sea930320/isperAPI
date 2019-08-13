@@ -55,6 +55,7 @@ class ProjectNodeInfo(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     node = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
     look_on = models.BooleanField(verbose_name=u'Look On')
+
     class Meta:
         db_table = "t_project_node_info"
 
@@ -74,6 +75,7 @@ class ProjectRole(models.Model):
     category = models.PositiveIntegerField(verbose_name=u'类别', null=True)
     capacity = models.IntegerField(verbose_name=u'人数', default=1)
     job_type = models.ForeignKey(TJobType, on_delete=models.SET_NULL, null=True, blank=True)
+
     class Meta:
         db_table = "t_project_role"
         verbose_name_plural = verbose_name = u"项目角色"
@@ -94,6 +96,7 @@ class ProjectRoleAllocation(models.Model):
     num = models.PositiveIntegerField(default=0, verbose_name=u'奖励数量')
     score = models.PositiveIntegerField(default=0, verbose_name=u'奖励分数')
     no = models.IntegerField(default=1, verbose_name=u'Number')
+
     class Meta:
         db_table = "t_project_role_allocation"
         verbose_name_plural = verbose_name = u"项目角色分配"
@@ -164,6 +167,7 @@ class ProjectJump(models.Model):
     node_id = models.IntegerField(verbose_name=u'环节')
     jump_project_id = models.IntegerField(verbose_name=u'跳转项目')
     process_type = models.IntegerField(verbose_name=u'Process Type', null=True, default=6)
+
     class Meta:
         db_table = "t_project_jump"
         verbose_name_plural = verbose_name = u"项目环节跳转分配"
@@ -171,3 +175,24 @@ class ProjectJump(models.Model):
     def __unicode__(self):
         return u""
 
+
+class ProjectUseLog(models.Model):
+    user = models.ForeignKey(Tuser, on_delete=models.CASCADE, null=True)
+    role = models.ForeignKey(TRole, on_delete=models.CASCADE, null=True)
+    group = models.ForeignKey('group.AllGroups', on_delete=models.CASCADE, null=True)
+    company = models.ForeignKey(TCompany, on_delete=models.CASCADE, null=True)
+    log_at = models.DateTimeField(auto_now_add=True, verbose_name=u'log at')
+    ip = models.CharField(max_length=20, blank=True, null=True, verbose_name=u'ip')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True)
+    business = models.ForeignKey('business.Business', on_delete=models.CASCADE, null=True)
+    del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
+    request_url = models.CharField(max_length=256, verbose_name=u'Request Url', blank=True, null=True)
+
+    class Meta:
+        db_table = "t_project_use_logs"
+        ordering = ['-log_at']
+        verbose_name_plural = u"Project Use Log"
+        verbose_name = u"Project Use Logs"
+
+    def __unicode__(self):
+        return self.project.name

@@ -1315,10 +1315,10 @@ def api_business_list_nodel(request):
 
                 user_roles = []
                 bus = {
-                    'id': item.id, 'name': str(item.id) + ' ' + item.name, 'project_name': project_name,
+                    'id': item.id, 'name': item.name, 'project_name': project_name,
                     'workflow_name': workflow_name, 'officeItem': item.officeItem.name,
-                    'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
-                    'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
+                    'start_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S') if item.create_time else None,
+                    'end_time': item.finish_time.strftime('%Y-%m-%d %H:%M:%S') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
                     'status': '已完成' if item.status == 9 else '未完成'
                 }
@@ -1392,10 +1392,10 @@ def api_business_list_del(request):
 
                 user_roles = []
                 bus = {
-                    'id': item.id, 'name': str(item.id) + ' ' + item.name, 'project_name': project_name,
+                    'id': item.id, 'name': item.name, 'project_name': project_name,
                     'workflow_name': workflow_name, 'officeItem': item.officeItem.name,
-                    'start_time': item.create_time.strftime('%Y-%m-%d') if item.create_time else None,
-                    'end_time': item.finish_time.strftime('%Y-%m-%d') if item.finish_time else None,
+                    'start_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S') if item.create_time else None,
+                    'end_time': item.finish_time.strftime('%Y-%m-%d %H:%M:%S') if item.finish_time else None,
                     'members': teamMembers, 'created_by': item.created_by.name,
                     'status': '已完成' if item.status == 9 else '未完成'
                 }

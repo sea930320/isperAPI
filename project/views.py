@@ -972,7 +972,7 @@ def api_project_list(request):
                 'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time,
                 'created_by': user_simple_info(project.created_by.id),
                 'created_role': project.created_role_id,
-                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d') or '',
+                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d %H:%M:%S') or '',
                 'flow': flow_data, 'intro': project.intro,
                 'purpose': project.purpose, 'requirement': project.requirement, 'protected': project.protected,
                 'is_group_share': project.is_group_share,
