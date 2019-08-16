@@ -416,7 +416,7 @@ def api_student_team_my_list(request):
             result = model_to_dict(item, fields=['id', 'name', 'type'])
             result['team_leader'] = model_to_dict(item.team_leader,
                                                   fields=['id', 'name', 'username']) if item.team_leader else None
-            result['create_time'] = item.create_time.strftime('%Y-%m-%d') if item.create_time else None
+            result['create_time'] = item.create_time.strftime('%Y-%m-%d %H:%M:%S') if item.create_time else None
             results.append(result)
 
         paging = {
@@ -471,7 +471,7 @@ def api_student_team_available_list(request):
             result = model_to_dict(item, fields=['id', 'name', 'type'])
             result['team_leader'] = model_to_dict(item.team_leader,
                                                   fields=['id', 'name', 'username']) if item.team_leader else None
-            result['create_time'] = item.create_time.strftime('%Y-%m-%d') if item.create_time else None
+            result['create_time'] = item.create_time.strftime('%Y-%m-%d %H:%M:%S') if item.create_time else None
             results.append(result)
 
         paging = {

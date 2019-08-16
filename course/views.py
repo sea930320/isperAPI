@@ -106,7 +106,7 @@ def api_course_full_list(request):
                 'experienceTime': flow.experienceTime,
                 'studentCount': flow.studentCount,
                 'created_by': flow.created_by.username,
-                'create_time': flow.create_time.strftime('%Y-%m-%d'),
+                'create_time': flow.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                 'linked_business': [{
                     'id': item.id,
                     'name': item.name,
@@ -116,7 +116,7 @@ def api_course_full_list(request):
                     'id': team.id,
                     'name': team.name,
                     'leader': team.team_leader.username,
-                    'create_time': team.create_time.strftime('%Y-%m-%d'),
+                    'create_time': team.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                     'member_count': team.members.count(),
                 } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()]
             } for flow in flows]
