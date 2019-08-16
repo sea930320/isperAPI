@@ -626,12 +626,20 @@ def get_company_users(request):
 
         qs = Tuser.objects.filter(Q(roles__in=[5, 9]) & Q(tcompany=company_id) & Q(is_review=1)).order_by('-id')
 
+        positions = [{
+            'label': item.name,
+            'options': [{
+                'value': opt.id,
+                'text': opt.name
+            } for opt in TPositions.objects.filter(parts_id=item.id)]
+        } for item in TParts.objects.filter(company_id=company_id)]
+
         if search:
             qs = qs.filter(name__icontains=search)
 
         if len(qs) == 0:
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'results': [], 'paging': {}}
+            resp['d'] = {'results': [], 'paging': {}, 'positions': positions}
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         else:
             paginator = Paginator(qs, size)
@@ -659,14 +667,6 @@ def get_company_users(request):
                 'num_pages': paginator.num_pages,
                 'cur_page': flows.number,
             }
-
-            positions = [{
-                'label': item.name,
-                'options': [{
-                    'value': opt.id,
-                    'text': opt.name
-                } for opt in TPositions.objects.filter(parts_id=item.id)]
-            } for item in TParts.objects.filter(company_id=company_id)]
 
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': results, 'paging': paging, 'positions': positions}
@@ -748,6 +748,11 @@ def create_company_newUser(request):
         phone = request.POST.get("phone", None)
         position = request.POST.get("position", None)
         company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
+
+        is_exist = Tuser.objects.filter(username=username).exists()
+        if is_exist:
+            resp = code.get_msg(code.USER_EXIST_WHILE_CREATING)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         newUser = Tuser(
             username=username,

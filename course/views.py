@@ -22,6 +22,7 @@ from group.models import AllGroups
 from project.models import Project
 from student.models import StudentWatchingBusiness, StudentWatchingTeam
 from team.models import TeamMember
+from course.service import *
 from business.models import *
 from utils import code, const, query
 from utils.request_auth import auth_check
@@ -40,14 +41,20 @@ def api_course_list(request):
         search = request.GET.get("search", None)  # 搜索关键字
 
         if search:
-            qs = Course.objects.filter(Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+            qs = Course.objects.filter(Q(Q(courseName__icontains=search) | Q(
                 courseId__icontains=search)) & Q(del_flag=0))
         else:
             qs = Course.objects.filter(del_flag=0)
 
-        data = [{'value': item.id,
-                 'text': (item.courseName + '-' + item.teacher.name + '-' + item.courseId) if item.courseId else (
-                     item.courseName + '-' + item.teacher.name)} for item in qs]
+        results = []
+        for item in qs:
+            teachers = item.teachers.all()
+            teachers_label = getTeacherLabels(teachers)
+
+            data = {'value': item.id,
+                 'text': (item.courseName + '-' + teachers_label + '-' + item.courseId) if item.courseId else (
+                     item.courseName + '-' + teachers_label)}
+            results.append(data)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': data}
@@ -72,7 +79,7 @@ def api_course_full_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                Q(Q(courseName__icontains=search) | Q(
                     courseId__icontains=search)) &
                 Q(del_flag=0) & Q(type=0) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
@@ -97,11 +104,10 @@ def api_course_full_list(request):
                 'id': flow.id,
                 'courseId': flow.courseId,
                 'courseName': flow.courseName,
-                'courseFullName': flow.courseName if flow.courseName else '' + '-' + flow.teacher.name if flow.teacher else '' + '-' + flow.courseId if flow.courseId else '',
+                'courseFullName': flow.courseName if flow.courseName else '' + '-' + getTeacherLabels(flow.teachers.all()) + '-' + flow.courseId if flow.courseId else '',
                 'courseSeqNum': flow.courseSeqNum,
                 'courseSemester': flow.courseSemester,
-                'teacherName': flow.teacher.name,
-                'teacherId': flow.teacher.teacher_id,
+                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers],
                 'courseCount': flow.courseCount,
                 'experienceTime': flow.experienceTime,
                 'studentCount': flow.studentCount,
@@ -152,7 +158,7 @@ def api_course_outside_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                Q(Q(courseName__icontains=search) | Q(
                     courseId__icontains=search)) &
                 Q(del_flag=0) & Q(type=2) &
                 Q(tcompany=request.user.tcompanymanagers_set.get().tcompany)
@@ -176,7 +182,7 @@ def api_course_outside_list(request):
             results = [{
                 'id': flow.id,
                 'courseName': flow.courseName,
-                'teacherName': flow.teacher.name,
+                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers],
                 'created_by': flow.created_by.username,
                 'create_time': flow.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
@@ -225,7 +231,7 @@ def api_course_hobby_list(request):
 
         if search:
             qs = Course.objects.filter(
-                Q(Q(courseName__icontains=search) | Q(teacher__name__icontains=search) | Q(
+                Q(Q(courseName__icontains=search) | Q(
                     courseId__icontains=search)) &
                 Q(del_flag=0) & Q(type=1)
             )
@@ -255,7 +261,7 @@ def api_course_hobby_list(request):
                 'courseSemester': course.courseSemester,
                 'courseCount': course.courseCount,
                 'experienceTime': course.experienceTime,
-                'teacherName': course.teacher.name,
+                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in course.teachers],
                 'created_by': course.created_by.username,
                 'create_time': course.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
@@ -301,8 +307,7 @@ def api_course_save_new(request):
         courseName = request.POST.get("courseName")
         courseSeqNum = request.POST.get("courseSeqNum")
         courseSemester = request.POST.get("courseSemester")
-        teacherName = request.POST.get("teacherName")
-        teacherId = request.POST.get("teacherId")
+        teachers = request.POST.get("teachers")
         courseCount = request.POST.get("courseCount")
         experienceTime = request.POST.get("experienceTime")
         studentCount = request.POST.get("studentCount")
@@ -313,28 +318,17 @@ def api_course_save_new(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         if login_type not in [4, 8]:
-            user = AllGroups.objects.get(
-                id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
-                username=teacherName + '-' + teacherId,
-                name=teacherName,
-                teacher_id=teacherId,
-                password=make_password('1234567890'),
-                tcompany=request.user.tcompanymanagers_set.get().tcompany,
-                is_review=1,
-            )
-            user.roles.add(TRole.objects.get(id=4))
             type = 0
             tcompany_id = request.user.tcompanymanagers_set.get().tcompany.id
         else:
-            user = request.user
             type = 1
             tcompany_id = request.user.tcompany.id
-        Course.objects.create(
+
+        course = Course.objects.create(
             courseId=courseId,
             courseName=courseName,
             courseSeqNum=int(courseSeqNum),
             courseSemester=courseSemester,
-            teacher=user,
             courseCount=int(courseCount),
             experienceTime=experienceTime,
             studentCount=int(studentCount),
@@ -342,6 +336,27 @@ def api_course_save_new(request):
             created_by=request.user,
             type = type
         )
+        if login_type not in [4, 8]:
+            if teachers != "":
+                teachers = json.loads(teachers)
+                for teacher in teachers:
+                    teacherName = teacher['teacher_name']
+                    teacherId = teacher['teacher_id']
+                    user = AllGroups.objects.get(
+                        id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
+                        username=teacherName + '-' + teacherId,
+                        name=teacherName,
+                        teacher_id=teacherId,
+                        password=make_password('1234567890'),
+                        tcompany=request.user.tcompanymanagers_set.get().tcompany,
+                        is_review=1,
+                    )
+                    user.roles.add(TRole.objects.get(id=4))
+                    course.teachers.add(user)
+
+        else:
+            user = request.user
+            course.teachers.add(user)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
