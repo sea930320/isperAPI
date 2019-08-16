@@ -45,6 +45,7 @@ class LogMiddleware(MiddlewareMixin):
         '/api/group/resetManager':'重置密码',
         '/api/group/saveInstructors':'保存集群指导者',
         '/api/group/createInstructors':'创建集群指导者',
+        '/api/group/deleteGroupInstructor':'删除集群指导者',
         '/api/company/createCompany':'创建单位',
         '/api/company/deleteCompany':'删除单位',
         '/api/company/updateCompany':'更新单位',
@@ -56,6 +57,8 @@ class LogMiddleware(MiddlewareMixin):
         '/api/dic/newItemSave':'添加事项',
         '/api/dic/editItemSave':'编辑事项',
         '/api/dic/deleteItemSave':'删除事项',
+        '/api/advertising/create':'创建公告',
+        '/api/advertising/delete$':'删除公告',
         # part Position
         '/api/partPosition/newPPSave':'添加部门和职务',
         '/api/partPosition/deletePPSave':'删除部门和职务',
@@ -65,9 +68,21 @@ class LogMiddleware(MiddlewareMixin):
         '/api/project/create':'创建项目',
         '/api/project/docs/create': '创建素材',
         '/api/project/docs/delete': '删除素材',
+        '/api/project/update': '编辑项目',
+        '/api/project/delete': '删除项目',
+        '/api/project/share': '共享项目',
+        '/api/project/unshare': '不共享项目',
         # business
         '/api/business/delete':'删除业务',
-        '/api/business/recovery': '恢复业务'
+        '/api/business/recovery': '恢复业务',
+        # course and student
+        '/api/course/save_new': '新建课堂',
+        '/api/course/excel_data_save': '导入课堂',
+        '/api/course/delete_course': '删除课堂',
+        '/api/course/save_edit': '编辑课堂',
+        '/api/course/save_teacher_change$': '关联指导者',
+        '/api/course/send_request_data': '签订关注许可',
+        '/api/course/send_cancel_data': '取消关注协议',
     }
 
     def process_request(self, request):

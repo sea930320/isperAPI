@@ -19,7 +19,7 @@ from django.db.models import Q, F, Count
 from django.http import HttpResponse
 from business.models import *
 from business.service import *
-from project.models import Project, ProjectRole, ProjectRoleAllocation, ProjectDoc, ProjectDocRole
+from project.models import Project, ProjectRole, ProjectRoleAllocation, ProjectDoc, ProjectDocRole, ProjectUseLog
 from team.models import Team, TeamMember
 from utils import const, code, tools, easemob
 from utils.request_auth import auth_check
@@ -42,6 +42,7 @@ import codecs
 import pypandoc
 from system.models import UploadFile
 import html2text
+from account.service import get_client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def api_business_create(request):
         use_to = request.POST.get("use_to")
 
         project = Project.objects.get(pk=project_id)
-
+        loginType = request.session['login_type'] if 'login_type' in request.session else None
         # 判断项目是否存在
         if project:
             # 验证项目中是否有未配置的跳转项目
@@ -77,17 +78,20 @@ def api_business_create(request):
             with transaction.atomic():
                 if project.created_role_id in [3, 7]:
                     company_id = project.created_by.tcompanymanagers_set.get().tcompany.id if project.created_role_id == 3 else project.created_by.t_company_set_assistants.get().id if project.created_role_id == 7 else None
+                target_company_id = use_to if project.created_role_id in [2,
+                                                                          6] else company_id if project.created_role_id in [
+                    3, 7] and project.use_to_id is None else None
+                target_part_id = project.use_to_id if project.created_role_id in [3,
+                                                                                  7] and project.use_to_id is not None else None
+
                 business = Business.objects.create(
                     project_id=project_id,
                     name=project.name,
                     cur_project_id=project_id,
                     created_by=request.user,
                     officeItem=project.officeItem,
-                    target_company_id=use_to if project.created_role_id in [2,
-                                                                            6] else company_id if project.created_role_id in [
-                        3, 7] and project.use_to_id is None else None,
-                    target_part_id=project.use_to_id if project.created_role_id in [3,
-                                                                                    7] and project.use_to_id is not None else None,
+                    target_company_id=target_company_id,
+                    target_part_id=target_part_id,
                 )
                 business_roles = []
                 for item in roles:
@@ -128,7 +132,14 @@ def api_business_create(request):
                 BusinessRoleAllocation.objects.bulk_create(business_allocations)
 
                 teammates_configuration(business.id, [])
-
+                target_company = TCompany.objects.get(
+                    pk=target_company_id) if target_company_id else TParts.objects.get(
+                    pk=target_part_id).company if target_part_id else None
+                p_u_log = ProjectUseLog(user=request.user, role_id=loginType,
+                                        group_id=target_company.group_id if target_company else None,
+                                        company=target_company, ip=get_client_ip(request),
+                                        request_url=request.path, project=project, business=business)
+                p_u_log.save()
                 resp = code.get_msg(code.SUCCESS)
                 resp['d'] = {
                     'id': business.id, 'name': u'{0} {1}'.format(business.id, business.name),
@@ -5341,7 +5352,9 @@ def api_business_get_guider_list(request):
             resp['d'] = {'status': 0, 'results': result}
         else:
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id', 'request_id'])}
+            resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id',
+                                                                                      'guider__username', 'role_id',
+                                                                                      'request_id'])}
 
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -5373,7 +5386,9 @@ def api_business_set_guider(request):
         )
 
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide, fields=['id', 'business_id', 'guider_id', 'guider__username', 'role_id', 'request_id'])}
+        resp['d'] = {'status': 1, 'results': model_to_dict(businessGuide,
+                                                           fields=['id', 'business_id', 'guider_id', 'guider__username',
+                                                                   'role_id', 'request_id'])}
 
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -5448,7 +5463,8 @@ def api_business_send_guider_message(request):
 
         gcl = GuideChatLog.objects.create(guide_id=guide_id, msg=msg, sender=request.user)
         resp = code.get_msg(code.SUCCESS)
-        msgDict = {'guide_id': gcl.guide_id, 'sender': gcl.sender_id, 'name': gcl.sender.username, 'msg': gcl.msg, 'create_time': gcl.create_time.strftime('%Y-%m-%d %H:%M:%S')}
+        msgDict = {'guide_id': gcl.guide_id, 'sender': gcl.sender_id, 'name': gcl.sender.username, 'msg': gcl.msg,
+                   'create_time': gcl.create_time.strftime('%Y-%m-%d %H:%M:%S')}
         with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
             socketIO.emit('guider_message', msgDict)
             socketIO.wait_for_callbacks(seconds=1)
@@ -5570,7 +5586,9 @@ def api_business_send_ask_messages(request):
 
         acl = AskChatLog.objects.create(ask_id=room_id, msg=msg, sender=request.user, sender_role_id=login_type)
         resp = code.get_msg(code.SUCCESS)
-        msgDict = {'room_id': acl.ask_id, 'sender': acl.sender_id, 'name': acl.sender.username, 'role': acl.sender_role_id, 'msg': acl.msg, 'create_time': acl.create_time.strftime('%Y-%m-%d %H:%M:%S')}
+        msgDict = {'room_id': acl.ask_id, 'sender': acl.sender_id, 'name': acl.sender.username,
+                   'role': acl.sender_role_id, 'msg': acl.msg,
+                   'create_time': acl.create_time.strftime('%Y-%m-%d %H:%M:%S')}
         with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
             socketIO.emit('ask_message', msgDict)
             socketIO.wait_for_callbacks(seconds=1)
@@ -5597,7 +5615,9 @@ def api_business_get_init_evaluation(request):
             group_id = request.user.allgroups_set_instructors.get().id
         else:
             group_id = request.user.allgroups_set_instructor_assistants.get().id
-        allList = Business.objects.filter(Q(Q(target_company__group=group_id) | Q(target_part__company__group=group_id)) & Q(officeItem__in=request.user.instructorItems.all()))
+        allList = Business.objects.filter(
+            Q(Q(target_company__group=group_id) | Q(target_part__company__group=group_id)) & Q(
+                officeItem__in=request.user.instructorItems.all()))
         paginator = Paginator(allList, size)
         try:
             allBusiness = paginator.page(page)
@@ -5618,14 +5638,20 @@ def api_business_get_init_evaluation(request):
                     'part': member.user.tposition.parts.name if member.user.tposition else '',
                     'position': member.user.tposition.name if member.user.tposition else '',
                     'role': member.business_role.name,
-                    'value': BusinessEvaluation.objects.get(business_id=b.id, user_id=member.user_id).value if BusinessEvaluation.objects.filter(business_id=b.id, user_id=member.user_id).first() else '',
-                    'comment': BusinessEvaluation.objects.get(business_id=b.id, user_id=member.user_id).comment if BusinessEvaluation.objects.filter(business_id=b.id, user_id=member.user_id).first() else '',
+                    'value': BusinessEvaluation.objects.get(business_id=b.id,
+                                                            user_id=member.user_id).value if BusinessEvaluation.objects.filter(
+                        business_id=b.id, user_id=member.user_id).first() else '',
+                    'comment': BusinessEvaluation.objects.get(business_id=b.id,
+                                                              user_id=member.user_id).comment if BusinessEvaluation.objects.filter(
+                        business_id=b.id, user_id=member.user_id).first() else '',
                     'node_evaluation': [{
                         'alloc_id': alloc.id,
                         'node_name': alloc.node.name,
-                        'node_comment': BusinessEvaluation.objects.get(role_alloc_id=alloc.id).comment if BusinessEvaluation.objects.filter(role_alloc_id=alloc.id).first() else '',
-                    }for alloc in BusinessRoleAllocation.objects.filter(role_id=member.business_role_id, no=member.no)]
-                }for member in BusinessTeamMember.objects.filter(business_id=b.id)]
+                        'node_comment': BusinessEvaluation.objects.get(
+                            role_alloc_id=alloc.id).comment if BusinessEvaluation.objects.filter(
+                            role_alloc_id=alloc.id).first() else '',
+                    } for alloc in BusinessRoleAllocation.objects.filter(role_id=member.business_role_id, no=member.no)]
+                } for member in BusinessTeamMember.objects.filter(business_id=b.id)]
             } for b in allBusiness]
         else:
             results = []

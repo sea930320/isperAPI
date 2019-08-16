@@ -1759,7 +1759,7 @@ def api_workflow_list(request):
                 'animation2': file_info(flow.animation2), 'status': flow.status, 'type_label': flow.type_label,
                 'task_label': flow.task_label, 'officeItem': flow.type_label,
                 'officeItem_name': OfficeItems.objects.get(id=flow.type_label).name,
-                'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d') or "",
+                'create_time': flow.create_time is not None and flow.create_time.strftime('%Y-%m-%d %H:%M:%S') or "",
                 'step': flow.step, 'created_by': user_info, 'protected': flow.protected, 'is_share': flow.is_share,
                 'is_public': flow.is_public, 'created_role': flow.created_role_id
             })

@@ -11,7 +11,8 @@ class Course(models.Model):
     courseName = models.CharField(max_length=48, verbose_name=u'courseName')
     courseSeqNum = models.IntegerField(verbose_name=u'courseSeqNum', null=True)
     courseSemester = models.CharField(max_length=48, verbose_name=u'courseSemester', null=True)
-    teacher = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'teacher', related_name="teacher")
+    # teacher = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'teacher', related_name="teacher")
+    teachers = models.ManyToManyField(Tuser, related_name="teacher_courses")
     courseCount = models.IntegerField(verbose_name=u'courseCount', null=True)
     experienceTime = models.CharField(max_length=48, verbose_name=u'experienceTime', null=True)
     studentCount = models.IntegerField(verbose_name=u'studentCount', null=True)
@@ -24,6 +25,7 @@ class Course(models.Model):
     class Meta:
         db_table = "t_course"
         verbose_name_plural = verbose_name = u"课堂"
+        ordering = ['-create_time']
 
     def __unicode__(self):
         return str(self.courseName)
@@ -43,6 +45,7 @@ class UniversityLinkedCompany(models.Model):
     class Meta:
         db_table = "t_university_linked_company"
         verbose_name_plural = verbose_name = u"UniversityLinkedCompany"
+        ordering = ['-create_time']
 
     def __unicode__(self):
         return str(self.university_id)
