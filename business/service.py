@@ -59,24 +59,47 @@ def clear_cache(experiment_id):
 
 def get_role_allocs_status_by_user(business, path, user):
     role_alloc_list = []
-    btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
-    for btm in btmQs:
-        try:
-            roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=path.node, role=btm.business_role,
-                                                              no=btm.no, project_id=business.cur_project_id,
-                                                              can_take_in=True).first()
-            roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
-                                                                          business_role_allocation=roleAlloc).first()
-            role_alloc_list.append({
-                'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
-                'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
-                'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
-                'speak_times': 0 if path.control_status != 2 else roleAllocStatus.speak_times,
-                'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
-                'can_brought': roleAlloc.can_brought
-            })
-        except:
-            continue
+    if path.node.parallel_node_start == 0:
+        btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
+        for btm in btmQs:
+            try:
+                roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=path.node, role=btm.business_role,
+                                                                  no=btm.no, project_id=business.cur_project_id,
+                                                                  can_take_in=True).first()
+                roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
+                                                                              business_role_allocation=roleAlloc).first()
+                role_alloc_list = {
+                    'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
+                    'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
+                    'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
+                    'speak_times': 0,
+                    'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
+                    'can_brought': roleAlloc.can_brought
+                }
+            except:
+                continue
+    elif path.node.parallel_node_start == 1:
+        btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
+        for pn in business.parallel_nodes.all():
+            node_alloc_list = []
+            for btm in btmQs:
+                try:
+                    roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=pn.node, role=btm.business_role,
+                                                                      no=btm.no, project_id=business.cur_project_id,
+                                                                      can_take_in=True).first()
+                    roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
+                                                                                  business_role_allocation=roleAlloc).first()
+                    node_alloc_list.append({
+                        'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
+                        'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
+                        'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
+                        'speak_times': 0,
+                        'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
+                        'can_brought': roleAlloc.can_brought
+                    })
+                except:
+                    continue
+            role_alloc_list.append(node_alloc_list)
     return role_alloc_list
 
 
@@ -162,21 +185,36 @@ def get_business_detail(business):
 
     node = FlowNode.objects.filter(pk=business.node_id).first() if business.node else None
     if node:
-        process = node.process
-        print process.type
-        if process.type == 11:
-            bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id,
-                                                    node_id=node.id, target__in=[0, 1]).first()
-            if bSurvey:
-                allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
-                                                                    project_id=business.cur_project_id, node_id=node.id)
-                allocations.update(can_take_in=True)
-        cur_node = {
-            'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': process.type,
-            'can_switch': process.can_switch
-        }
-    else:
-        cur_node = None
+        if node.parallel_node_start == 0:
+            process = node.process
+            print process.type
+            if process.type == 11:
+                bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id,
+                                                        node_id=node.id, target__in=[0, 1]).first()
+                if bSurvey:
+                    allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
+                                                                        project_id=business.cur_project_id, node_id=node.id)
+                    allocations.update(can_take_in=True)
+            cur_node = {
+                'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': process.type,
+                'can_switch': process.can_switch
+            }
+        else:
+            cur_node = []
+            for subNode in business.parallel_nodes.all():
+                process = subNode.node.process
+                print process.type
+                if process.type == 11:
+                    bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id,
+                                                            node_id=subNode.node.id, target__in=[0, 1]).first()
+                    if bSurvey:
+                        allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
+                                                                            project_id=business.cur_project_id, node_id=subNode.node.id)
+                        allocations.update(can_take_in=True)
+                cur_node.append({
+                    'id': subNode.node.id, 'name': subNode.node.name, 'condition': subNode.node.condition, 'process_type': process.type,
+                    'can_switch': process.can_switch
+                })
     role_allocs = []
     business_role_allocs = BusinessRoleAllocation.objects.filter(business=business, project_id=business.cur_project_id,
                                                                  can_take_in=True)
@@ -641,9 +679,11 @@ def action_role_banned(bus, node_id, path_id, control_status):
     try:
         BusinessTransPath.objects.filter(pk=bus.path_id).update(control_status=control_status)
         if control_status == 2:
-            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation__node_id=node_id,
-                                                        path_id=path_id).update(speak_times=0, show_status=9,
-                                                                                submit_status=9)
+            BusinessRoleAllocationStatus.objects.filter(
+                business_id=bus.id,
+                business_role_allocation__node_id=node_id,
+                # path_id=path_id
+            ).update(speak_times=0, show_status=9,submit_status=9)
         opt = {'control_status': control_status}
         return True, opt
     except Exception as e:
@@ -660,8 +700,11 @@ def action_role_meet(bus, path_id, role, role_alloc_id):
     :return:
     """
     try:
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id,
-                                                    path_id=path_id).update(come_status=1, stand_status=2)
+        BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.id,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path_id
+        ).update(come_status=1, stand_status=2)
 
         role_info = {'id': role_alloc_id, 'name': role.name}
         return True, role_info
@@ -682,9 +725,11 @@ def action_role_speak_opt(bus, path_id, data):
     try:
         if 'msg_id' in data.keys():
             BusinessMessage.objects.filter(pk=data['msg_id']).update(opt_status=True)
-        alloc_role_status = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id,
-                                                                        business_role_allocation_id=data[
-                                                                            'role_alloc_id']).first()
+        alloc_role_status = BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.id,
+            # path_id=path_id,
+            business_role_allocation_id=data['role_alloc_id']
+        ).first()
         if alloc_role_status and int(data['result']) == 1:
             alloc_role_status.speak_times = const.MESSAGE_MAX_TIMES
             alloc_role_status.save(update_fields=['speak_times'])
@@ -707,9 +752,11 @@ def action_doc_apply_show_opt(bus, node_id, path_id, data):
     try:
         if 'msg_id' in data.keys():
             BusinessMessage.objects.filter(pk=data['msg_id']).update(opt_status=True)
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id,
-                                                    business_role_allocation_id=data['role_alloc_id']).update(
-            show_status=data['result'])
+        BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.id,
+            # path_id=path_id,
+            business_role_allocation_id=data['role_alloc_id']
+        ).update(show_status=data['result'])
         role = BusinessRoleAllocation.objects.get(pk=data['role_alloc_id']).role
         return True, {'role_id': data['role_alloc_id'], 'role_name': role.name, 'result': data['result']}
     except Exception as e:
@@ -743,9 +790,11 @@ def action_role_letout(bus, node, path_id, role_alloc_ids):
     """
     try:
         with transaction.atomic():
-            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id,
-                                                        business_role_allocation_id__in=role_alloc_ids) \
-                .exclude(come_status=9).update(come_status=1, sitting_status=1, stand_status=2)
+            BusinessRoleAllocationStatus.objects.filter(
+                business_id=bus.id,
+                # path_id=path_id,
+                business_role_allocation_id__in=role_alloc_ids
+            ).exclude(come_status=9).update(come_status=1, sitting_status=1, stand_status=2)
             # 报告席
             report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE).first()
 
@@ -794,8 +843,11 @@ def action_role_letin(bus, node_id, path_id, role_alloc_ids):
     try:
         project = Project.objects.get(pk=bus.cur_project_id)
         role_list = []
-        alloc_role_status_list = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, path_id=path_id,
-                                                                             business_role_allocation_id__in=role_alloc_ids)
+        alloc_role_status_list = BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.id,
+            # path_id=path_id,
+            business_role_allocation_id__in=role_alloc_ids
+        )
         for alloc_role_status in alloc_role_status_list:
             item_role_id = alloc_role_status.business_role_allocation.role_id
             item_no = alloc_role_status.business_role_allocation.no
@@ -875,8 +927,11 @@ def action_role_sitdown(bus, path_id, role, pos, role_alloc_id):
     :return:
     """
     try:
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id,
-                                                    path_id=path_id).update(stand_status=2)
+        BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.id,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path_id
+        ).update(stand_status=2)
 
         role_info = {'id': role_alloc_id, 'name': role.name, 'code_position': pos['code_position']}
         return True, role_info
@@ -891,8 +946,11 @@ def action_role_stand(bus, path_id, role, pos, role_alloc_id):
     :return:
     """
     try:
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id,
-                                                    path_id=path_id).update(stand_status=1)
+        BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.id,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path_id
+        ).update(stand_status=1)
 
         role_info = {'id': role_alloc_id, 'name': role.name, 'code_position': pos['code_position']}
         return True, role_info
@@ -908,8 +966,11 @@ def action_role_hide(bus, path_id, role, pos, role_alloc_id):
     """
     try:
         with transaction.atomic():
-            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id,
-                                                        path_id=path_id).update(stand_status=2, sitting_status=1)
+            BusinessRoleAllocationStatus.objects.filter(
+                business_id=bus.id,
+                business_role_allocation_id=role_alloc_id,
+                # path_id=path_id
+            ).update(stand_status=2, sitting_status=1)
             # 占位状态
             BusinessPositionStatus.objects.update_or_create(
                 business_id=bus.id,
@@ -936,13 +997,13 @@ def action_role_show(bus, node_id, path_id, role, pos, role_alloc_id):
         BusinessRoleAllocationStatus.objects.filter(
             business_id=bus.id,
             business_role_allocation_id=role_alloc_id,
-            path_id=path_id
+            # path_id=path_id
         ).update(stand_status=2, sitting_status=2)
 
         alloc_role_status = BusinessRoleAllocationStatus.objects.filter(
             business_id=bus.id,
             business_role_allocation_id=role_alloc_id,
-            path_id=path_id,
+            # path_id=path_id,
         ).first()
 
         # 占位状态
@@ -997,7 +1058,7 @@ def action_doc_apply_submit_opt(bus, node_id, path_id, data):
             BusinessMessage.objects.filter(pk=data['msg_id']).update(opt_status=True)
         BusinessRoleAllocationStatus.objects.filter(
             business_id=bus.id,
-            path_id=path_id,
+            # path_id=path_id,
             business_role_allocation_id=data['role_alloc_id']
         ).update(submit_status=data['result'])
         role = BusinessRoleAllocation.objects.get(pk=data['role_alloc_id']).role
@@ -1284,7 +1345,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
                     bras = BusinessRoleAllocationStatus.objects.filter(
                         business_id=bus.id,
                         business_role_allocation_id=role_allocation_item.id,
-                        path_id=path.pk,
+                        # path_id=path.pk,
                     )
                     if bras:  # 存在则更新
                         bras = bras.first()
@@ -1293,7 +1354,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
                     else:  # 不存在则创建
                         BusinessRoleAllocationStatus.objects.update_or_create(
                             business_id=bus.id,
-                            path_id=path.pk,
+                            # path_id=path.pk,
                             business_role_allocation_id=role_allocation_item.id,
                             come_status=come_status
                         )
@@ -1336,7 +1397,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
                                 business_role_allocation__node_id=cur_node.id,
                                 business_role_allocation__no=item.no,
                                 business_role_allocation__role_id=item.business_role_id,
-                                path_id=cur_path.id
+                                # path_id=cur_path.id
                             ).first()
                             if bras and bras.sitting_status == const.SITTING_DOWN_STATUS:
                                 BusinessRoleAllocationStatus.objects.filter(
@@ -1344,7 +1405,7 @@ def action_exp_node_end(bus, role_alloc_id, data):
                                     business_role_allocation__node_id=next_node.pk,
                                     business_role_allocation__no=item.no,
                                     business_role_allocation__role_id=item.business_role_id,
-                                    path_id=path.id
+                                    # path_id=path.id
                                 ).update(sitting_status=const.SITTING_DOWN_STATUS)
 
                 bus.cur_project_id = project.pk
@@ -1439,18 +1500,25 @@ def action_role_vote(bus, node_id, path, role_alloc_id, status):
         if path.vote_status == 2:
             return False, code.get_msg(code.BUSINESS_ROLE_VOTE_IS_END)
 
-        exists = BusinessRoleAllocationStatus.objects.filter(business_id=bus.pk,
-                                                             business_role_allocation_id=role_alloc_id,
-                                                             path_id=path.pk, vote_status=0).exists()
+        exists = BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.pk,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path.pk,
+            vote_status=0).exists()
         if not exists:
             return False, code.get_msg(code.BUSINESS_ROLE_HAS_VOTE)
 
-        BusinessRoleAllocationStatus.objects.filter(business_id=bus.pk, business_role_allocation_id=role_alloc_id,
-                                                    path_id=path.pk).update(vote_status=status)
+        BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.pk,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path.pk
+        ).update(vote_status=status)
 
-        has_vote = BusinessRoleAllocationStatus.objects.filter(business_id=bus.pk,
-                                                               business_role_allocation_id=role_alloc_id,
-                                                               path_id=path.pk, vote_status=0).exists()
+        has_vote = BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.pk,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path.pk,
+            vote_status=0).exists()
         opt = {
             'role_status_list': action_roles_vote_status(bus, node_id, path),
             'has_vote': False if has_vote else True,
@@ -1634,9 +1702,11 @@ def action_role_toward_report(bus, node_id, path_id, bra, pos):
 
         # 4角色如以入席，修改占位和入席状态，修改报告席状态，未入席直接修改报告席状态；
         # 角色状态
-        brast = BusinessRoleAllocationStatus.objects.filter(business_id=bus.pk,
-                                                            business_role_allocation_id=role_alloc_id,
-                                                            path_id=path_id).first()
+        brast = BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.pk,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path_id
+        ).first()
 
         BusinessPositionStatus.objects.update_or_create(business_id=bus.id, business_role_allocation_id=role_alloc_id,
                                                         path_id=path_id, position_id=pos['position_id'])
@@ -1731,17 +1801,21 @@ def action_role_end_report(bus, node_id, path_id, bra, pos):
                                                                     path_id=path_id, position_id=origin_pos.id,
                                                                     sitting_status=const.SITTING_DOWN_STATUS).exists()
         if origin_position_use:
-            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id,
-                                                        path_id=path_id).update(stand_status=2, sitting_status=1,
-                                                                                come_status=2)
+            BusinessRoleAllocationStatus.objects.filter(
+                business_id=bus.id,
+                business_role_allocation_id=role_alloc_id,
+                # path_id=path_id
+            ).update(stand_status=2, sitting_status=1, come_status=2)
         else:
             BusinessPositionStatus.objects.filter(business_id=bus.id, path_id=path_id,
                                                   position_id=origin_pos.id,
                                                   business_role_allocation_id=role_alloc_id).update(
                 sitting_status=const.SITTING_DOWN_STATUS)
-            BusinessRoleAllocationStatus.objects.filter(business_id=bus.id, business_role_allocation_id=role_alloc_id,
-                                                        path_id=path_id).update(stand_status=2, sitting_status=1,
-                                                                                come_status=2)
+            BusinessRoleAllocationStatus.objects.filter(
+                business_id=bus.id,
+                business_role_allocation_id=role_alloc_id,
+                # path_id=path_id
+            ).update(stand_status=2, sitting_status=1, come_status=2)
 
             # 报告席状态为已退席
             BusinessPositionStatus.objects.filter(business_id=bus.id, path_id=path_id,
@@ -1749,9 +1823,11 @@ def action_role_end_report(bus, node_id, path_id, bra, pos):
                 sitting_status=const.SITTING_UP_STATUS,
                 business_role_allocation_id=None)
 
-        brast = BusinessRoleAllocationStatus.objects.filter(business_id=bus.id,
-                                                            business_role_allocation_id=role_alloc_id,
-                                                            path_id=path_id).first()
+        brast = BusinessRoleAllocationStatus.objects.filter(
+            business_id=bus.id,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path_id
+        ).first()
         image = RoleImage.objects.filter(pk=FlowRoleAllocation.objects.get(pk=bra.flow_role_alloc_id).image_id).first()
         qs_files = RoleImageFile.objects.filter(image=image)
         actors = []
@@ -1784,10 +1860,11 @@ def action_roles_exit(business, node, path_id, user_id):
     """
     try:
         with transaction.atomic():
-            brast = BusinessRoleAllocationStatus.objects.filter(business_id=business.id,
-                                                                business_role_allocation__node_id=node.pk,
-                                                                path_id=path_id,
-                                                                sitting_status=2)
+            brast = BusinessRoleAllocationStatus.objects.filter(
+                business_id=business.id,
+                business_role_allocation__node_id=node.pk,
+                # path_id=path_id,
+                sitting_status=2)
             # 报告席
             report_pos = FlowPosition.objects.filter(process=node.process, type=const.SEAT_REPORT_TYPE).first()
 

@@ -15,6 +15,19 @@ def get_business_doc_upload_to(instance, filename):
     return u'business/{}/{}'.format(instance.business_id, filename)
 
 
+# 实验流转路径
+class BusinessParallelNodes(models.Model):
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'当前环节')
+    is_done = models.IntegerField(default=0, verbose_name=u'node_done_status')
+
+    class Meta:
+        db_table = "t_business_parallel_node"
+        verbose_name_plural = verbose_name = u"business_parallel_node"
+
+    def __unicode__(self):
+        return str(self.node_id)
+
+
 # 实验任务
 class Business(models.Model):
     name = models.CharField(max_length=64, verbose_name=u'名称')
@@ -36,7 +49,7 @@ class Business(models.Model):
     target_company = models.ForeignKey(TCompany, blank=True, null=True, on_delete=models.CASCADE)
     target_part = models.ForeignKey(TParts, blank=True, null=True, on_delete=models.CASCADE)
     jumper_id = models.IntegerField(verbose_name=u'当前项目', null=True, default=None)
-    parallel_nodes = models.ManyToManyField('BusinessParallelNodes')
+    parallel_nodes = models.ManyToManyField(BusinessParallelNodes)
 
     class Meta:
         db_table = "t_business"
@@ -45,19 +58,6 @@ class Business(models.Model):
 
     def __unicode__(self):
         return self.name
-
-
-# 实验流转路径
-class BusinessParallelNodes(models.Model):
-    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'当前环节')
-    is_done = models.IntegerField(default=0, verbose_name=u'node_done_status')
-
-    class Meta:
-        db_table = "t_business_parallel_node"
-        verbose_name_plural = verbose_name = u"business_parallel_node"
-
-    def __unicode__(self):
-        return str(self.node_id)
 
 
 # 实验流转路径
