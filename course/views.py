@@ -52,12 +52,12 @@ def api_course_list(request):
             teachers_label = getTeacherLabels(teachers)
 
             data = {'value': item.id,
-                 'text': (item.courseName + '-' + teachers_label + '-' + item.courseId) if item.courseId else (
-                     item.courseName + '-' + teachers_label)}
+                    'text': (item.courseName + '-' + teachers_label + '-' + item.courseId) if item.courseId else (
+                        item.courseName + '-' + teachers_label)}
             results.append(data)
 
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'results': data}
+        resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
@@ -104,10 +104,11 @@ def api_course_full_list(request):
                 'id': flow.id,
                 'courseId': flow.courseId,
                 'courseName': flow.courseName,
-                'courseFullName': flow.courseName if flow.courseName else '' + '-' + getTeacherLabels(flow.teachers.all()) + '-' + flow.courseId if flow.courseId else '',
+                'courseFullName': (flow.courseName if flow.courseName else '') + '-' + getTeacherLabels(
+                    flow.teachers.all()) + '-' + (flow.courseId if flow.courseId else ''),
                 'courseSeqNum': flow.courseSeqNum,
                 'courseSemester': flow.courseSemester,
-                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers],
+                'teachers': [model_to_dict(teacher, fields=['id', 'teacher_id', 'name']) for teacher in flow.teachers.all()],
                 'courseCount': flow.courseCount,
                 'experienceTime': flow.experienceTime,
                 'studentCount': flow.studentCount,
@@ -182,7 +183,7 @@ def api_course_outside_list(request):
             results = [{
                 'id': flow.id,
                 'courseName': flow.courseName,
-                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers],
+                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers.all()],
                 'created_by': flow.created_by.username,
                 'create_time': flow.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
@@ -261,7 +262,7 @@ def api_course_hobby_list(request):
                 'courseSemester': course.courseSemester,
                 'courseCount': course.courseCount,
                 'experienceTime': course.experienceTime,
-                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in course.teachers],
+                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in course.teachers.all()],
                 'created_by': course.created_by.username,
                 'create_time': course.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
@@ -275,7 +276,8 @@ def api_course_hobby_list(request):
                     'leader': team.team_leader.username,
                     'create_time': team.create_time.strftime('%Y-%m-%d'),
                     'member_count': team.members.count(),
-                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()]
+                } for team in
+                    StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()]
             } for course in courses]
 
             paging = {
@@ -318,40 +320,48 @@ def api_course_save_new(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         if login_type not in [4, 8]:
-            type = 0
+            course_type = 0
             tcompany_id = request.user.tcompanymanagers_set.get().tcompany.id
         else:
-            type = 1
+            course_type = 1
             tcompany_id = request.user.tcompany.id
 
-        course = Course.objects.create(
-            courseId=courseId,
-            courseName=courseName,
-            courseSeqNum=int(courseSeqNum),
-            courseSemester=courseSemester,
-            courseCount=int(courseCount),
-            experienceTime=experienceTime,
-            studentCount=int(studentCount),
-            tcompany_id=tcompany_id,
-            created_by=request.user,
-            type = type
-        )
+        course = Course.objects.filter(courseId=courseId).first()
+        if course is None:
+            course = Course.objects.create(
+                courseId=courseId,
+                courseName=courseName,
+                courseSeqNum=int(courseSeqNum),
+                courseSemester=courseSemester,
+                courseCount=int(courseCount),
+                experienceTime=experienceTime,
+                studentCount=int(studentCount),
+                tcompany_id=tcompany_id,
+                created_by=request.user,
+                type=course_type
+            )
         if login_type not in [4, 8]:
             if teachers != "":
                 teachers = json.loads(teachers)
                 for teacher in teachers:
                     teacherName = teacher['teacher_name']
                     teacherId = teacher['teacher_id']
-                    user = AllGroups.objects.get(
-                        id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
-                        username=teacherName + '-' + teacherId,
-                        name=teacherName,
-                        teacher_id=teacherId,
-                        password=make_password('1234567890'),
-                        tcompany=request.user.tcompanymanagers_set.get().tcompany,
-                        is_review=1,
-                    )
-                    user.roles.add(TRole.objects.get(id=4))
+                    user = Tuser.objects.filter(username=teacherName + '-' + teacherId).first()
+                    if not user:
+                        user = AllGroups.objects.get(
+                            id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
+                            username=teacherName + '-' + teacherId,
+                            name=teacherName,
+                            teacher_id=teacherId,
+                            password=make_password('1234567890'),
+                            tcompany=request.user.tcompanymanagers_set.get().tcompany,
+                            is_review=1,
+                        )
+                        user.roles.add(TRole.objects.get(id=4))
+                    else:
+                        user.roles.add(TRole.objects.get(id=4))
+                        AllGroups.objects.get(
+                            id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.add(user)
                     course.teachers.add(user)
 
         else:
@@ -464,9 +474,18 @@ def api_course_save_teacher_change(request):
 
     try:
         id = request.POST.get("id")
-        teacher = request.POST.get("teacher")
+        teacher1 = request.POST.get("teacher1", None)
+        teacher2 = request.POST.get("teacher2", None)
+        teacher3 = request.POST.get("teacher3", None)
 
-        Course.objects.filter(pk=id).update(teacher_id=teacher)
+        tcourse = Course.objects.filter(pk=id).first()
+        tcourse.teachers.clear()
+        if teacher1:
+            tcourse.teachers.add(Tuser.objects.get(pk=teacher1))
+        if teacher2:
+            tcourse.teachers.add(Tuser.objects.get(pk=teacher2))
+        if teacher3:
+            tcourse.teachers.add(Tuser.objects.get(pk=teacher3))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -529,21 +548,47 @@ def api_course_excel_data_save(request):
         excelData = request.POST.get("excelData", None)
         excelData = json.loads(excelData)
         for course in excelData:
-            print course['item']
             item = course['item'][0]
             courseId = str(item[u'courseId']).encode('utf8')
             courseName = str(item[u'courseName']).encode('utf8')
             courseSeqNum = int(item[u'courseSeqNum'])
             courseSemester = str(item[u'courseSemester']).encode('utf8')
-            teacherName = str(item[u'teacherName']).encode('utf8')
-            teacherId = str(item[u'teacherId']).encode('utf8')
+            teachers = [{
+                'teacher_name': str(item[u'teacherName1']).encode('utf8'),
+                'teacher_id': str(item[u'teacherId1']).encode('utf8')
+            }]
+            if 'teacherName2' in item and 'teacherId2' in item:
+                teachers.append({
+                    'teacher_name': str(item[u'teacherName2']).encode('utf8'),
+                    'teacher_id': str(item[u'teacherId2']).encode('utf8')
+                })
+            if 'teacherName3' in item and 'teacherId3' in item:
+                teachers.append({
+                    'teacher_name': str(item[u'teacherName3']).encode('utf8'),
+                    'teacher_id': str(item[u'teacherId3']).encode('utf8')
+                })
             courseCount = int(item[u'courseCount'])
             experienceTime = str(item[u'experienceTime']).encode('utf8')
             studentCount = int(item[u'studentCount'])
 
             tcourse = Course.objects.filter(courseId=courseId).first()
             if tcourse is None:
-                try:
+                tcourse = Course.objects.create(
+                    courseId=courseId,
+                    courseName=courseName,
+                    courseSeqNum=int(courseSeqNum),
+                    courseSemester=courseSemester,
+                    courseCount=int(courseCount),
+                    experienceTime=experienceTime,
+                    studentCount=int(studentCount),
+                    tcompany_id=companyId,
+                    created_by=request.user,
+                )
+            for teacher in teachers:
+                teacherName = teacher['teacher_name']
+                teacherId = teacher['teacher_id']
+                user = Tuser.objects.filter(username=teacherName + '-' + teacherId).first()
+                if not user:
                     user = AllGroups.objects.get(id=company.group_id) \
                         .groupInstructors.create(
                         username=teacherName + '-' + teacherId,
@@ -554,38 +599,25 @@ def api_course_excel_data_save(request):
                         is_review=1,
                     )
                     user.roles.add(TRole.objects.get(id=4))
-                except Exception as e:
-                    user = AllGroups.objects.get(id=company.group_id) \
-                        .groupInstructors.filter(
-                        username=teacherName + '-' + teacherId
-                    ).first()
-                    if not user:
-                        continue
-
-                tcourse = Course.objects.create(
-                    courseId=courseId,
-                    courseName=courseName,
-                    courseSeqNum=int(courseSeqNum),
-                    courseSemester=courseSemester,
-                    teacher=user,
-                    courseCount=int(courseCount),
-                    experienceTime=experienceTime,
-                    studentCount=int(studentCount),
-                    tcompany_id=companyId,
-                    created_by=request.user,
-                )
+                else:
+                    user.roles.add(TRole.objects.get(id=4))
+                    AllGroups.objects.get(
+                        id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.add(user)
+                tcourse.teachers.add(user)
             for student in course['item']:
                 studentNo = int(student[u'studentNo'])
                 studentName = str(student[u'studentName']).encode('utf8')
                 studentClassName = str(student[u'studentClassName']).encode('utf8') if student[
                     u'studentClassName'] else None
-                try:
-                    if studentClassName:
-                        tclass = TClass.objects.filter(name=studentClassName).first()
-                        if not tclass:
-                            tclass = TClass.objects.create(name=studentClassName)
-                    else:
-                        tclass = None
+                if studentClassName:
+                    tclass = TClass.objects.filter(name=studentClassName).first()
+                    if not tclass:
+                        tclass = TClass.objects.create(name=studentClassName)
+                else:
+                    tclass = None
+
+                newStudent = Tuser.objects.filter(username=str(companyId) + '_' + str(studentNo)).first()
+                if not newStudent:
                     newStudent = Tuser(
                         username=str(companyId) + '_' + str(studentNo),
                         name=studentName,
@@ -599,10 +631,9 @@ def api_course_excel_data_save(request):
                     )
                     newStudent.save()
                     newStudent.roles.add(TRole.objects.get(id=9))
-                except Exception as e:
-                    print "student Exception"
-                    print e
-                    continue
+                else:
+                    newStudent.roles.add(TRole.objects.get(id=9))
+                tcourse.students.add(newStudent)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}

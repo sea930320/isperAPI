@@ -13,6 +13,7 @@ class Course(models.Model):
     courseSemester = models.CharField(max_length=48, verbose_name=u'courseSemester', null=True)
     # teacher = models.ForeignKey(Tuser, models.CASCADE, verbose_name=u'teacher', related_name="teacher")
     teachers = models.ManyToManyField(Tuser, related_name="teacher_courses")
+    students = models.ManyToManyField(Tuser, related_name="student_courses")
     courseCount = models.IntegerField(verbose_name=u'courseCount', null=True)
     experienceTime = models.CharField(max_length=48, verbose_name=u'experienceTime', null=True)
     studentCount = models.IntegerField(verbose_name=u'studentCount', null=True)

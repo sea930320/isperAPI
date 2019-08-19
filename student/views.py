@@ -181,16 +181,14 @@ def api_student_watch_course_list(request):
         if login_type not in [5, 9]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-        qs = Course.objects.filter(tcompany=user.tcompany, type__in=[0, 1], del_flag=0)
+        qs = user.student_courses.filter(del_flag=0, type__in=[0, 1])
         data = [{
             'value': item.id,
             'text': item.courseName,
             'courseId': item.courseId,
             'courseSeqNum': item.courseSeqNum,
             'courseSemester': item.courseSemester,
-            'teacherName': item.teacher.name if item.teacher else None,
-            'teacher': model_to_dict(item.teacher, fields=['id', 'name', 'username']) if item.teacher else None,
+            'teachers': [model_to_dict(teacher, fields=['id', 'teacher_id', 'name']) for teacher in item.teachers.all()],
             'courseCount': item.courseCount,
             'experienceTime': item.experienceTime,
             'studentCount': item.studentCount,
@@ -241,11 +239,11 @@ def api_student_team_detail(request):
             stwt = StudentWatchingTeam.objects.filter(pk=stwb.team_id).first()
             if stwt is None:
                 continue
-            teacher = model_to_dict(stwb.course.teacher,
-                                    fields=['id', 'username', 'name', 'teacher_id', 'gender']) if stwb.course else {}
+            teachers = [model_to_dict(teacher,
+                                    fields=['id', 'username', 'name', 'teacher_id', 'gender']) for teacher in stwb.course.teachers.all()] if stwb.course else {}
             members = [model_to_dict(member, fields=['id', 'username', 'name', 'student_id', 'gender']) for member in
                        stwt.members.all()]
-            team = {'teacher': teacher, 'members': members, 'name': stwt.name, 'id': stwt.id,
+            team = {'teachers': teachers, 'members': members, 'name': stwt.name, 'id': stwt.id,
                     'create_time': stwt.create_time.strftime('%Y-%m-%d') if stwt.create_time else None,
                     'leader': model_to_dict(stwt.team_leader,
                                             fields=['id', 'username', 'name',
@@ -278,7 +276,11 @@ def api_student_watch_company_user_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = Tuser.objects.filter(tcompany=user.tcompany, roles=9, del_flag=0)
+        linkedCourses = user.student_courses.all()
+        qs = Tuser.objects.none()
+        for linkedCourse in linkedCourses:
+            qs = qs | linkedCourse.students.all()
+        # qs = Tuser.objects.filter(tcompany=user.tcompany, roles=9, del_flag=0)
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(username__icontains=search))
             qs = qs.filter(del_flag=0)
@@ -286,6 +288,7 @@ def api_student_watch_company_user_list(request):
             excepted_team = StudentWatchingTeam.objects.filter(pk=excepted_team_id).first()
             e_member_ids = excepted_team.members.all().values_list('pk', flat=True)
             qs = qs.exclude(pk__in=e_member_ids)
+        qs = qs.distinct()
         paginator = Paginator(qs, size)
 
         try:
