@@ -376,6 +376,7 @@ urlpatterns += (
     url(r'^api/student/team/users$', student_views.api_student_team_users),
     url(r'^api/student/team/add-user$', student_views.api_student_team_add_user),
     url(r'^api/student/team/add-users$', student_views.api_student_team_add_users),
+    url(r'^api/student/team/invite-user$', student_views.api_student_team_invite_user),
     url(r'^api/student/team/remove-user$', student_views.api_student_team_remove_user),
     url(r'^api/student/team/set-leader$', student_views.api_student_team_set_leader),
     url(r'^api/student/team/remove$', student_views.api_student_team_remove),

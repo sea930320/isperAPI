@@ -20,6 +20,7 @@ class StudentWatchingTeam(models.Model):
     team_leader = models.ForeignKey(Tuser, on_delete=models.CASCADE, verbose_name=u'Team Leader',
                                     related_name="student_team_leader_set")
     members = models.ManyToManyField(Tuser, verbose_name=u'Team Members')
+    invited_users = models.ManyToManyField(Tuser, related_name="invited_teams", verbose_name=u'Team Invited Users')
     del_flag = models.IntegerField(default=0, choices=((1, u"是"), (0, u"否")), verbose_name=u'是否删除')
 
     create_time = models.DateTimeField(auto_now_add=True, null=True)
