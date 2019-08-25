@@ -5644,3 +5644,414 @@ def api_business_save_evaluation(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_chapter_list(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+#######################################################################################
+def api_bill_chapter_list(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_section_list(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_part_list(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_chapter_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_section_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_part_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_part_doc_list(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_part_doc_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+def api_bill_part_doc_delete(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        user_id = request.POST.get("user_id", None)
+        value = request.POST.get("value", None)
+        comment = request.POST.get("comment", None)
+        node_evaluation = eval(request.POST.get("node_evaluation", None))
+
+        totalEvaluation = BusinessEvaluation.objects.filter(business_id=business_id, user_id=user_id)
+
+        if totalEvaluation.first() is None:
+            BusinessEvaluation.objects.create(
+                business_id=business_id,
+                user_id=user_id,
+                comment=comment,
+                value=value
+            )
+        else:
+            totalEvaluation.update(comment=comment, value=value)
+
+        for item in node_evaluation:
+            nodeEvaluation = BusinessEvaluation.objects.filter(role_alloc_id=item['alloc_id'])
+            if nodeEvaluation.first() is None:
+                BusinessEvaluation.objects.create(
+                    role_alloc_id=item['alloc_id'],
+                    comment=item['node_comment'],
+                )
+            else:
+                nodeEvaluation.update(comment=item['node_comment'])
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
