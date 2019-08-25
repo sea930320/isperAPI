@@ -457,10 +457,12 @@ def api_student_team_available_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = StudentWatchingTeam.objects.filter(university=user.tcompany, del_flag=0).exclude(members__id=user.id)
+        qs = StudentWatchingTeam.objects.filter(university=user.tcompany, type=0, del_flag=0)
+        invitedQs = user.invited_teams.all()
+        qs = qs | invitedQs
         if search:
             qs = qs.filter(Q(name__icontains=search))
-
+        qs = qs.exclude(members__id=user.id).distinct()
         paginator = Paginator(qs, size)
 
         try:
@@ -1001,6 +1003,7 @@ def api_student_team_users(request):
 
         swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
         members = [model_to_dict(member, fields=['id', 'name', 'username']) for member in swt.members.all()]
+        invited_users = [model_to_dict(user, fields=['id', 'name', 'username']) for user in swt.invited_users.all()]
 
         qs = Tuser.objects.filter(tcompany=request.user.tcompany, roles__id=9).exclude(pk=request.user.id)
         if search:
@@ -1027,6 +1030,7 @@ def api_student_team_users(request):
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {
             'members': members,
+            'invited_users': invited_users,
             'university_users': university_users,
             'paging': paging
         }
@@ -1036,6 +1040,32 @@ def api_student_team_users(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_student_team_invite_user(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        team_id = request.POST.get("id", None)
+        student_id = request.POST.get("student_id", None)
+
+        login_type = request.session['login_type']
+        if login_type not in [9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [team_id, student_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
+        if not swt.members.filter(pk=student_id).exists():
+            swt.invited_users.add(Tuser.objects.filter(pk=student_id).first())
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_student_team_invite_user Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def api_student_team_add_user(request):
     resp = auth_check(request, "POST")
@@ -1055,7 +1085,10 @@ def api_student_team_add_user(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
-        swt.members.add(Tuser.objects.filter(pk=student_id).first())
+        swt.invited_users.remove(Tuser.objects.filter(pk=student_id).first())
+        student = Tuser.objects.filter(pk=student_id).first()
+        swt.invited_users.remove(student)
+        swt.members.add(student)
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_student_team_add_user Exception:{0}'.format(str(e)))
@@ -1083,7 +1116,9 @@ def api_student_team_add_users(request):
         student_ids = json.loads(student_ids)
         swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
         for student_id in student_ids:
-            swt.members.add(Tuser.objects.filter(pk=student_id).first())
+            student = Tuser.objects.filter(pk=student_id).first()
+            swt.invited_users.remove(student)
+            swt.members.add(student)
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_student_team_add_users Exception:{0}'.format(str(e)))
