@@ -690,6 +690,8 @@ class BusinessBillList(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE,  blank=True, null=True, verbose_name=u'business')
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
+    chapters = models.ManyToManyField('BusinessBillChapter', blank=True,
+                                  verbose_name=u'chapters')
 
     class Meta:
         db_table = "t_business_bill_list"
@@ -699,12 +701,13 @@ class BusinessBillList(models.Model):
         return str(self.pk)
 
 class BusinessBillChapter(models.Model):
-    bill_list = models.ForeignKey(BusinessBillList, on_delete=models.CASCADE,  blank=True, null=True, verbose_name=u'bill_list')
     chapter_number = models.IntegerField(blank=True, null=True, verbose_name=u'bill_chapter')
     chapter_title = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'chapter_title')
     chapter_content = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'chapter_content')
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
+    sections = models.ManyToManyField('BusinessBillSection', blank=True,
+                                     verbose_name=u'sections')
 
     class Meta:
         db_table = "t_business_bill_chapter"
@@ -714,13 +717,13 @@ class BusinessBillChapter(models.Model):
         return str(self.pk)
 
 class BusinessBillSection(models.Model):
-    bill_chapter = models.ForeignKey(BusinessBillChapter, on_delete=models.CASCADE, blank=True, null=True,
-                                  verbose_name=u'bill_chapter')
     section_number = models.IntegerField(blank=True, null=True, verbose_name=u'section_number')
     section_title = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'section_title')
     section_content = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'section_content')
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
+    parts = models.ManyToManyField('BusinessBillPart', blank=True,
+                                     verbose_name=u'parts')
 
     class Meta:
         db_table = "t_business_bill_section"
@@ -730,8 +733,6 @@ class BusinessBillSection(models.Model):
         return str(self.pk)
 
 class BusinessBillPart(models.Model):
-    bill_section = models.ForeignKey(BusinessBillSection, on_delete=models.CASCADE, blank=True, null=True,
-                                     verbose_name=u'bill_section')
     part_number = models.IntegerField(blank=True, null=True, verbose_name=u'part_number')
     part_title = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'part_title')
     part_content = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'part_content')
@@ -740,6 +741,8 @@ class BusinessBillPart(models.Model):
     doc_conception = models.IntegerField(blank=True, null=True, verbose_name=u'doc_conception')
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
+    part_docs = models.ManyToManyField('BusinessBillPartDoc', blank=True,
+                                  verbose_name=u'part_docs')
 
     class Meta:
         db_table = "t_business_bill_part"
@@ -749,8 +752,6 @@ class BusinessBillPart(models.Model):
         return str(self.pk)
 
 class BusinessBillPartDoc(models.Model):
-    bill_part = models.ForeignKey(BusinessBillPart, on_delete=models.CASCADE, blank=True, null=True,
-                                     verbose_name=u'bill_part')
     doc_id = models.IntegerField(blank=True, null=True, verbose_name=u'doc_id')
     doc_conception = models.IntegerField(blank=True, null=True, verbose_name=u'doc_conception')
     create_time = models.DateTimeField(auto_now_add=True, null=True)

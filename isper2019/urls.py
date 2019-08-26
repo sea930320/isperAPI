@@ -401,6 +401,12 @@ urlpatterns += (
     url(r'^api/student/instructor/new-team$', student_views.api_student_instructor_new_team),
     url(r'^api/student/instructor/team-eval$', student_views.api_student_instructor_team_eval),
 
+    url(r'^api/bill/name/list$', business_views.api_bill_name_list),
+    url(r'^api/bill/update/full$', business_views.api_bill_update_full),
+    url(r'^api/bill/update/billname$', business_views.api_bill_update_billname),
+    url(r'^api/bill/part/delete$', business_views.api_bill_part_delete),
+
+
     url(r'^api/bill/chapter/list$', business_views.api_bill_chapter_list),
     url(r'^api/bill/section/list$', business_views.api_bill_section_list),
     url(r'^api/bill/part/list$', business_views.api_bill_part_list),
