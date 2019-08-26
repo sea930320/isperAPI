@@ -65,7 +65,7 @@ def api_student_watch_business_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        linkedCompanyIds = UniversityLinkedCompany.objects.filter(university=user.tcompany).values_list(
+        linkedCompanyIds = UniversityLinkedCompany.objects.filter(university=user.tcompany, status__in=[1, 3, 4]).values_list(
             'linked_company_id', flat=True).distinct()
 
         if type == 0:

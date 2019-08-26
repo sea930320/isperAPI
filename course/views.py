@@ -272,6 +272,8 @@ def api_course_hobby_list(request):
                     'leader': team.team_leader.username,
                     'create_time': team.create_time.strftime('%Y-%m-%d'),
                     'member_count': team.members.count(),
+                    'members': [model_to_dict(student, fields=['id', 'student_id', 'name']) for student in team.members.all()],
+                    'businesses': [get_business_detail(stwb.business) for stwb in team.studentwatchingbusiness_set.all()]
                 } for team in
                     StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()]
             } for course in courses]
