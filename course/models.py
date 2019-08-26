@@ -41,7 +41,7 @@ class UniversityLinkedCompany(models.Model):
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'创建时间')
     seted_time = models.DateTimeField(blank=True, null=True, verbose_name=u'seted_time')
     message = models.CharField(max_length=100, verbose_name=u'message')
-    status = models.IntegerField(default=0, verbose_name=u'status') # 0: request, 1: agree, 2: disagree, 3: canceled
+    status = models.IntegerField(default=0, verbose_name=u'status') # 0: request, 1: agree, 2: disagree, 3: cancel-request, 4: cancel-disagree
 
     class Meta:
         db_table = "t_university_linked_company"

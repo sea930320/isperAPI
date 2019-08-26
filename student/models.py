@@ -12,6 +12,9 @@ from business.models import *
 from course.models import *
 
 
+def get_student_doc_upload_to(instance, filename):
+    return u'student/{}/{}'.format(instance.business_id, filename)
+
 # 课堂
 class StudentWatchingTeam(models.Model):
     university = models.ForeignKey(TCompany, on_delete=models.CASCADE)
@@ -102,6 +105,13 @@ class StudentChatLog(models.Model):
     ext = models.TextField(verbose_name=u'Message Ext')
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
+
+    file_name = models.CharField(max_length=64, verbose_name=u'素材名称', null=True)
+    file_type = models.CharField(max_length=32, verbose_name=u'素材类型', null=True)
+    content = models.TextField(blank=True, null=True, verbose_name=u'内容')
+    file = models.FileField(upload_to=get_student_doc_upload_to, storage=FileStorage(),
+                            blank=True, null=True, verbose_name=u'文件')
+    file_type = models.PositiveSmallIntegerField(choices=const.FILE_TYPE, default=0, verbose_name=u'文件类型')
 
     class Meta:
         db_table = "t_student_chatlog"

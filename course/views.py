@@ -10,18 +10,11 @@ import xlrd
 import xlwt
 
 from account.models import TClass, TRole, TNotifications
+from business.service import get_business_detail
 from django.contrib.auth.hashers import make_password
-from django.core.paginator import Paginator, EmptyPage
-from django.utils.http import urlquote
-from datetime import datetime
-
-from django.db.models import Q, Count
 from django.http import HttpResponse, Http404
 from course.models import *
-from group.models import AllGroups
-from project.models import Project
 from student.models import StudentWatchingBusiness, StudentWatchingTeam
-from team.models import TeamMember
 from course.service import *
 from business.models import *
 from utils import code, const, query
@@ -109,9 +102,9 @@ def api_course_full_list(request):
                 'courseSeqNum': flow.courseSeqNum,
                 'courseSemester': flow.courseSemester,
                 'teachers': [model_to_dict(teacher, fields=['id', 'teacher_id', 'name']) for teacher in flow.teachers.all()],
+                'students': [model_to_dict(student, fields=['id', 'student_id', 'name']) for student in flow.students.all()],
                 'courseCount': flow.courseCount,
                 'experienceTime': flow.experienceTime,
-                'studentCount': flow.studentCount,
                 'created_by': flow.created_by.username,
                 'create_time': flow.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                 'linked_business': [{
@@ -125,6 +118,8 @@ def api_course_full_list(request):
                     'leader': team.team_leader.username,
                     'create_time': team.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                     'member_count': team.members.count(),
+                    'members': [model_to_dict(student, fields=['id', 'student_id', 'name']) for student in team.members.all()],
+                    'businesses': [get_business_detail(stwb.business) for stwb in team.studentwatchingbusiness_set.all()]
                 } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()]
             } for flow in flows]
 
@@ -260,6 +255,7 @@ def api_course_hobby_list(request):
                 'id': course.id,
                 'courseName': course.courseName,
                 'courseSemester': course.courseSemester,
+                'courseSeqNum': course.courseSeqNum,
                 'courseCount': course.courseCount,
                 'experienceTime': course.experienceTime,
                 'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in course.teachers.all()],
@@ -312,7 +308,6 @@ def api_course_save_new(request):
         teachers = request.POST.get("teachers")
         courseCount = request.POST.get("courseCount")
         experienceTime = request.POST.get("experienceTime")
-        studentCount = request.POST.get("studentCount")
 
         login_type = request.session['login_type']
 
@@ -335,7 +330,6 @@ def api_course_save_new(request):
                 courseSemester=courseSemester,
                 courseCount=int(courseCount),
                 experienceTime=experienceTime,
-                studentCount=int(studentCount),
                 tcompany_id=tcompany_id,
                 created_by=request.user,
                 type=course_type
@@ -447,14 +441,20 @@ def api_course_check_attention(request):
         universityID = request.GET.get("universityID")
         set = request.GET.get("set")
 
-        if UniversityLinkedCompany.objects.get(pk=universityID) is not None:
-            UniversityLinkedCompany.objects.filter(pk=universityID).update(
+        ulcs = UniversityLinkedCompany.objects.filter(pk=universityID)
+        if not ulcs.first():
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if int(set) == -1:
+            ulcs.delete()
+        else:
+            ulcs.update(
                 status=set,
                 seted_company_manager=request.user.tcompanymanagers_set.first().id,
                 seted_time=datetime.now()
             )
-            if TNotifications.objects.get(pk=notificationID) is not None:
-                TNotifications.objects.filter(pk=notificationID).delete()
+        if TNotifications.objects.get(pk=notificationID) is not None:
+            TNotifications.objects.filter(pk=notificationID).delete()
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -569,7 +569,6 @@ def api_course_excel_data_save(request):
                 })
             courseCount = int(item[u'courseCount'])
             experienceTime = str(item[u'experienceTime']).encode('utf8')
-            studentCount = int(item[u'studentCount'])
 
             tcourse = Course.objects.filter(courseId=courseId).first()
             if tcourse is None:
@@ -580,7 +579,6 @@ def api_course_excel_data_save(request):
                     courseSemester=courseSemester,
                     courseCount=int(courseCount),
                     experienceTime=experienceTime,
-                    studentCount=int(studentCount),
                     tcompany_id=companyId,
                     created_by=request.user,
                 )
@@ -661,7 +659,6 @@ def api_course_get_init_attention_data(request):
                                                         linked_company__name__icontains=search)
         else:
             qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany)
-
         groupID = request.user.tcompanymanagers_set.get().tcompany.group_id
         clist = [{'value': item.id, 'text': item.name} for item in
                  TCompany.objects.filter(Q(group_id=groupID, is_default=0) & ~Q(companyType__name='学校'))]
@@ -681,7 +678,7 @@ def api_course_get_init_attention_data(request):
             'create_time': flow.create_time.strftime('%Y-%m-%d'),
             'seted_time': flow.seted_time.strftime('%Y-%m-%d') if flow.seted_time is not None else '',
             'message': flow.message,
-            'status': '申请中' if flow.status == 0 else '已关注' if flow.status == 1 else '已拒绝' if flow.status == 2 else '取消已关注'
+            'status': '申请中' if flow.status == 0 else '已关注' if flow.status == 1 else '已拒绝' if flow.status == 2 else '取消申请中' if flow.status == 3 else '取消已拒绝'
         } for flow in flows]
 
         paging = {
@@ -711,6 +708,12 @@ def api_course_send_request_data(request):
     try:
         requestMsg = request.POST.get("requestMsg")
         targetCompany = request.POST.get("targetCompany")
+        if (UniversityLinkedCompany.objects.filter(
+            university=request.user.tcompanymanagers_set.get().tcompany,
+            linked_company_id=targetCompany).count()) > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'success'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         newRequest = UniversityLinkedCompany.objects.create(
             university=request.user.tcompanymanagers_set.get().tcompany,
@@ -750,13 +753,25 @@ def api_course_send_cancel_data(request):
     try:
         ids = eval(request.POST.get("ids", '[]'))
 
-        UniversityLinkedCompany.objects.filter(pk__in=ids).update(status=3)
+        ulcs = UniversityLinkedCompany.objects.filter(pk__in=ids)
+        ulcs.update(status=3)
+        for ulc in ulcs:
+            newNotification = TNotifications.objects.create(
+                type='attentionCancelRequest_' + str(ulc.id),
+                content=request.user.tcompanymanagers_set.get().tcompany.name + ' : 取消关注协议',
+                link='request-cancel-check',
+                role=TRole.objects.get(id=3),
+                mode=0
+            )
+
+            for userItem in TCompany.objects.get(id=ulc.linked_company_id).tcompanymanagers_set.all():
+                newNotification.targets.add(userItem.tuser)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        logger.exception('api_course_send_cancel_data Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

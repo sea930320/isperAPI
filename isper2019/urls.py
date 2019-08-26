@@ -387,6 +387,7 @@ urlpatterns += (
     url(r'^api/student/request-assist/update$', student_views.api_student_request_assist_update),
     url(r'^api/student/request-assist-list$', student_views.api_student_request_assist_list),
     url(r'^api/student/send-msg$', student_views.api_student_send_msg),
+    url(r'^api/student/send-doc$', student_views.api_student_send_doc),
     url(r'^api/student/msg-list$', student_views.api_student_msg_list),
 
     url(r'^api/student/todo-list$', student_views.api_student_todo_list),

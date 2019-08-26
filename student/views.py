@@ -773,6 +773,7 @@ def api_student_send_msg(request):
 
         fromUser = model_to_dict(user, fields=['id', 'name', 'username'])
         fromUser['login_type'] = login_type
+        fromUser['position'] = model_to_dict(user.tposition) if user.tposition else None
         ext = {'business_id': business_id, "from_user": fromUser, "to": json.loads(to), "msg": msg,
                "msg_type": msg_type}
 
@@ -791,6 +792,68 @@ def api_student_send_msg(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_student_send_doc(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        upload_file = request.FILES.get("file", None)
+        to = request.POST.get("to", None)
+        msg_type = int(request.POST.get("msg_type", 0))
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [business_id, to, upload_file]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if len(upload_file.name) > 60:
+            resp = code.get_msg(code.UPLOAD_FILE_NAME_TOOLONG_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        fromUser = model_to_dict(user, fields=['id', 'name', 'username'])
+        fromUser['login_type'] = login_type
+        fromUser['position'] = model_to_dict(user.tposition) if user.tposition else None
+
+        content = ''
+        file_type = tools.check_file_type(upload_file.name)
+        if file_type == 1:
+            full_text = []
+            document = Document(upload_file)
+            for para in document.paragraphs:
+                full_text.append(para.text)
+
+            content = '\n'.join(full_text)
+        msg = "File: " + upload_file.name
+        scl = StudentChatLog.objects.create(business_id=business_id, from_user=user, msg=msg, msg_type=msg_type, file=upload_file, file_name=upload_file.name,
+                                        content=content, file_type=file_type)
+
+        ext = {'business_id': business_id, "from_user": fromUser, "to": json.loads(to), "msg": msg,
+               "msg_type": msg_type, "url": scl.file.url, "file_name": upload_file.name, "file_type": file_type}
+        scl.ext = json.dumps(ext)
+        scl.save()
+        resp = code.get_msg(code.SUCCESS)
+        msgDict = ext
+        msgDict['id'] = scl.id
+        msgDict['create_time'] = scl.create_time.strftime('%Y-%m-%d %H:%M:%S')
+        with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
+            socketIO.emit('student_message', msgDict)
+            socketIO.wait_for_callbacks(seconds=1)
+    except Exception as e:
+        logger.exception('api_student_send_msg Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def api_student_msg_list(request):
     resp = auth_check(request, "GET")
@@ -1228,7 +1291,7 @@ def api_student_teacher_course_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = Course.objects.filter(teacher=teacher, del_flag=0)
+        qs = Course.objects.filter(teachers__id=teacher.id, del_flag=0)
         courses = []
         for item in qs:
             course = model_to_dict(item, fields=['id', 'courseId', 'courseName', 'courseSeqNum', 'courseSemester',
