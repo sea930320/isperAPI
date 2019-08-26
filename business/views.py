@@ -462,43 +462,45 @@ def api_business_detail(request):
         if business.status == 1:
             control_status = 1
             path_id = None
+            is_parallel = 0
         else:
             path = BusinessTransPath.objects.filter(business=business).last()
             control_status = path.control_status
             path_id = path.pk
             user_role_allocs_temp = get_role_allocs_status_by_user(business, path, request.user)
             for role_alloc_temp in user_role_allocs_temp:
-                if role_alloc_temp['role']['type'] != const.ROLE_TYPE_OBSERVER:
-                    user_role_allocs.append(role_alloc_temp)
+                user_role_allocs.append(role_alloc_temp)
 
             data['with_user_nodes'] = get_user_with_node_on_business(business, request.user)
+            is_parallel = 1 if path.node.parallel_node_start == 1 else 0
 
         data['control_status'] = control_status
         data['path_id'] = path_id
         data['user_role_allocs'] = user_role_allocs
+        data['is_parallel'] = is_parallel
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = data
 
         # 三期 - 到达指定环节还有角色没有设置提示设置角色
-        node = business.node
-        if node:
-            role_name_not_set = []
-            role_allocs_node = BusinessRoleAllocation.objects.filter(business=business, node=node,
-                                                                     project_id=business.cur_project_id,
-                                                                     can_take_in=True)
-            for role_alloc in role_allocs_node:
-                btmExist = BusinessTeamMember.objects.filter(business=business, business_role=role_alloc.role,
-                                                             no=role_alloc.no, project_id=business.cur_project_id,
-                                                             del_flag=0).exists()
-                if btmExist and role_alloc.role.type != const.ROLE_TYPE_OBSERVER:
-                    continue
-                role_name_not_set.append(role_alloc.role.name)
-            if len(role_name_not_set) > 0:
-                logger.info('当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set))
-                # resp['c'] = code.get_msg(code.EXPERIMENT_ROLE_NOT_SET)
-                resp['m'] = '当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set)
-                data['role_not_set'] = resp['m']
-                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        # node = business.node
+        # if node:
+        #     role_name_not_set = []
+        #     role_allocs_node = BusinessRoleAllocation.objects.filter(business=business, node=node,
+        #                                                              project_id=business.cur_project_id,
+        #                                                              can_take_in=True)
+        #     for role_alloc in role_allocs_node:
+        #         btmExist = BusinessTeamMember.objects.filter(business=business, business_role=role_alloc.role,
+        #                                                      no=role_alloc.no, project_id=business.cur_project_id,
+        #                                                      del_flag=0).exists()
+        #         if btmExist and role_alloc.role.type != const.ROLE_TYPE_OBSERVER:
+        #             continue
+        #         role_name_not_set.append(role_alloc.role.name)
+        #     if len(role_name_not_set) > 0:
+        #         logger.info('当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set))
+        #         # resp['c'] = code.get_msg(code.EXPERIMENT_ROLE_NOT_SET)
+        #         resp['m'] = '当前实验环节，以下角色还没有设置: ' + ','.join(role_name_not_set)
+        #         data['role_not_set'] = resp['m']
+        #         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -526,8 +528,7 @@ def api_business_start(request):
     first_node_id = get_start_node(project.flow_id)
     node = FlowNode.objects.get(pk=first_node_id)
     # get All Business Roles to check if all users are allocated to business Role Alloc
-    businessRoles = BusinessRole.objects.filter(business=business,
-                                                project_id=business.cur_project_id)  # get all Business Roles
+    businessRoles = BusinessRole.objects.filter(business=business, project_id=business.cur_project_id)  # get all Business Roles
     for role in businessRoles:
         for no in range(1, role.capacity + 1):
             teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
@@ -573,8 +574,11 @@ def api_business_start(request):
             else:
                 come_status = 9
             # 三期 - 不能直接创建， 在service中结束并走向下一环节的时候会创建角色状态，这里再创建一次就重复了
-            brses = BusinessRoleAllocationStatus.objects.filter(business=business, business_role_allocation=item,
-                                                                path=path)
+            brses = BusinessRoleAllocationStatus.objects.filter(
+                business=business,
+                business_role_allocation=item,
+                # path=path
+            )
             if brses.count() > 0:  # 存在则更新
                 brs = brses.first()
                 brs.come_status = come_status
@@ -582,7 +586,7 @@ def api_business_start(request):
             else:  # 不存在则创建
                 BusinessRoleAllocationStatus.objects.update_or_create(business=business,
                                                                       business_role_allocation=item,
-                                                                      path=path,
+                                                                      # path=path,
                                                                       come_status=come_status)
 
         # 环信id
@@ -592,6 +596,34 @@ def api_business_start(request):
         business.node = node
         business.path_id = path.id
         business.save()
+
+        if node.parallel_node_start == 1:
+            for item in FlowTrans.objects.filter(incoming=node.task_id):
+                fn = FlowNode.objects.get(task_id=item.outgoing)
+                business.parallel_nodes.create(
+                    node=fn
+                )
+                fnallocs = BusinessRoleAllocation.objects.filter(business=business, node=fn, can_take_in=1, project_id=business.cur_project_id)
+                for fnusers in fnallocs:
+                    if fnusers.can_brought:
+                        come_status = 1
+                    else:
+                        come_status = 9
+                    # 三期 - 不能直接创建， 在service中结束并走向下一环节的时候会创建角色状态，这里再创建一次就重复了
+                    brses = BusinessRoleAllocationStatus.objects.filter(
+                        business=business,
+                        business_role_allocation=fnusers,
+                        # path=path
+                    )
+                    if brses.count() > 0:  # 存在则更新
+                        brs = brses.first()
+                        brs.come_status = come_status
+                        brs.save()
+                    else:  # 不存在则创建
+                        BusinessRoleAllocationStatus.objects.update_or_create(business=business,
+                                                                              business_role_allocation=fnusers,
+                                                                              # path=path,
+                                                                              come_status=come_status)
 
     return 'success'
 
@@ -658,7 +690,8 @@ def api_business_node_detail(request):
                                                                business_role_allocation_id=roleAllocID,
                                                                business_role_allocation__can_take_in=1,
                                                                business_role_allocation__node=node,
-                                                               path=path, vote_status=0).exists()
+                                                               # path=path,
+                                                               vote_status=0).exists()
         if path.vote_status == 1:
             end_vote = False
         else:
@@ -833,10 +866,12 @@ def api_business_node_function(request):
         path = BusinessTransPath.objects.filter(business_id=business_id).last()
         # 判断该实验环节是否存在该角色
         if role_alloc_id is None:
-            brases = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                 business_role_allocation__node_id=node_id,
-                                                                 business_role_allocation__project_id=business.cur_project_id,
-                                                                 path_id=path.pk)
+            brases = BusinessRoleAllocationStatus.objects.filter(
+                business_id=business_id,
+                business_role_allocation__node_id=node_id,
+                business_role_allocation__project_id=business.cur_project_id,
+                # path_id=path.pk
+            )
             role_alloc = None
             for bras in brases:
                 bra = bras.business_role_allocation
@@ -1032,10 +1067,12 @@ def api_business_node_role_docs(request):
         path = BusinessTransPath.objects.filter(business_id=business_id).last()
         # 判断该实验环节是否存在该角色
         if role_alloc_id is None:
-            brases = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                 business_role_allocation__node_id=node_id,
-                                                                 business_role_allocation__project_id=business.cur_project_id,
-                                                                 path_id=path.pk)
+            brases = BusinessRoleAllocationStatus.objects.filter(
+                business_id=business_id,
+                business_role_allocation__node_id=node_id,
+                business_role_allocation__project_id=business.cur_project_id,
+                # path_id=path.pk
+            )
             role_alloc = None
             for bras in brases:
                 bra = bras.business_role_allocation
@@ -1641,9 +1678,11 @@ def api_business_message_push(request):
 
         # 如果启动了表达管理，验证当前角色发言次数，每申请一次最多发言三次，
         # 如果是结束权限者则可发言
-        role_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                  business_role_allocation_id=role_alloc_id,
-                                                                  path_id=path.pk).first()
+        role_status = BusinessRoleAllocationStatus.objects.filter(
+            business_id=business_id,
+            business_role_allocation_id=role_alloc_id,
+            # path_id=path.pk
+        ).first()
         logger.info('cmd:%s,control_status:%s,param:%s,type:%s' % (cmd, path.control_status, param, type))
 
         # 是否有结束环节的权限
@@ -2003,8 +2042,11 @@ def api_business_message_push(request):
         if can_terminate is False:
             # 角色发言次数减1
             if path.control_status == 2 and type != const.MSG_TYPE_CMD:
-                brat = BusinessRoleAllocationStatus.objects.filter(business_role_allocation_id=role_alloc_id,
-                                                                   business_id=business_id, path_id=path.pk).first()
+                brat = BusinessRoleAllocationStatus.objects.filter(
+                    business_role_allocation_id=role_alloc_id,
+                    business_id=business_id,
+                    # path_id=path.pk
+                ).first()
                 brat.speak_times -= 1
                 brat.save(update_fields=['speak_times'])
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2035,7 +2077,7 @@ def api_business_role_in_list(request):
             role_alloc_ids = BusinessRoleAllocationStatus.objects.filter(
                 business_id=business_id,
                 business_role_allocation__node_id=bus.node_id,
-                path_id=path.pk,
+                # path_id=path.pk,
                 sitting_status=1
             ).exclude(come_status=9).values_list('business_role_allocation_id', flat=True)
             role_alloc_list = []
@@ -2101,7 +2143,7 @@ def api_business_role_out_list(request):
             role_alloc_ids = BusinessRoleAllocationStatus.objects.filter(
                 business_id=business_id,
                 business_role_allocation__node_id=bus.node_id,
-                path_id=path.pk,
+                # path_id=path.pk,
                 sitting_status=2
             ).exclude(come_status=9).values_list('business_role_allocation_id', flat=True)
 
@@ -2245,9 +2287,11 @@ def api_business_role_schedule_report_list(request):
                 path_id=path.pk
             ).exclude(schedule_status=0).values_list('business_role_allocation_id', flat=True)
 
-            role_alloc_status = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                            business_role_allocation__node_id=node_id,
-                                                                            path_id=path.pk)
+            role_alloc_status = BusinessRoleAllocationStatus.objects.filter(
+                business_id=business_id,
+                business_role_allocation__node_id=node_id,
+                # path_id=path.pk
+            )
             role_list = []
             for item in role_alloc_status:
                 if item.business_role_allocation_id not in role_alloc_ids:
@@ -2286,9 +2330,11 @@ def api_business_request_sign_roles(request):
         if bus and bus.node_id == int(node_id):
             path = BusinessTransPath.objects.filter(business_id=business_id).last()
 
-            role_alloc_status_list = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                 business_role_allocation__node_id=bus.node_id,
-                                                                                 path_id=path.pk, sitting_status=2)
+            role_alloc_status_list = BusinessRoleAllocationStatus.objects.filter(
+                business_id=business_id,
+                business_role_allocation__node_id=bus.node_id,
+                # path_id=path.pk,
+                sitting_status=2)
             role_list = []
             for item in role_alloc_status_list:
                 if item.business_role_allocation_id == int(role_alloc_id):
@@ -2379,9 +2425,11 @@ def api_business_report_generate(request):
                         })
                 elif node.process.type == 5:
                     # 如果是投票   三期 - 增加投票结果数量汇总
-                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=0)
+                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=0)
                     vote_status_0 = []
                     # 去掉老师观察者角色的数据
                     for item0 in vote_status_0_temp:
@@ -2389,9 +2437,11 @@ def api_business_report_generate(request):
                         if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_0.append(item0)
 
-                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=1)
+                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=1)
                     vote_status_1 = []
                     # 去掉老师观察者角色的数据
                     for item1 in vote_status_1_temp:
@@ -2399,9 +2449,11 @@ def api_business_report_generate(request):
                         if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_1.append(item1)
 
-                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=2)
+                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=2)
                     vote_status_2 = []
                     # 去掉老师观察者角色的数据
                     for item2 in vote_status_2_temp:
@@ -2409,9 +2461,11 @@ def api_business_report_generate(request):
                         if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_2.append(item2)
 
-                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=9)
+                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=9)
                     vote_status_9 = []
                     # 去掉老师观察者角色的数据
                     for item9 in vote_status_9_temp:
@@ -2571,9 +2625,11 @@ def api_business_report_export(request):
                         })
                 elif node.process.type == 5:
                     # 如果是投票   三期 - 增加投票结果数量汇总
-                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=0)
+                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=0)
                     vote_status_0 = []
                     # 去掉老师观察者角色的数据
                     for item0 in vote_status_0_temp:
@@ -2581,9 +2637,11 @@ def api_business_report_export(request):
                         if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_0.append(item0)
 
-                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=1)
+                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=1)
                     vote_status_1 = []
                     # 去掉老师观察者角色的数据
                     for item1 in vote_status_1_temp:
@@ -2591,9 +2649,11 @@ def api_business_report_export(request):
                         if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_1.append(item1)
 
-                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=2)
+                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=2)
                     vote_status_2 = []
                     # 去掉老师观察者角色的数据
                     for item2 in vote_status_2_temp:
@@ -2601,9 +2661,11 @@ def api_business_report_export(request):
                         if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_2.append(item2)
 
-                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=9)
+                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=9)
                     vote_status_9 = []
                     # 去掉老师观察者角色的数据
                     for item9 in vote_status_9_temp:
@@ -3933,9 +3995,11 @@ def api_business_result(request):
                         })
                 elif node.process.type == 5:
                     # 如果是投票   三期 - 增加投票结果数量汇总  todo 去掉老师观察者的数量 WTF
-                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=0)
+                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=0)
                     vote_status_0 = []
                     # 去掉老师观察者角色的数据
                     for item0 in vote_status_0_temp:
@@ -3943,9 +4007,11 @@ def api_business_result(request):
                         if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_0.append(item0)
 
-                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=1)
+                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=1)
                     vote_status_1 = []
                     # 去掉老师观察者角色的数据
                     for item1 in vote_status_1_temp:
@@ -3953,9 +4019,11 @@ def api_business_result(request):
                         if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_1.append(item1)
 
-                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=2)
+                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=2)
                     vote_status_2 = []
                     # 去掉老师观察者角色的数据
                     for item2 in vote_status_2_temp:
@@ -3963,9 +4031,11 @@ def api_business_result(request):
                         if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
                             vote_status_2.append(item2)
 
-                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(business_id=business_id,
-                                                                                     business_role_allocation__node_id=item.node_id,
-                                                                                     path_id=item.id, vote_status=9)
+                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
+                        business_id=business_id,
+                        business_role_allocation__node_id=item.node_id,
+                        # path_id=item.id,
+                        vote_status=9)
                     vote_status_9 = []
                     # 去掉老师观察者角色的数据
                     for item9 in vote_status_9_temp:

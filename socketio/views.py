@@ -93,8 +93,11 @@ def save_message(request):
         if path is None:
             resp = code.get_msg(code.BUSINESS_NODE_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        brat = BusinessRoleAllocationStatus.objects.filter(business_role_allocation_id=role_alloc_id,
-                                                           business_id=business_id, path_id=path.pk).first()
+        brat = BusinessRoleAllocationStatus.objects.filter(
+            business_role_allocation_id=role_alloc_id,
+            business_id=business_id,
+            # path_id=path.pk
+        ).first()
         # 是否有结束环节的权限
         can_terminate = bra.can_terminate
         if path.control_status == 2 and can_terminate is False:
