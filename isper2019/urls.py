@@ -405,6 +405,7 @@ urlpatterns += (
     url(r'^api/bill/update/full$', business_views.api_bill_update_full),
     url(r'^api/bill/update/billname$', business_views.api_bill_update_billname),
     url(r'^api/bill/part/delete$', business_views.api_bill_part_delete),
+    url(r'^api/bill/part/add$', business_views.api_bill_part_add),
 
 
     url(r'^api/bill/chapter/list$', business_views.api_bill_chapter_list),

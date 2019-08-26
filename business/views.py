@@ -5820,6 +5820,30 @@ def api_bill_part_delete(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     return True
+
+
+def api_bill_part_add(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        chapter_id = request.POST.get("chapter_id", None)
+        section_id = request.POST.get("section_id", None)
+        part_number = request.POST.get("part_number", None)
+        part_title = request.POST.get("part_title", None)
+        part_content = request.POST.get("part_content", None)
+        part_reason = request.POST.get("part_reason", None)
+        print 'add_part'
+        added_part = BusinessBillPart.objects.create(part_number=int(part_number), part_title=part_title,part_content=part_content,part_reason=part_reason)
+        section = BusinessBillSection.objects.get(id=section_id)
+        section.parts.add(added_part)
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    return True
 ##############################################
 
 
