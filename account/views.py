@@ -1719,7 +1719,7 @@ def api_remove_loginlogs(request):
         ids = [i for i in ids_set]
         LoginLog.objects.filter(id__in=ids).update(del_flag=1)
 
-        resp = code.get_msg(code.SUCCESS)
+        resp = code.get_msg(cdde.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_remove_loginlogs Exception:{0}'.format(str(e)))
