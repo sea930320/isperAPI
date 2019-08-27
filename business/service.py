@@ -59,47 +59,24 @@ def clear_cache(experiment_id):
 
 def get_role_allocs_status_by_user(business, path, user):
     role_alloc_list = []
-    if path.node.parallel_node_start == 0:
-        btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
-        for btm in btmQs:
-            try:
-                roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=path.node, role=btm.business_role,
-                                                                  no=btm.no, project_id=business.cur_project_id,
-                                                                  can_take_in=True).first()
-                roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
-                                                                              business_role_allocation=roleAlloc).first()
-                role_alloc_list = {
-                    'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
-                    'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
-                    'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
-                    'speak_times': 0,
-                    'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
-                    'can_brought': roleAlloc.can_brought
-                }
-            except:
-                continue
-    elif path.node.parallel_node_start == 1:
-        btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
-        for pn in business.parallel_nodes.all():
-            node_alloc_list = []
-            for btm in btmQs:
-                try:
-                    roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=pn.node, role=btm.business_role,
-                                                                      no=btm.no, project_id=business.cur_project_id,
-                                                                      can_take_in=True).first()
-                    roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
-                                                                                  business_role_allocation=roleAlloc).first()
-                    node_alloc_list.append({
-                        'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
-                        'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
-                        'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
-                        'speak_times': 0,
-                        'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
-                        'can_brought': roleAlloc.can_brought
-                    })
-                except:
-                    continue
-            role_alloc_list.append(node_alloc_list)
+    btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
+    for btm in btmQs:
+        try:
+            roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=path.node, role=btm.business_role,
+                                                              no=btm.no, project_id=business.cur_project_id,
+                                                              can_take_in=True).first()
+            roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
+                                                                          business_role_allocation=roleAlloc).first()
+            role_alloc_list.append({
+                'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
+                'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
+                'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
+                'speak_times': 0 if path.control_status != 2 else roleAllocStatus.speak_times,
+                'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
+                'can_brought': roleAlloc.can_brought
+            })
+        except:
+            continue
     return role_alloc_list
 
 
@@ -185,36 +162,21 @@ def get_business_detail(business):
 
     node = FlowNode.objects.filter(pk=business.node_id).first() if business.node else None
     if node:
-        if node.parallel_node_start == 0:
-            process = node.process
-            print process.type
-            if process.type == 11:
-                bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id,
-                                                        node_id=node.id, target__in=[0, 1]).first()
-                if bSurvey:
-                    allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
-                                                                        project_id=business.cur_project_id, node_id=node.id)
-                    allocations.update(can_take_in=True)
-            cur_node = {
-                'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': process.type,
-                'can_switch': process.can_switch
-            }
-        else:
-            cur_node = []
-            for subNode in business.parallel_nodes.all():
-                process = subNode.node.process
-                print process.type
-                if process.type == 11:
-                    bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id,
-                                                            node_id=subNode.node.id, target__in=[0, 1]).first()
-                    if bSurvey:
-                        allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
-                                                                            project_id=business.cur_project_id, node_id=subNode.node.id)
-                        allocations.update(can_take_in=True)
-                cur_node.append({
-                    'id': subNode.node.id, 'name': subNode.node.name, 'condition': subNode.node.condition, 'process_type': process.type,
-                    'can_switch': process.can_switch
-                })
+        process = node.process
+        print process.type
+        if process.type == 11:
+            bSurvey = BusinessSurvey.objects.filter(business_id=business.id, project_id=business.cur_project_id,
+                                                    node_id=node.id, target__in=[0, 1]).first()
+            if bSurvey:
+                allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
+                                                                    project_id=business.cur_project_id, node_id=node.id)
+                allocations.update(can_take_in=True)
+        cur_node = {
+            'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': process.type,
+            'can_switch': process.can_switch
+        }
+    else:
+        cur_node = None
     role_allocs = []
     business_role_allocs = BusinessRoleAllocation.objects.filter(business=business, project_id=business.cur_project_id,
                                                                  can_take_in=True)
