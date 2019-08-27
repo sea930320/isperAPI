@@ -65,7 +65,7 @@ def api_student_watch_business_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        linkedCompanyIds = UniversityLinkedCompany.objects.filter(university=user.tcompany).values_list(
+        linkedCompanyIds = UniversityLinkedCompany.objects.filter(university=user.tcompany, status__in=[1, 3, 4]).values_list(
             'linked_company_id', flat=True).distinct()
 
         if type == 0:
@@ -181,16 +181,14 @@ def api_student_watch_course_list(request):
         if login_type not in [5, 9]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-        qs = Course.objects.filter(tcompany=user.tcompany, type__in=[0, 1], del_flag=0)
+        qs = user.student_courses.filter(del_flag=0, type__in=[0, 1])
         data = [{
             'value': item.id,
             'text': item.courseName,
             'courseId': item.courseId,
             'courseSeqNum': item.courseSeqNum,
             'courseSemester': item.courseSemester,
-            'teacherName': item.teacher.name if item.teacher else None,
-            'teacher': model_to_dict(item.teacher, fields=['id', 'name', 'username']) if item.teacher else None,
+            'teachers': [model_to_dict(teacher, fields=['id', 'teacher_id', 'name']) for teacher in item.teachers.all()],
             'courseCount': item.courseCount,
             'experienceTime': item.experienceTime,
             'studentCount': item.studentCount,
@@ -241,11 +239,11 @@ def api_student_team_detail(request):
             stwt = StudentWatchingTeam.objects.filter(pk=stwb.team_id).first()
             if stwt is None:
                 continue
-            teacher = model_to_dict(stwb.course.teacher,
-                                    fields=['id', 'username', 'name', 'teacher_id', 'gender']) if stwb.course else {}
+            teachers = [model_to_dict(teacher,
+                                    fields=['id', 'username', 'name', 'teacher_id', 'gender']) for teacher in stwb.course.teachers.all()] if stwb.course else {}
             members = [model_to_dict(member, fields=['id', 'username', 'name', 'student_id', 'gender']) for member in
                        stwt.members.all()]
-            team = {'teacher': teacher, 'members': members, 'name': stwt.name, 'id': stwt.id,
+            team = {'teachers': teachers, 'members': members, 'name': stwt.name, 'id': stwt.id,
                     'create_time': stwt.create_time.strftime('%Y-%m-%d') if stwt.create_time else None,
                     'leader': model_to_dict(stwt.team_leader,
                                             fields=['id', 'username', 'name',
@@ -278,7 +276,11 @@ def api_student_watch_company_user_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = Tuser.objects.filter(tcompany=user.tcompany, roles=9, del_flag=0)
+        linkedCourses = user.student_courses.all()
+        qs = Tuser.objects.none()
+        for linkedCourse in linkedCourses:
+            qs = qs | linkedCourse.students.all()
+        # qs = Tuser.objects.filter(tcompany=user.tcompany, roles=9, del_flag=0)
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(username__icontains=search))
             qs = qs.filter(del_flag=0)
@@ -286,6 +288,7 @@ def api_student_watch_company_user_list(request):
             excepted_team = StudentWatchingTeam.objects.filter(pk=excepted_team_id).first()
             e_member_ids = excepted_team.members.all().values_list('pk', flat=True)
             qs = qs.exclude(pk__in=e_member_ids)
+        qs = qs.distinct()
         paginator = Paginator(qs, size)
 
         try:
@@ -454,10 +457,12 @@ def api_student_team_available_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = StudentWatchingTeam.objects.filter(university=user.tcompany, del_flag=0).exclude(members__id=user.id)
+        qs = StudentWatchingTeam.objects.filter(university=user.tcompany, type=0, del_flag=0)
+        invitedQs = user.invited_teams.all()
+        qs = qs | invitedQs
         if search:
             qs = qs.filter(Q(name__icontains=search))
-
+        qs = qs.exclude(members__id=user.id).distinct()
         paginator = Paginator(qs, size)
 
         try:
@@ -768,6 +773,7 @@ def api_student_send_msg(request):
 
         fromUser = model_to_dict(user, fields=['id', 'name', 'username'])
         fromUser['login_type'] = login_type
+        fromUser['position'] = model_to_dict(user.tposition) if user.tposition else None
         ext = {'business_id': business_id, "from_user": fromUser, "to": json.loads(to), "msg": msg,
                "msg_type": msg_type}
 
@@ -786,6 +792,68 @@ def api_student_send_msg(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_student_send_doc(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        upload_file = request.FILES.get("file", None)
+        to = request.POST.get("to", None)
+        msg_type = int(request.POST.get("msg_type", 0))
+
+        user = request.user
+        login_type = request.session['login_type']
+        if login_type not in [5, 9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [business_id, to, upload_file]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if len(upload_file.name) > 60:
+            resp = code.get_msg(code.UPLOAD_FILE_NAME_TOOLONG_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        if business is None:
+            resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        fromUser = model_to_dict(user, fields=['id', 'name', 'username'])
+        fromUser['login_type'] = login_type
+        fromUser['position'] = model_to_dict(user.tposition) if user.tposition else None
+
+        content = ''
+        file_type = tools.check_file_type(upload_file.name)
+        if file_type == 1:
+            full_text = []
+            document = Document(upload_file)
+            for para in document.paragraphs:
+                full_text.append(para.text)
+
+            content = '\n'.join(full_text)
+        msg = "File: " + upload_file.name
+        scl = StudentChatLog.objects.create(business_id=business_id, from_user=user, msg=msg, msg_type=msg_type, file=upload_file, file_name=upload_file.name,
+                                        content=content, file_type=file_type)
+
+        ext = {'business_id': business_id, "from_user": fromUser, "to": json.loads(to), "msg": msg,
+               "msg_type": msg_type, "url": scl.file.url, "file_name": upload_file.name, "file_type": file_type}
+        scl.ext = json.dumps(ext)
+        scl.save()
+        resp = code.get_msg(code.SUCCESS)
+        msgDict = ext
+        msgDict['id'] = scl.id
+        msgDict['create_time'] = scl.create_time.strftime('%Y-%m-%d %H:%M:%S')
+        with SocketIO(u'localhost', 4000, LoggingNamespace) as socketIO:
+            socketIO.emit('student_message', msgDict)
+            socketIO.wait_for_callbacks(seconds=1)
+    except Exception as e:
+        logger.exception('api_student_send_msg Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def api_student_msg_list(request):
     resp = auth_check(request, "GET")
@@ -998,6 +1066,7 @@ def api_student_team_users(request):
 
         swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
         members = [model_to_dict(member, fields=['id', 'name', 'username']) for member in swt.members.all()]
+        invited_users = [model_to_dict(user, fields=['id', 'name', 'username']) for user in swt.invited_users.all()]
 
         qs = Tuser.objects.filter(tcompany=request.user.tcompany, roles__id=9).exclude(pk=request.user.id)
         if search:
@@ -1024,6 +1093,7 @@ def api_student_team_users(request):
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {
             'members': members,
+            'invited_users': invited_users,
             'university_users': university_users,
             'paging': paging
         }
@@ -1033,6 +1103,32 @@ def api_student_team_users(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_student_team_invite_user(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        team_id = request.POST.get("id", None)
+        student_id = request.POST.get("student_id", None)
+
+        login_type = request.session['login_type']
+        if login_type not in [9]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        if None in [team_id, student_id]:
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
+        if not swt.members.filter(pk=student_id).exists():
+            swt.invited_users.add(Tuser.objects.filter(pk=student_id).first())
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_student_team_invite_user Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def api_student_team_add_user(request):
     resp = auth_check(request, "POST")
@@ -1052,7 +1148,10 @@ def api_student_team_add_user(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
-        swt.members.add(Tuser.objects.filter(pk=student_id).first())
+        swt.invited_users.remove(Tuser.objects.filter(pk=student_id).first())
+        student = Tuser.objects.filter(pk=student_id).first()
+        swt.invited_users.remove(student)
+        swt.members.add(student)
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_student_team_add_user Exception:{0}'.format(str(e)))
@@ -1080,7 +1179,9 @@ def api_student_team_add_users(request):
         student_ids = json.loads(student_ids)
         swt = StudentWatchingTeam.objects.filter(pk=team_id).first()
         for student_id in student_ids:
-            swt.members.add(Tuser.objects.filter(pk=student_id).first())
+            student = Tuser.objects.filter(pk=student_id).first()
+            swt.invited_users.remove(student)
+            swt.members.add(student)
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_student_team_add_users Exception:{0}'.format(str(e)))
@@ -1190,7 +1291,7 @@ def api_student_teacher_course_list(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        qs = Course.objects.filter(teacher=teacher, del_flag=0)
+        qs = Course.objects.filter(teachers__id=teacher.id, del_flag=0)
         courses = []
         for item in qs:
             course = model_to_dict(item, fields=['id', 'courseId', 'courseName', 'courseSeqNum', 'courseSemester',

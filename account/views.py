@@ -1719,7 +1719,7 @@ def api_remove_loginlogs(request):
         ids = [i for i in ids_set]
         LoginLog.objects.filter(id__in=ids).update(del_flag=1)
 
-        resp = code.get_msg(code.SUCCESS)
+        resp = code.get_msg(cdde.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
         logger.exception('api_remove_loginlogs Exception:{0}'.format(str(e)))
@@ -2214,6 +2214,7 @@ def get_own_messages(request):
             'content': eval(item.content) if bool(re.search('^businessMoreTeammate_', item.type)) else item.content,
             'moreTeammates': 1 if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
             'attentionCheck': 1 if bool(re.search('^attentionRequest_', item.type)) else 0,
+            'attentionCancelCheck': 1 if bool(re.search('^attentionCancelRequest_', item.type)) else 0,
             'businessInfo': {
                 'id': item.type.split("businessMoreTeammate_", 1)[1],
                 'title': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().name,
@@ -2233,6 +2234,15 @@ def get_own_messages(request):
                 'university': UniversityLinkedCompany.objects.filter(
                     pk=item.type.split("attentionRequest_", 1)[1]).first().university.name
             } if bool(re.search('^attentionRequest_', item.type)) else {},
+            'attentionCancelInfo': {
+                'id': item.type.split("attentionCancelRequest_", 1)[1],
+                'created_time': UniversityLinkedCompany.objects.filter(
+                    pk=item.type.split("attentionCancelRequest_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'created_by': UniversityLinkedCompany.objects.filter(
+                    pk=item.type.split("attentionCancelRequest_", 1)[1]).first().created_by.username,
+                'university': UniversityLinkedCompany.objects.filter(
+                    pk=item.type.split("attentionCancelRequest_", 1)[1]).first().university.name
+            } if bool(re.search('^attentionCancelRequest_', item.type)) else {},
             'business_id': item.type.split("businessMoreTeammate_", 1)[1] if bool(
                 re.search('^businessMoreTeammate_', item.type)) else 0,
             'link': item.link

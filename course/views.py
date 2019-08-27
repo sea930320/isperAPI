@@ -10,18 +10,11 @@ import xlrd
 import xlwt
 
 from account.models import TClass, TRole, TNotifications
+from business.service import get_business_detail
 from django.contrib.auth.hashers import make_password
-from django.core.paginator import Paginator, EmptyPage
-from django.utils.http import urlquote
-from datetime import datetime
-
-from django.db.models import Q, Count
 from django.http import HttpResponse, Http404
 from course.models import *
-from group.models import AllGroups
-from project.models import Project
 from student.models import StudentWatchingBusiness, StudentWatchingTeam
-from team.models import TeamMember
 from course.service import *
 from business.models import *
 from utils import code, const, query
@@ -52,12 +45,12 @@ def api_course_list(request):
             teachers_label = getTeacherLabels(teachers)
 
             data = {'value': item.id,
-                 'text': (item.courseName + '-' + teachers_label + '-' + item.courseId) if item.courseId else (
-                     item.courseName + '-' + teachers_label)}
+                    'text': (item.courseName + '-' + teachers_label + '-' + item.courseId) if item.courseId else (
+                        item.courseName + '-' + teachers_label)}
             results.append(data)
 
         resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'results': data}
+        resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
@@ -104,13 +97,14 @@ def api_course_full_list(request):
                 'id': flow.id,
                 'courseId': flow.courseId,
                 'courseName': flow.courseName,
-                'courseFullName': flow.courseName if flow.courseName else '' + '-' + getTeacherLabels(flow.teachers.all()) + '-' + flow.courseId if flow.courseId else '',
+                'courseFullName': (flow.courseName if flow.courseName else '') + '-' + getTeacherLabels(
+                    flow.teachers.all()) + '-' + (flow.courseId if flow.courseId else ''),
                 'courseSeqNum': flow.courseSeqNum,
                 'courseSemester': flow.courseSemester,
-                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers],
+                'teachers': [model_to_dict(teacher, fields=['id', 'teacher_id', 'name']) for teacher in flow.teachers.all()],
+                'students': [model_to_dict(student, fields=['id', 'student_id', 'name']) for student in flow.students.all()],
                 'courseCount': flow.courseCount,
                 'experienceTime': flow.experienceTime,
-                'studentCount': flow.studentCount,
                 'created_by': flow.created_by.username,
                 'create_time': flow.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                 'linked_business': [{
@@ -124,6 +118,8 @@ def api_course_full_list(request):
                     'leader': team.team_leader.username,
                     'create_time': team.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                     'member_count': team.members.count(),
+                    'members': [model_to_dict(student, fields=['id', 'student_id', 'name']) for student in team.members.all()],
+                    'businesses': [get_business_detail(stwb.business) for stwb in team.studentwatchingbusiness_set.all()]
                 } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=flow.id).distinct()]
             } for flow in flows]
 
@@ -182,7 +178,7 @@ def api_course_outside_list(request):
             results = [{
                 'id': flow.id,
                 'courseName': flow.courseName,
-                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers],
+                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers.all()],
                 'created_by': flow.created_by.username,
                 'create_time': flow.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
@@ -259,9 +255,10 @@ def api_course_hobby_list(request):
                 'id': course.id,
                 'courseName': course.courseName,
                 'courseSemester': course.courseSemester,
+                'courseSeqNum': course.courseSeqNum,
                 'courseCount': course.courseCount,
                 'experienceTime': course.experienceTime,
-                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in course.teachers],
+                'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in course.teachers.all()],
                 'created_by': course.created_by.username,
                 'create_time': course.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
@@ -275,7 +272,10 @@ def api_course_hobby_list(request):
                     'leader': team.team_leader.username,
                     'create_time': team.create_time.strftime('%Y-%m-%d'),
                     'member_count': team.members.count(),
-                } for team in StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()]
+                    'members': [model_to_dict(student, fields=['id', 'student_id', 'name']) for student in team.members.all()],
+                    'businesses': [get_business_detail(stwb.business) for stwb in team.studentwatchingbusiness_set.all()]
+                } for team in
+                    StudentWatchingTeam.objects.filter(studentwatchingbusiness__course_id=course.id).distinct()]
             } for course in courses]
 
             paging = {
@@ -310,7 +310,6 @@ def api_course_save_new(request):
         teachers = request.POST.get("teachers")
         courseCount = request.POST.get("courseCount")
         experienceTime = request.POST.get("experienceTime")
-        studentCount = request.POST.get("studentCount")
 
         login_type = request.session['login_type']
 
@@ -318,40 +317,47 @@ def api_course_save_new(request):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         if login_type not in [4, 8]:
-            type = 0
+            course_type = 0
             tcompany_id = request.user.tcompanymanagers_set.get().tcompany.id
         else:
-            type = 1
+            course_type = 1
             tcompany_id = request.user.tcompany.id
 
-        course = Course.objects.create(
-            courseId=courseId,
-            courseName=courseName,
-            courseSeqNum=int(courseSeqNum),
-            courseSemester=courseSemester,
-            courseCount=int(courseCount),
-            experienceTime=experienceTime,
-            studentCount=int(studentCount),
-            tcompany_id=tcompany_id,
-            created_by=request.user,
-            type = type
-        )
+        course = Course.objects.filter(courseId=courseId).first()
+        if course is None:
+            course = Course.objects.create(
+                courseId=courseId,
+                courseName=courseName,
+                courseSeqNum=int(courseSeqNum),
+                courseSemester=courseSemester,
+                courseCount=int(courseCount),
+                experienceTime=experienceTime,
+                tcompany_id=tcompany_id,
+                created_by=request.user,
+                type=course_type
+            )
         if login_type not in [4, 8]:
             if teachers != "":
                 teachers = json.loads(teachers)
                 for teacher in teachers:
                     teacherName = teacher['teacher_name']
                     teacherId = teacher['teacher_id']
-                    user = AllGroups.objects.get(
-                        id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
-                        username=teacherName + '-' + teacherId,
-                        name=teacherName,
-                        teacher_id=teacherId,
-                        password=make_password('1234567890'),
-                        tcompany=request.user.tcompanymanagers_set.get().tcompany,
-                        is_review=1,
-                    )
-                    user.roles.add(TRole.objects.get(id=4))
+                    user = Tuser.objects.filter(username=teacherName + '-' + teacherId).first()
+                    if not user:
+                        user = AllGroups.objects.get(
+                            id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.create(
+                            username=teacherName + '-' + teacherId,
+                            name=teacherName,
+                            teacher_id=teacherId,
+                            password=make_password('1234567890'),
+                            tcompany=request.user.tcompanymanagers_set.get().tcompany,
+                            is_review=1,
+                        )
+                        user.roles.add(TRole.objects.get(id=4))
+                    else:
+                        user.roles.add(TRole.objects.get(id=4))
+                        AllGroups.objects.get(
+                            id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.add(user)
                     course.teachers.add(user)
 
         else:
@@ -437,14 +443,20 @@ def api_course_check_attention(request):
         universityID = request.GET.get("universityID")
         set = request.GET.get("set")
 
-        if UniversityLinkedCompany.objects.get(pk=universityID) is not None:
-            UniversityLinkedCompany.objects.filter(pk=universityID).update(
+        ulcs = UniversityLinkedCompany.objects.filter(pk=universityID)
+        if not ulcs.first():
+            resp = code.get_msg(code.PARAMETER_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        if int(set) == -1:
+            ulcs.delete()
+        else:
+            ulcs.update(
                 status=set,
                 seted_company_manager=request.user.tcompanymanagers_set.first().id,
                 seted_time=datetime.now()
             )
-            if TNotifications.objects.get(pk=notificationID) is not None:
-                TNotifications.objects.filter(pk=notificationID).delete()
+        if TNotifications.objects.get(pk=notificationID) is not None:
+            TNotifications.objects.filter(pk=notificationID).delete()
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -464,9 +476,18 @@ def api_course_save_teacher_change(request):
 
     try:
         id = request.POST.get("id")
-        teacher = request.POST.get("teacher")
+        teacher1 = request.POST.get("teacher1", None)
+        teacher2 = request.POST.get("teacher2", None)
+        teacher3 = request.POST.get("teacher3", None)
 
-        Course.objects.filter(pk=id).update(teacher_id=teacher)
+        tcourse = Course.objects.filter(pk=id).first()
+        tcourse.teachers.clear()
+        if teacher1:
+            tcourse.teachers.add(Tuser.objects.get(pk=teacher1))
+        if teacher2:
+            tcourse.teachers.add(Tuser.objects.get(pk=teacher2))
+        if teacher3:
+            tcourse.teachers.add(Tuser.objects.get(pk=teacher3))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -529,21 +550,45 @@ def api_course_excel_data_save(request):
         excelData = request.POST.get("excelData", None)
         excelData = json.loads(excelData)
         for course in excelData:
-            print course['item']
             item = course['item'][0]
             courseId = str(item[u'courseId']).encode('utf8')
             courseName = str(item[u'courseName']).encode('utf8')
             courseSeqNum = int(item[u'courseSeqNum'])
             courseSemester = str(item[u'courseSemester']).encode('utf8')
-            teacherName = str(item[u'teacherName']).encode('utf8')
-            teacherId = str(item[u'teacherId']).encode('utf8')
+            teachers = [{
+                'teacher_name': str(item[u'teacherName1']).encode('utf8'),
+                'teacher_id': str(item[u'teacherId1']).encode('utf8')
+            }]
+            if 'teacherName2' in item and 'teacherId2' in item:
+                teachers.append({
+                    'teacher_name': str(item[u'teacherName2']).encode('utf8'),
+                    'teacher_id': str(item[u'teacherId2']).encode('utf8')
+                })
+            if 'teacherName3' in item and 'teacherId3' in item:
+                teachers.append({
+                    'teacher_name': str(item[u'teacherName3']).encode('utf8'),
+                    'teacher_id': str(item[u'teacherId3']).encode('utf8')
+                })
             courseCount = int(item[u'courseCount'])
             experienceTime = str(item[u'experienceTime']).encode('utf8')
-            studentCount = int(item[u'studentCount'])
 
             tcourse = Course.objects.filter(courseId=courseId).first()
             if tcourse is None:
-                try:
+                tcourse = Course.objects.create(
+                    courseId=courseId,
+                    courseName=courseName,
+                    courseSeqNum=int(courseSeqNum),
+                    courseSemester=courseSemester,
+                    courseCount=int(courseCount),
+                    experienceTime=experienceTime,
+                    tcompany_id=companyId,
+                    created_by=request.user,
+                )
+            for teacher in teachers:
+                teacherName = teacher['teacher_name']
+                teacherId = teacher['teacher_id']
+                user = Tuser.objects.filter(username=teacherName + '-' + teacherId).first()
+                if not user:
                     user = AllGroups.objects.get(id=company.group_id) \
                         .groupInstructors.create(
                         username=teacherName + '-' + teacherId,
@@ -554,38 +599,25 @@ def api_course_excel_data_save(request):
                         is_review=1,
                     )
                     user.roles.add(TRole.objects.get(id=4))
-                except Exception as e:
-                    user = AllGroups.objects.get(id=company.group_id) \
-                        .groupInstructors.filter(
-                        username=teacherName + '-' + teacherId
-                    ).first()
-                    if not user:
-                        continue
-
-                tcourse = Course.objects.create(
-                    courseId=courseId,
-                    courseName=courseName,
-                    courseSeqNum=int(courseSeqNum),
-                    courseSemester=courseSemester,
-                    teacher=user,
-                    courseCount=int(courseCount),
-                    experienceTime=experienceTime,
-                    studentCount=int(studentCount),
-                    tcompany_id=companyId,
-                    created_by=request.user,
-                )
+                else:
+                    user.roles.add(TRole.objects.get(id=4))
+                    AllGroups.objects.get(
+                        id=request.user.tcompanymanagers_set.get().tcompany.group_id).groupInstructors.add(user)
+                tcourse.teachers.add(user)
             for student in course['item']:
                 studentNo = int(student[u'studentNo'])
                 studentName = str(student[u'studentName']).encode('utf8')
                 studentClassName = str(student[u'studentClassName']).encode('utf8') if student[
                     u'studentClassName'] else None
-                try:
-                    if studentClassName:
-                        tclass = TClass.objects.filter(name=studentClassName).first()
-                        if not tclass:
-                            tclass = TClass.objects.create(name=studentClassName)
-                    else:
-                        tclass = None
+                if studentClassName:
+                    tclass = TClass.objects.filter(name=studentClassName).first()
+                    if not tclass:
+                        tclass = TClass.objects.create(name=studentClassName)
+                else:
+                    tclass = None
+
+                newStudent = Tuser.objects.filter(username=str(companyId) + '_' + str(studentNo)).first()
+                if not newStudent:
                     newStudent = Tuser(
                         username=str(companyId) + '_' + str(studentNo),
                         name=studentName,
@@ -599,10 +631,9 @@ def api_course_excel_data_save(request):
                     )
                     newStudent.save()
                     newStudent.roles.add(TRole.objects.get(id=9))
-                except Exception as e:
-                    print "student Exception"
-                    print e
-                    continue
+                else:
+                    newStudent.roles.add(TRole.objects.get(id=9))
+                tcourse.students.add(newStudent)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -630,7 +661,6 @@ def api_course_get_init_attention_data(request):
                                                         linked_company__name__icontains=search)
         else:
             qs = UniversityLinkedCompany.objects.filter(university=request.user.tcompanymanagers_set.get().tcompany)
-
         groupID = request.user.tcompanymanagers_set.get().tcompany.group_id
         clist = [{'value': item.id, 'text': item.name} for item in
                  TCompany.objects.filter(Q(group_id=groupID, is_default=0) & ~Q(companyType__name='学校'))]
@@ -650,7 +680,7 @@ def api_course_get_init_attention_data(request):
             'create_time': flow.create_time.strftime('%Y-%m-%d'),
             'seted_time': flow.seted_time.strftime('%Y-%m-%d') if flow.seted_time is not None else '',
             'message': flow.message,
-            'status': '申请中' if flow.status == 0 else '已关注' if flow.status == 1 else '已拒绝' if flow.status == 2 else '取消已关注'
+            'status': '申请中' if flow.status == 0 else '已关注' if flow.status == 1 else '已拒绝' if flow.status == 2 else '取消申请中' if flow.status == 3 else '取消已拒绝'
         } for flow in flows]
 
         paging = {
@@ -680,6 +710,12 @@ def api_course_send_request_data(request):
     try:
         requestMsg = request.POST.get("requestMsg")
         targetCompany = request.POST.get("targetCompany")
+        if (UniversityLinkedCompany.objects.filter(
+            university=request.user.tcompanymanagers_set.get().tcompany,
+            linked_company_id=targetCompany).count()) > 0:
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'results': 'success'}
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         newRequest = UniversityLinkedCompany.objects.create(
             university=request.user.tcompanymanagers_set.get().tcompany,
@@ -719,13 +755,25 @@ def api_course_send_cancel_data(request):
     try:
         ids = eval(request.POST.get("ids", '[]'))
 
-        UniversityLinkedCompany.objects.filter(pk__in=ids).update(status=3)
+        ulcs = UniversityLinkedCompany.objects.filter(pk__in=ids)
+        ulcs.update(status=3)
+        for ulc in ulcs:
+            newNotification = TNotifications.objects.create(
+                type='attentionCancelRequest_' + str(ulc.id),
+                content=request.user.tcompanymanagers_set.get().tcompany.name + ' : 取消关注协议',
+                link='request-cancel-check',
+                role=TRole.objects.get(id=3),
+                mode=0
+            )
+
+            for userItem in TCompany.objects.get(id=ulc.linked_company_id).tcompanymanagers_set.all():
+                newNotification.targets.add(userItem.tuser)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     except Exception as e:
-        logger.exception('api_course_list Exception:{0}'.format(str(e)))
+        logger.exception('api_course_send_cancel_data Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

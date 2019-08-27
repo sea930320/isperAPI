@@ -9,6 +9,7 @@ from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts, TRole
 from project.models import ProjectRoleAllocation
 from group.models import *
 from workflow.models import FlowNode, SelectDecideItem
+from system.models import UploadFile
 
 
 def get_business_doc_upload_to(instance, filename):
@@ -692,6 +693,88 @@ class BusinessEvaluation(models.Model):
     class Meta:
         db_table = "t_business_evaluation"
         verbose_name_plural = verbose_name = u"BusinessEvaluation"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+############################################################################################################
+class BusinessBillList(models.Model):
+    bill_name = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'bill_name')
+    business = models.ForeignKey(Business, on_delete=models.CASCADE,  blank=True, null=True, verbose_name=u'business')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+    chapters = models.ManyToManyField('BusinessBillChapter', blank=True,
+                                  verbose_name=u'chapters')
+
+    class Meta:
+        db_table = "t_business_bill_list"
+        verbose_name_plural = verbose_name = u"BusinessBillList"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+class BusinessBillChapter(models.Model):
+    chapter_number = models.IntegerField(blank=True, null=True, verbose_name=u'bill_chapter')
+    chapter_title = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'chapter_title')
+    chapter_content = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'chapter_content')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+    sections = models.ManyToManyField('BusinessBillSection', blank=True,
+                                     verbose_name=u'sections')
+
+    class Meta:
+        db_table = "t_business_bill_chapter"
+        verbose_name_plural = verbose_name = u"BusinessBillChapter"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+class BusinessBillSection(models.Model):
+    section_number = models.IntegerField(blank=True, null=True, verbose_name=u'section_number')
+    section_title = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'section_title')
+    section_content = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'section_content')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+    parts = models.ManyToManyField('BusinessBillPart', blank=True,
+                                     verbose_name=u'parts')
+
+    class Meta:
+        db_table = "t_business_bill_section"
+        verbose_name_plural = verbose_name = u"BusinessBillSection"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+class BusinessBillPart(models.Model):
+    part_number = models.IntegerField(blank=True, null=True, verbose_name=u'part_number')
+    part_title = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'part_title')
+    part_content = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'part_content')
+    part_reason = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'part_reason')
+    doc_id = models.IntegerField(blank=True, null=True, verbose_name=u'doc_id')
+    doc_conception = models.IntegerField(blank=True, null=True, verbose_name=u'doc_conception')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+    part_docs = models.ManyToManyField('BusinessBillPartDoc', blank=True,
+                                  verbose_name=u'part_docs')
+
+    class Meta:
+        db_table = "t_business_bill_part"
+        verbose_name_plural = verbose_name = u"BusinessBillPart"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+class BusinessBillPartDoc(models.Model):
+    doc = models.ForeignKey(UploadFile, null=True, on_delete=models.CASCADE, verbose_name=u'doc_id')
+    doc_conception = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_conception')
+    doc_name = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_name')
+    doc_url = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_url')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_business_bill_part_doc"
+        verbose_name_plural = verbose_name = u"BusinessBillPartDoc"
 
     def __unicode__(self):
         return str(self.pk)

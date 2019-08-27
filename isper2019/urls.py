@@ -376,6 +376,7 @@ urlpatterns += (
     url(r'^api/student/team/users$', student_views.api_student_team_users),
     url(r'^api/student/team/add-user$', student_views.api_student_team_add_user),
     url(r'^api/student/team/add-users$', student_views.api_student_team_add_users),
+    url(r'^api/student/team/invite-user$', student_views.api_student_team_invite_user),
     url(r'^api/student/team/remove-user$', student_views.api_student_team_remove_user),
     url(r'^api/student/team/set-leader$', student_views.api_student_team_set_leader),
     url(r'^api/student/team/remove$', student_views.api_student_team_remove),
@@ -386,6 +387,7 @@ urlpatterns += (
     url(r'^api/student/request-assist/update$', student_views.api_student_request_assist_update),
     url(r'^api/student/request-assist-list$', student_views.api_student_request_assist_list),
     url(r'^api/student/send-msg$', student_views.api_student_send_msg),
+    url(r'^api/student/send-doc$', student_views.api_student_send_doc),
     url(r'^api/student/msg-list$', student_views.api_student_msg_list),
 
     url(r'^api/student/todo-list$', student_views.api_student_todo_list),
@@ -399,6 +401,17 @@ urlpatterns += (
 
     url(r'^api/student/instructor/new-team$', student_views.api_student_instructor_new_team),
     url(r'^api/student/instructor/team-eval$', student_views.api_student_instructor_team_eval),
+
+    url(r'^api/bill/name/list$', business_views.api_bill_name_list),
+    url(r'^api/bill/update/full$', business_views.api_bill_update_full),
+    url(r'^api/bill/update/billname$', business_views.api_bill_update_billname),
+    url(r'^api/bill/part/delete$', business_views.api_bill_part_delete),
+    url(r'^api/bill/part/add$', business_views.api_bill_part_add),
+    url(r'^api/bill/doc/list$', business_views.api_bill_doc_list),
+    url(r'^api/bill/doc/delete$', business_views.api_bill_doc_delete),
+    url(r'^api/bill/doc/upload$', business_views.api_bill_doc_upload),
+
+
 )
 
 urlpatterns += (

@@ -1614,11 +1614,13 @@ def api_workflow_create(request):
         if Flow.objects.filter(name=name, del_flag=0).exists():
             resp = code.get_msg(code.FLOW_SAME_NAME_HAS_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+        login_type = request.session['login_type']
+        if not animation1: animation1 = None
+        if not animation2: animation2 = None
         instance = Flow.objects.create(name=name, animation1=animation1, animation2=animation2,
                                        task_label=task_label, type_label=type_label,
                                        created_by=request.user.id,
-                                       created_role_id=request.session['login_type'])
+                                       created_role_id=int(login_type))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {
