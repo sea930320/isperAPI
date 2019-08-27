@@ -406,17 +406,12 @@ urlpatterns += (
     url(r'^api/bill/update/full$', business_views.api_bill_update_full),
     url(r'^api/bill/update/billname$', business_views.api_bill_update_billname),
     url(r'^api/bill/part/delete$', business_views.api_bill_part_delete),
+    url(r'^api/bill/part/add$', business_views.api_bill_part_add),
+    url(r'^api/bill/doc/list$', business_views.api_bill_doc_list),
+    url(r'^api/bill/doc/delete$', business_views.api_bill_doc_delete),
+    url(r'^api/bill/doc/upload$', business_views.api_bill_doc_upload),
 
 
-    url(r'^api/bill/chapter/list$', business_views.api_bill_chapter_list),
-    url(r'^api/bill/section/list$', business_views.api_bill_section_list),
-    url(r'^api/bill/part/list$', business_views.api_bill_part_list),
-    url(r'^api/bill/chapter/save$', business_views.api_bill_chapter_save),
-    url(r'^api/bill/section/save$', business_views.api_bill_section_save),
-    url(r'^api/bill/part/save$', business_views.api_bill_part_save),
-    url(r'^api/bill/part/doc/list$', business_views.api_bill_part_doc_list),
-    url(r'^api/bill/part/doc/save$', business_views.api_bill_part_doc_save),
-    url(r'^api/bill/part/doc/delte$', business_views.api_bill_part_doc_delete),
 )
 
 urlpatterns += (

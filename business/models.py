@@ -9,6 +9,7 @@ from account.models import Tuser, TJobType, OfficeItems, TCompany, TParts, TRole
 from project.models import ProjectRoleAllocation
 from group.models import *
 from workflow.models import FlowNode, SelectDecideItem
+from system.models import UploadFile
 
 
 def get_business_doc_upload_to(instance, filename):
@@ -752,8 +753,10 @@ class BusinessBillPart(models.Model):
         return str(self.pk)
 
 class BusinessBillPartDoc(models.Model):
-    doc_id = models.IntegerField(blank=True, null=True, verbose_name=u'doc_id')
-    doc_conception = models.IntegerField(blank=True, null=True, verbose_name=u'doc_conception')
+    doc = models.ForeignKey(UploadFile, null=True, on_delete=models.CASCADE, verbose_name=u'doc_id')
+    doc_conception = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_conception')
+    doc_name = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_name')
+    doc_url = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_url')
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
 
