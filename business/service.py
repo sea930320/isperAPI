@@ -1275,7 +1275,14 @@ def action_exp_node_end(bus, role_alloc_id, data):
             resp = code.get_msg(code.PERMISSION_DENIED)
             return False, resp
         else:
-            if data['parallel'] == 0 or data['parallel'] == '0':
+            cur_node = FlowNode.objects.filter(pk=data['cur_node']).first()
+            if data['parallel'] == 0 or data['parallel'] == '0' or cur_node.is_parallel_merging == 1:
+                if cur_node.is_parallel_merging == 1:
+                    data['tran_id'] = data['trans']['id']
+                    data['process_type'] = data['trans']['process_type']
+                    bus.parallel_passed_nodes.create(
+                        node=cur_node
+                    )
                 if data['tran_id'] == 0 or data['tran_id'] == '0':
                     next_node = None
                 elif data['process_type'] == const.PROCESS_EXPERIENCE_TYPE:
@@ -1425,7 +1432,6 @@ def action_exp_node_end(bus, role_alloc_id, data):
                        'business_id': bus.pk, 'process_type': process_type}
                 return True, opt
             elif data['parallel'] == 1 or data['parallel'] == '1':
-                cur_node = FlowNode.objects.filter(pk=data['cur_node']).first()
                 if FlowTrans.objects.filter(incoming=cur_node.task_id).count() > 1:
                     tran = FlowTrans.objects.get(pk=data['tran_id'])
                     parallel_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
