@@ -467,9 +467,7 @@ def api_business_detail(request):
             path = BusinessTransPath.objects.filter(business=business).last()
             control_status = path.control_status
             path_id = path.pk
-            user_role_allocs_temp = get_role_allocs_status_by_user(business, path, request.user)
-            for role_alloc_temp in user_role_allocs_temp:
-                user_role_allocs.append(role_alloc_temp)
+            user_role_allocs = get_role_allocs_status_by_user(business, path, request.user)
 
             data['with_user_nodes'] = get_user_with_node_on_business(business, request.user)
             is_parallel = 1 if path.node.parallel_node_start == 1 else 0
@@ -653,37 +651,36 @@ def api_business_node_detail(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         # 获取上个环节
-        pre_node = get_business_pre_node_path(business)
+        # pre_node = get_business_pre_node_path(business)
         pre_node_id = None
-        if pre_node:
-            pre_node_id = pre_node.node_id
+        # if pre_node:
+        #     pre_node_id = pre_node.node_id
 
-        path = BusinessTransPath.objects.filter(business=business).last()
+        # path = BusinessTransPath.objects.filter(business=business).last()
 
         # 当前用户可选角色
-        role_alloc_list_temp = get_role_allocs_status_by_user(business, path, request.user)
-
         role_alloc_list = []
-
-        # 三期 老师以实验指导登录进来，老师只观察只给一个观察者的角色;老师以实验者登录进来，要去掉老师的观察者角色
-        if request.session['login_type'] == 2:
-            for role_alloc_temp in role_alloc_list_temp:
-                if role_alloc_temp['role']['name'] == const.ROLE_TYPE_OBSERVER:
-                    role_alloc_list.append(role_alloc_temp)
-        else:
-            for role_alloc_temp in role_alloc_list_temp:
-                if role_alloc_temp['role']['name'] != const.ROLE_TYPE_OBSERVER:
-                    role_alloc_list.append(role_alloc_temp)
+        btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=request.user)
+        for btm in btmQs:
+            try:
+                roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, role=btm.business_role,
+                                                                  no=btm.no, project_id=business.cur_project_id,
+                                                                  can_take_in=True).first()
+                roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
+                                                                              business_role_allocation=roleAlloc).first()
+                role_alloc_list.append({
+                    'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
+                    'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
+                    'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
+                    'speak_times': 0,
+                    'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
+                    'can_brought': roleAlloc.can_brought
+                })
+            except:
+                continue
 
         # 当前环节所有角色状态
-        role_alloc_status_list_temp = get_all_simple_role_allocs_status(business, node, path)
-
-        role_alloc_status_list = []
-        # 三期 老师以实验指导登录进来, 不显示老师角色
-        # 这
-        for role_alloc_temp in role_alloc_status_list_temp:
-            if role_alloc_temp['role_name'] != const.ROLE_TYPE_OBSERVER:
-                role_alloc_status_list.append(role_alloc_temp)
+        role_alloc_status_list = get_all_simple_role_allocs_status(business, node)
 
         # 是否投票
         has_vote = BusinessRoleAllocationStatus.objects.filter(business=business,
@@ -692,10 +689,10 @@ def api_business_node_detail(request):
                                                                business_role_allocation__node=node,
                                                                # path=path,
                                                                vote_status=0).exists()
-        if path.vote_status == 1:
-            end_vote = False
-        else:
-            end_vote = True
+        # if path.vote_status == 1:
+        end_vote = False
+        # else:
+        #     end_vote = True
 
         # 场景动作列表
         process_action_list = []
@@ -730,7 +727,7 @@ def api_business_node_detail(request):
             'role_alloc_status': role_alloc_status_list, 'id': business.id, 'name': business.name,
             # 'experience': experience_data,
             'node': {'id': node.id, 'name': node.name, 'condition': node.condition}, 'pre_node_id': pre_node_id,
-            'huanxin_id': business.huanxin_id, 'control_status': path.control_status,
+            'huanxin_id': business.huanxin_id, 'control_status': 1,
             'entire_graph': project.entire_graph,
             # 'leader': team.leader if team else None,
             'flow_id': project.flow_id, 'has_vote': False if has_vote else True, 'end_vote': end_vote
@@ -752,24 +749,31 @@ def api_business_trans_path(request):
         # 判断实验是否存在
         business = Business.objects.filter(pk=business_id, del_flag=0).first()
         if business:
+            stop_node = []
             if business.status == const.EXPERIMENT_FINISHED:
                 node = {'is_finished': True}
             else:
-                next_node = FlowNode.objects.filter(pk=business.node_id).first()
-                node = {'node_id': next_node.pk, 'task_id': next_node.task_id,
-                        'name': next_node.name, 'is_finished': False}
-
+                node = []
+                if business.node.parallel_node_start == 0:
+                    next_node = FlowNode.objects.filter(pk=business.node_id).first()
+                    node.append(next_node.task_id)
+                else:
+                    for pnItem in business.parallel_nodes.all():
+                        if pnItem.node.is_parallel_merging == 1 and \
+                                business.parallel_passed_nodes.filter(node__task_id__in=FlowTrans.objects.filter(outgoing=pnItem.node.task_id).values_list('incoming', flat=True)).count() != FlowTrans.objects.filter(outgoing=pnItem.node.task_id).count():
+                            stop_node.append(pnItem.node.task_id)
+                        else:
+                            node.append(pnItem.node.task_id)
             project = Project.objects.get(pk=business.cur_project_id)
-            paths = BusinessTransPath.objects.filter(business_id=business.id,
-                                                     project_id=business.cur_project_id).values_list('task_id',
-                                                                                                     flat=True)
             flow = Flow.objects.get(pk=project.flow_id)
-            xml = bpmn_color(flow.xml, list(paths))
+            paths = list(business.parallel_passed_nodes.all().values_list('node__task_id', flat=True))
+            paths += list(BusinessTransPath.objects.filter(business_id=business.id, project_id=business.cur_project_id).values_list('task_id', flat=True))
+            xml = bpmn_color(flow.xml, paths, node, business.node.parallel_node_start, stop_node)
 
             resp = code.get_msg(code.SUCCESS)
-            resp['d'] = {'business_id': business.pk, 'business_name': business.name, 'flow_id': flow.pk,
-                         'flow_name': flow.name,
-                         'xml': xml, 'node': node}
+            if business.node.parallel_node_start == 1:
+                node.append("")
+            resp['d'] = {'xml': xml, 'node': node}
         else:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
     except Exception as e:
@@ -1728,7 +1732,7 @@ def api_business_message_push(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         # 角色占位
-        pos = get_role_position(bus, project, node, path, role, role_alloc_id)
+        pos = get_role_position(bus, project, node, role, role_alloc_id)
 
         time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         opt = None

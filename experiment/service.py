@@ -759,7 +759,7 @@ def action_exp_node_end(exp, role_id, data):
                     if cur_node.process_id == next_node.process_id:
                         item_role = ProjectRole.objects.filter(pk=item.role_id).first()
                         # 角色占位
-                        pos = get_role_position(exp, project, next_node, path, item_role)
+                        pos = get_role_position(exp, project, next_node, item_role)
                         if pos:
                             # 占位状态, 如果上一环节占位存在并且已入席则创建当前环节占位数据
                             eps = ExperimentPositionStatus.objects.filter(experiment_id=exp.id, node_id=cur_node.id,

@@ -125,7 +125,7 @@ def save_message(request):
         project = Project.objects.get(pk=business.cur_project_id)
         node = FlowNode.objects.filter(pk=business.node_id, del_flag=0).first()
         role = bra.role
-        pos = get_role_position(business, project, node, path, role, role_alloc_id)
+        pos = get_role_position(business, project, node, role, role_alloc_id)
         time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         opt = None
         image = get_role_image(bra.flow_role_alloc_id)
