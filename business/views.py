@@ -43,6 +43,11 @@ import pypandoc
 from system.models import UploadFile
 import html2text
 from account.service import get_client_ip
+from docx import Document
+from docx.shared import Inches
+from docx.shared import Pt
+from docx.shared import Mm
+from docx.enum.text import WD_BREAK
 
 logger = logging.getLogger(__name__)
 
@@ -5990,6 +5995,73 @@ def api_bill_part_insert(request):
         added_part = BusinessBillPart.objects.create(part_number=int(part_number), part_title=part_title,
                                                      part_content=part_content, part_reason=part_reason)
         section.parts.add(added_part)
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_bill_doc_preview(request):
+    document = Document()
+    section = document.sections[0]
+    section.page_height = Mm(297)
+    section.page_width = Mm(210)
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get("business_id", None)
+        bill_lists = BusinessBillList.objects.filter(business_id=business_id).first()
+        bill_title = bill_lists.bill_name
+        style = document.styles['Heading 1']
+        font_bill = style.font
+        font_bill.name = 'Arial'
+        font_bill.size = Pt(40)
+        paragraph_bill = document.add_paragraph(bill_title, style='Heading 1')
+        paragraph_bill.add_run().add_break(WD_BREAK.LINE)
+
+        chapters_lists = bill_lists.chapters.all()
+        for chapter_one in chapters_lists:
+            style_chapter = document.styles['List Number']
+            font_chapter = style_chapter.font
+            font_chapter.name = 'Arial'
+            font_chapter.size = Pt(30)
+            paragraph_chapter = document.add_paragraph(chapter_one.chapter_title, style='List Number')
+            paragraph_chapter.add_run().add_break(WD_BREAK.LINE)
+
+            sections_lists = chapter_one.sections.all()
+            for section_one in sections_lists:
+                style_section = document.styles['List Number 2']
+                font_section = style_section.font
+                font_section.name = 'Arial'
+                font_section.size = Pt(20)
+                paragraph_section = document.add_paragraph(section_one.section_title, style='List Number 2')
+                paragraph_section.add_run().add_break(WD_BREAK.LINE)
+
+                parts_lists = section_one.parts.all()
+                for part_one in parts_lists:
+                    style_part = document.styles['List Number 3']
+                    font_part = style_part.font
+                    font_part.name = 'Arial'
+                    font_part.size = Pt(15)
+                    paragraph_part = document.add_paragraph(part_one.part_title, style='List Number 3')
+                    paragraph_part.add_run().add_break(WD_BREAK.LINE)
+
+                    style_part_content = document.styles['Body Text']
+                    font_part_content = style_part_content.font
+                    font_part_content.name = 'Arial'
+                    font_part_content.size = Pt(10)
+                    paragraph_part_content = document.add_paragraph(part_one.part_content, style='Body Text')
+                    paragraph_part_content.add_run().add_break(WD_BREAK.LINE)
+                    if ((parts_lists[len(parts_lists) -1] == part_one) and (sections_lists[len(sections_lists) -1] == section_one)):
+                        if (chapters_lists[len(chapters_lists) -1] != chapter_one):
+                            paragraph_part_content.add_run().add_break(WD_BREAK.PAGE)
+
+
+        document.add_page_break()
+        document.save('demo.docx')
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))

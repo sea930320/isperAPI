@@ -412,6 +412,7 @@ urlpatterns += (
     url(r'^api/bill/part/up$', business_views.api_bill_part_up),
     url(r'^api/bill/part/down$', business_views.api_bill_part_down),
     url(r'^api/bill/part/insert$', business_views.api_bill_part_insert),
+    url(r'^api/bill/doc/preview$', business_views.api_bill_doc_preview),
 
 
 )
