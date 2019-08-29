@@ -409,6 +409,9 @@ urlpatterns += (
     url(r'^api/bill/doc/list$', business_views.api_bill_doc_list),
     url(r'^api/bill/doc/delete$', business_views.api_bill_doc_delete),
     url(r'^api/bill/doc/upload$', business_views.api_bill_doc_upload),
+    url(r'^api/bill/part/up$', business_views.api_bill_part_up),
+    url(r'^api/bill/part/down$', business_views.api_bill_part_down),
+    url(r'^api/bill/part/insert$', business_views.api_bill_part_insert),
 
 
 )

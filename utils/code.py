@@ -137,6 +137,8 @@ BUSINESS_ROLE_NOT_SET = 50025
 # 该实验没有注册到课堂
 BUSINESS_NOT_REGISTER = 50026
 BUSINESS_NO_ACCESS_TO_START = 50027
+BUSINESS_BILL_NOT_UP = 50028
+BUSINESS_BILL_NOT_DOWN = 50029
 
 # 实验任务不存在
 EXPERIMENT_NOT_EXIST = 50001
@@ -281,6 +283,8 @@ MSG = {
     50025: u'当前环节还有角色没有设置',
     50026: u'该实验没有注册到课堂',
     50027: u'没有启动业务的权限',
+    50028: u'不能上移',
+    50029: u'不能下移',
 
     60001: u'消息发送失败',
     60002: u'动作指令错误',
