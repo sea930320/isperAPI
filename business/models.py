@@ -29,6 +29,17 @@ class BusinessParallelNodes(models.Model):
         return str(self.node_id)
 
 
+class BusinessParallelPassedNodes(models.Model):
+    node = models.ForeignKey(FlowNode, on_delete=models.CASCADE, verbose_name=u'当前环节')
+
+    class Meta:
+        db_table = "t_business_parallel_passed_node"
+        verbose_name_plural = verbose_name = u"business_parallel_passed_node"
+
+    def __unicode__(self):
+        return str(self.node_id)
+
+
 # 实验任务
 class Business(models.Model):
     name = models.CharField(max_length=64, verbose_name=u'名称')
@@ -51,6 +62,7 @@ class Business(models.Model):
     target_part = models.ForeignKey(TParts, blank=True, null=True, on_delete=models.CASCADE)
     jumper_id = models.IntegerField(verbose_name=u'当前项目', null=True, default=None)
     parallel_nodes = models.ManyToManyField(BusinessParallelNodes)
+    parallel_passed_nodes = models.ManyToManyField(BusinessParallelPassedNodes)
 
     class Meta:
         db_table = "t_business"
@@ -129,7 +141,7 @@ class BusinessRoleAllocationStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,
                                                  verbose_name=u'Business Role Allocation')
-    path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
+    path = models.ForeignKey(BusinessTransPath, blank=True, null=True, on_delete=models.CASCADE, verbose_name=u'实验路径')
     speak_times = models.IntegerField(default=0, verbose_name=u'发言次数')
     submit_status = models.PositiveIntegerField(choices=const.SUBMIT_STATUS, default=9, verbose_name=u'提交状态')
     show_status = models.PositiveIntegerField(choices=const.SHOW_STATUS, default=9, verbose_name=u'展示状态')
@@ -151,7 +163,7 @@ class BusinessPositionStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'任务')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, blank=True, null=True,
                                                  on_delete=models.CASCADE, verbose_name=u'Business Role Allocation')
-    path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
+    path = models.ForeignKey(BusinessTransPath, blank=True, null=True, on_delete=models.CASCADE, verbose_name=u'实验路径')
     position_id = models.IntegerField(verbose_name=u'占位')
     sitting_status = models.PositiveIntegerField(choices=const.SITTING_STATUS, default=1, verbose_name=u'入席退席状态')
 
@@ -186,7 +198,7 @@ class BusinessReportStatus(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, verbose_name=u'Business')
     business_role_allocation = models.ForeignKey(BusinessRoleAllocation, on_delete=models.CASCADE,
                                                  verbose_name=u'Business Role Allocation')
-    path = models.ForeignKey(BusinessTransPath, on_delete=models.CASCADE, verbose_name=u'实验路径')
+    path = models.ForeignKey(BusinessTransPath, blank=True, null=True, on_delete=models.CASCADE, verbose_name=u'实验路径')
     position_id = models.IntegerField(verbose_name=u'占位')
     schedule_status = models.PositiveIntegerField(choices=const.SCHEDULE_STATUS, default=1, verbose_name=u'安排状态')
 

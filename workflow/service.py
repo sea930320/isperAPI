@@ -206,7 +206,8 @@ def get_end_parallel_node_stack():
 
     get_end_parallel_node_stack()
 
-def bpmn_color(xml, tasks):
+
+def bpmn_color(xml, passed, current, mode, stop_node):
     """
     解析bpmn格式文件,对环节着色
     :param xml_text:
@@ -214,14 +215,31 @@ def bpmn_color(xml, tasks):
     """
     xml = xml.replace('bpmn:definitions',
                       'bpmn:definitions xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0"', 1)
-    if len(tasks) > 0:
-        last_task_id = tasks[-1]
-        for task_id in tasks:
-            old = 'bpmnElement="{}"'.format(task_id)
-            if task_id == last_task_id:
-                new = 'bpmnElement="{}" bioc:stroke="#FE2E2E" bioc:fill="#F8E0E0"'.format(task_id)
-            else:
+
+    if len(passed) > 0:
+        if mode == 0:
+            last_task_id = passed[-1]
+            for task_id in passed:
+                old = 'bpmnElement="{}"'.format(task_id)
+                if task_id == last_task_id:
+                    new = 'bpmnElement="{}" bioc:stroke="#FE2E2E" bioc:fill="#F8E0E0"'.format(task_id)
+                else:
+                    new = 'bpmnElement="{}" bioc:stroke="#1E88E5" bioc:fill="#BBDEFB"'.format(task_id)
+                xml = xml.replace(old, new, 1)
+        else:
+            for task_id in passed:
+                old = 'bpmnElement="{}"'.format(task_id)
                 new = 'bpmnElement="{}" bioc:stroke="#1E88E5" bioc:fill="#BBDEFB"'.format(task_id)
+                xml = xml.replace(old, new, 1)
+    if len(current) > 0 and mode == 1:
+        for task_id in current:
+            old = 'bpmnElement="{}"'.format(task_id)
+            new = 'bpmnElement="{}" bioc:stroke="#FE2E2E" bioc:fill="#F8E0E0"'.format(task_id)
+            xml = xml.replace(old, new, 1)
+    if len(stop_node) > 0:
+        for stop_task_id in stop_node:
+            old = 'bpmnElement="{}"'.format(stop_task_id)
+            new = 'bpmnElement="{}" bioc:stroke="#f18a00" bioc:fill="#ffe6af"'.format(stop_task_id)
             xml = xml.replace(old, new, 1)
     # print xml
     return xml

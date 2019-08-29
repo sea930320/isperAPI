@@ -22,6 +22,7 @@ from utils import code, const, public_fun, tools
 from utils.permission import permission_check
 from utils.request_auth import auth_check
 from project.models import ProjectJump
+from business.models import *
 from workflow.models import Flow, FlowNode, FlowTrans, FlowProcess, FlowDocs, FlowRole, FlowRoleAllocation, \
     FlowRoleActionNew, FlowRolePosition, RoleImage, RoleImageType, FlowNodeDocs, FlowAction, FlowPosition, \
     ProcessRoleActionNew, ProcessAction, FlowNodeSelectDecide, SelectDecideItem
@@ -1462,19 +1463,19 @@ def api_workflow_related(request):
             for pro in projects:
                 experiments = Experiment.objects.filter(project_id=pro.id, del_flag=0)
                 experiment_list = []
-                for exp in experiments:
-                    course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
-                    if course_class and course_class.teacher1:
-                        teacher_name = course_class.teacher1.name
-                    else:
-                        teacher_name = None
-                    team = Team.objects.filter(pk=exp.team_id).first()
-                    experiment_list.append({
-                        'id': exp.id, 'name': u'{0} {1}'.format(exp.id, exp.name), 'teacher_name': teacher_name,
-                        'team_id': exp.team_id, 'team_name': team.name if team else None, 'status': exp.status,
-                        'course_class': u'{0} {1} {2}'.format(course_class.name, course_class.no,
-                                                              course_class.term) if course_class else None
-                    })
+                # for exp in experiments:
+                #     course_class = CourseClass.objects.filter(pk=exp.course_class_id).first()
+                #     if course_class and course_class.teacher1:
+                #         teacher_name = course_class.teacher1.name
+                #     else:
+                #         teacher_name = None
+                #     team = Team.objects.filter(pk=exp.team_id).first()
+                #     experiment_list.append({
+                #         'id': exp.id, 'name': u'{0} {1}'.format(exp.id, exp.name), 'teacher_name': teacher_name,
+                #         'team_id': exp.team_id, 'team_name': team.name if team else None, 'status': exp.status,
+                #         'course_class': u'{0} {1} {2}'.format(course_class.name, course_class.no,
+                #                                               course_class.term) if course_class else None
+                #     })
                 project_list.append({
                     'experiments': experiment_list, 'id': pro.id, 'name': pro.name, 'level': pro.level,
                     'ability_tartget': pro.ability_target, 'exp_count': experiments.count(), 'type': pro.type
@@ -1790,6 +1791,7 @@ def api_workflow_trans_query(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+        business_id = request.GET.get('business_id', None)  # 实验ID
         project_id = request.GET.get('project_id', None)  # 实验ID
         flow_id = request.GET.get('flow_id', None)  # 流程id
         node_id = request.GET.get('node_id', None)  # 环节id
@@ -1818,38 +1820,105 @@ def api_workflow_trans_query(request):
         if direction == const.FLOW_FORWARD:
             trans = FlowTrans.objects.filter(flow_id=flow_id, incoming=node.task_id, del_flag=0)
             next_nodes = []
-            for item in trans:
-                # 判断是否有gateway类型的分支
-                if item.outgoing.startswith('ExclusiveGateway'):
-                    gateway_trans = FlowTrans.objects.filter(flow_id=flow_id, incoming=item.outgoing, del_flag=0)
-                    for gateway_tran in gateway_trans:
-                        obj = FlowNode.objects.filter(flow_id=flow_id, task_id=gateway_tran.outgoing,
-                                                      del_flag=0).first()
-                        if obj:
-                            next_nodes.append({'tran_id': gateway_tran.id, 'tran_name': gateway_tran.name, 'node': obj})
-                else:
+
+            if Business.objects.get(pk=business_id).node.parallel_node_start == 1 and FlowNode.objects.get(flow_id=flow_id, task_id=trans[0].outgoing).parallel_node_start == 0:
+                for item in trans:
                     obj = FlowNode.objects.filter(task_id=item.outgoing, flow_id=flow_id, del_flag=0).first()
                     if obj:
                         next_nodes.append({'tran_id': item.id, 'tran_name': item.name, 'node': obj})
 
-            for item in next_nodes:
-                process_type = item['node'].process.type
-                jump_project_id = None
-                # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
-                if process_type in [const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE]:
-                    jump = ProjectJump.objects.filter(project_id=project_id, node_id=item['node'].pk, process_type=process_type).first()
-                    if jump:
-                        jump_project_id = jump.jump_project_id
+                for item in next_nodes:
+                    process_type = item['node'].process.type
+                    jump_project_id = None
+                    # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
+                    if process_type in [const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE]:
+                        jump = ProjectJump.objects.filter(project_id=project_id, node_id=item['node'].pk, process_type=process_type).first()
+                        if jump:
+                            jump_project_id = jump.jump_project_id
+                        else:
+                            continue
+                    if trans.count() == 1:
+                        tran_list.append({
+                            'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
+                            'jump_project_id': jump_project_id,
+                            'parallel_mode': 1,
+                            'select': 0,
+                            # condition': item['tran_name'] if item['tran_name']
+                            # else u'走向'.join([node.name, item['node'].name])
+                            'condition': u'走向'.join([node.name, item['node'].name])
+                        })
                     else:
-                        continue
+                        tran_list.append({
+                            'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
+                            'jump_project_id': jump_project_id,
+                            'parallel_mode': 1,
+                            'select': 1,
+                            # condition': item['tran_name'] if item['tran_name']
+                            # else u'走向'.join([node.name, item['node'].name])
+                            'condition': u'走向'.join([node.name, item['node'].name])
+                        })
+            elif trans.count() == 1 and FlowNode.objects.get(flow_id=flow_id, task_id=trans[0].outgoing).parallel_node_start == 1:
+                trans = FlowTrans.objects.filter(flow_id=flow_id, incoming=trans[0].outgoing, del_flag=0)
+                for item in trans:
+                    obj = FlowNode.objects.filter(task_id=item.outgoing, flow_id=flow_id, del_flag=0).first()
+                    if obj:
+                        next_nodes.append({'tran_id': item.id, 'tran_name': item.name, 'node': obj})
 
-                tran_list.append({
-                    'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
-                    'jump_project_id': jump_project_id,
-                    # condition': item['tran_name'] if item['tran_name']
-                    # else u'走向'.join([node.name, item['node'].name])
-                    'condition': u'走向'.join([node.name, item['node'].name])
-                })
+                for item in next_nodes:
+                    process_type = item['node'].process.type
+                    jump_project_id = None
+                    # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
+                    if process_type in [const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE]:
+                        jump = ProjectJump.objects.filter(project_id=project_id, node_id=item['node'].pk, process_type=process_type).first()
+                        if jump:
+                            jump_project_id = jump.jump_project_id
+                        else:
+                            continue
+
+                    tran_list.append({
+                        'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
+                        'jump_project_id': jump_project_id,
+                        'parallel_mode': 1,
+                        'select': 0,
+                        # condition': item['tran_name'] if item['tran_name']
+                        # else u'走向'.join([node.name, item['node'].name])
+                        'condition': u'走向'.join([node.name, item['node'].name])
+                    })
+            else:
+                for item in trans:
+                    # 判断是否有gateway类型的分支
+                    if item.outgoing.startswith('ExclusiveGateway'):
+                        gateway_trans = FlowTrans.objects.filter(flow_id=flow_id, incoming=item.outgoing, del_flag=0)
+                        for gateway_tran in gateway_trans:
+                            obj = FlowNode.objects.filter(flow_id=flow_id, task_id=gateway_tran.outgoing,
+                                                          del_flag=0).first()
+                            if obj:
+                                next_nodes.append({'tran_id': gateway_tran.id, 'tran_name': gateway_tran.name, 'node': obj})
+                    else:
+                        obj = FlowNode.objects.filter(task_id=item.outgoing, flow_id=flow_id, del_flag=0).first()
+                        if obj:
+                            next_nodes.append({'tran_id': item.id, 'tran_name': item.name, 'node': obj})
+
+                for item in next_nodes:
+                    process_type = item['node'].process.type
+                    jump_project_id = None
+                    # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
+                    if process_type in [const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE]:
+                        jump = ProjectJump.objects.filter(project_id=project_id, node_id=item['node'].pk, process_type=process_type).first()
+                        if jump:
+                            jump_project_id = jump.jump_project_id
+                        else:
+                            continue
+
+                    tran_list.append({
+                        'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
+                        'jump_project_id': jump_project_id,
+                        'parallel_mode': 0,
+                        'select': 0,
+                        # condition': item['tran_name'] if item['tran_name']
+                        # else u'走向'.join([node.name, item['node'].name])
+                        'condition': u'走向'.join([node.name, item['node'].name])
+                    })
         else:
             trans = FlowTrans.objects.filter(flow_id=flow_id, outgoing=node.task_id, del_flag=0)
             previous_nodes = []
