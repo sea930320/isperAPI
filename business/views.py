@@ -5749,7 +5749,7 @@ def api_bill_name_list(request):
         bill_name = BusinessBillList.objects.filter(business_id=business_id)
         resp = code.get_msg(code.SUCCESS)
         if (len(bill_name) == 0):
-            resp['d'] = {'bill_name': '', 'bill_id': 0,'bill_data':[]}
+            resp['d'] = {'bill_name': '', 'bill_id': 0, 'bill_data': []}
         else:
             bill_data = getAllBillList(bill_name.first().id, show_mode)
             resp['d'] = {'bill_name': bill_name.first().bill_name, 'bill_id': bill_name.first().id, 'bill_data':bill_data}
