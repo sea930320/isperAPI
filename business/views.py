@@ -432,8 +432,9 @@ def api_business_list(request):
 
 def api_business_detail(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id")  # 实验id
@@ -442,7 +443,8 @@ def api_business_detail(request):
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        if BusinessTransPath.objects.filter(business_id=business_id, project_id=business.cur_project_id).count() == 0:
+        if not observable and BusinessTransPath.objects.filter(business_id=business_id,
+                                                               project_id=business.cur_project_id).count() == 0:
             resp = api_business_start(request)
             if resp != 'success':
                 if business.jumper_id and resp['c'] == code.TEAM_MEMBER_NOT_EXIST:
@@ -459,9 +461,10 @@ def api_business_detail(request):
         data = get_business_detail(business)
 
         # 三期记录用户最后一次进入的实验id
-        user = request.user
-        user.last_business_id = business_id
-        user.save()
+        if (not observable):
+            user = request.user
+            user.last_business_id = business_id
+            user.save()
 
         user_role_allocs = []
         if business.status == 1:
@@ -472,9 +475,9 @@ def api_business_detail(request):
             path = BusinessTransPath.objects.filter(business=business).last()
             control_status = path.control_status
             path_id = path.pk
-            user_role_allocs = get_role_allocs_status_by_user(business, path, request.user)
-
-            data['with_user_nodes'] = get_user_with_node_on_business(business, request.user)
+            if (not observable):
+                user_role_allocs = get_role_allocs_status_by_user(business, path, request.user)
+                data['with_user_nodes'] = get_user_with_node_on_business(business, request.user)
             is_parallel = 1 if path.node.parallel_node_start == 1 else 0
 
         data['control_status'] = control_status
@@ -531,7 +534,8 @@ def api_business_start(request):
     first_node_id = get_start_node(project.flow_id)
     node = FlowNode.objects.get(pk=first_node_id)
     # get All Business Roles to check if all users are allocated to business Role Alloc
-    businessRoles = BusinessRole.objects.filter(business=business, project_id=business.cur_project_id)  # get all Business Roles
+    businessRoles = BusinessRole.objects.filter(business=business,
+                                                project_id=business.cur_project_id)  # get all Business Roles
     for role in businessRoles:
         for no in range(1, role.capacity + 1):
             teamMembers = BusinessTeamMember.objects.filter(business=business, business_role=role, no=no,
@@ -606,7 +610,8 @@ def api_business_start(request):
                 business.parallel_nodes.create(
                     node=fn
                 )
-                fnallocs = BusinessRoleAllocation.objects.filter(business=business, node=fn, can_take_in=1, project_id=business.cur_project_id)
+                fnallocs = BusinessRoleAllocation.objects.filter(business=business, node=fn, can_take_in=1,
+                                                                 project_id=business.cur_project_id)
                 for fnusers in fnallocs:
                     if fnusers.can_brought:
                         come_status = 1
@@ -665,7 +670,8 @@ def api_business_node_detail(request):
 
         # 当前用户可选角色
         role_alloc_list = []
-        btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=request.user)
+        btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id,
+                                                  user=request.user)
         for btm in btmQs:
             try:
                 roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, role=btm.business_role,
@@ -765,14 +771,20 @@ def api_business_trans_path(request):
                 else:
                     for pnItem in business.parallel_nodes.all():
                         if pnItem.node.is_parallel_merging == 1 and \
-                                business.parallel_passed_nodes.filter(node__task_id__in=FlowTrans.objects.filter(outgoing=pnItem.node.task_id).values_list('incoming', flat=True)).count() != FlowTrans.objects.filter(outgoing=pnItem.node.task_id).count():
+                                        business.parallel_passed_nodes.filter(
+                                            node__task_id__in=FlowTrans.objects.filter(
+                                                outgoing=pnItem.node.task_id).values_list('incoming',
+                                                                                          flat=True)).count() != FlowTrans.objects.filter(
+                                    outgoing=pnItem.node.task_id).count():
                             stop_node.append(pnItem.node.task_id)
                         else:
                             node.append(pnItem.node.task_id)
             project = Project.objects.get(pk=business.cur_project_id)
             flow = Flow.objects.get(pk=project.flow_id)
             paths = list(business.parallel_passed_nodes.all().values_list('node__task_id', flat=True))
-            paths += list(BusinessTransPath.objects.filter(business_id=business.id, project_id=business.cur_project_id).values_list('task_id', flat=True))
+            paths += list(BusinessTransPath.objects.filter(business_id=business.id,
+                                                           project_id=business.cur_project_id).values_list('task_id',
+                                                                                                           flat=True))
             xml = bpmn_color(flow.xml, paths, node, business.node.parallel_node_start, stop_node)
 
             resp = code.get_msg(code.SUCCESS)
@@ -1115,6 +1127,52 @@ def api_business_node_role_docs(request):
 
     except Exception as e:
         logger.exception('api_business_node_role_docs Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_business_node_observable_list(request):
+    try:
+        size = request.GET.get("size", None)
+        businesses = Business.objects.filter(Q(del_flag=0, status=2)).exclude(Q(node__isnull=True)).order_by(
+            '-create_time')
+        observable_business_node_list = []
+        for business in businesses:
+            parallel_node_ids = list(business.parallel_nodes.all().distinct().values_list('node_id', flat=True))
+            if len(parallel_node_ids) == 0:
+                nodes = FlowNode.objects.filter(pk=business.node_id, look_on=True, del_flag=0)
+            else:
+                nodes = FlowNode.objects.filter(id__in=parallel_node_ids, look_on=True, del_flag=0)
+            for node in nodes:
+                observable_business_node_list.append({
+                    'business': {
+                        'id': business.id, 'name': business.name,
+                        'start_time': business.start_time.strftime('%Y-%m-%d') if business.start_time else None,
+                        'end_time': business.end_time.strftime('%Y-%m-%d') if business.end_time else None,
+                        'create_time': business.create_time.strftime(
+                            '%Y-%m-%d %H:%M:%S') if business.create_time else None,
+                        'status': business.status, 'created_by': user_simple_info(business.created_by_id),
+                        'officeItem': model_to_dict(business.officeItem) if business.officeItem else None,
+                        'jumper_id': business.jumper_id
+                    },
+                    'node': {
+                        'id': node.id, 'flow_id': node.flow_id, 'name': node.name, 'process_type': node.process.type
+                    }
+                })
+                if size and len(observable_business_node_list) == 5:
+                    break;
+
+            if size and len(observable_business_node_list) == 5:
+                break;
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {
+            'nodes': observable_business_node_list
+        }
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('api_business_node_observable_list Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -5724,6 +5782,7 @@ def api_business_save_evaluation(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_bill_chapter_list(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -5765,6 +5824,7 @@ def api_bill_chapter_list(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 #######################################################################################
 
 
@@ -5794,7 +5854,7 @@ def getAllBillList(bill_id, show_mode):
                     res_json["part_reason"] = parts_object.part_reason
                     res.append(res_json)
                     continue
-                if (show_mode =='2'):
+                if (show_mode == '2'):
                     res_json["chapter_id"] = chapters_object.id
                     res_json["chapter_number"] = chapters_object.chapter_number
                     res_json["chapter_title"] = chapters_object.chapter_title
@@ -5823,10 +5883,11 @@ def api_bill_name_list(request):
         bill_name = BusinessBillList.objects.filter(business_id=business_id)
         resp = code.get_msg(code.SUCCESS)
         if (len(bill_name) == 0):
-            resp['d'] = {'bill_name': '', 'bill_id': 0,'bill_data':[]}
+            resp['d'] = {'bill_name': '', 'bill_id': 0, 'bill_data': []}
         else:
             bill_data = getAllBillList(bill_name.first().id, show_mode)
-            resp['d'] = {'bill_name': bill_name.first().bill_name, 'bill_id': bill_name.first().id, 'bill_data':bill_data}
+            resp['d'] = {'bill_name': bill_name.first().bill_name, 'bill_id': bill_name.first().id,
+                         'bill_data': bill_data}
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -5898,7 +5959,7 @@ def api_bill_part_delete(request):
             part_doc.delete()
         part.delete()
         for part_one in section.parts.all():
-            if (part_one.part_number>part_number):
+            if (part_one.part_number > part_number):
                 part_one.part_number = part_one.part_number - 1
                 part_one.save()
         resp = code.get_msg(code.SUCCESS)
@@ -5919,7 +5980,8 @@ def api_bill_part_add(request):
         part_title = request.POST.get("part_title", None)
         part_content = request.POST.get("part_content", None)
         part_reason = request.POST.get("part_reason", None)
-        added_part = BusinessBillPart.objects.create(part_number=int(part_number), part_title=part_title,part_content=part_content,part_reason=part_reason)
+        added_part = BusinessBillPart.objects.create(part_number=int(part_number), part_title=part_title,
+                                                     part_content=part_content, part_reason=part_reason)
         section = BusinessBillSection.objects.get(id=section_id)
         section.parts.add(added_part)
         resp = code.get_msg(code.SUCCESS)
@@ -5986,7 +6048,8 @@ def api_bill_doc_upload(request):
         doc_conception = request.POST.get("doc_conception", None)
         part_id = request.POST.get("part_id", None)
         doc_name = doc_url.split("/")[-1]
-        added_doc = BusinessBillPartDoc.objects.create(doc_id=int(doc_id), doc_url=doc_url, doc_name=doc_name, doc_conception=doc_conception)
+        added_doc = BusinessBillPartDoc.objects.create(doc_id=int(doc_id), doc_url=doc_url, doc_name=doc_name,
+                                                       doc_conception=doc_conception)
         part = BusinessBillPart.objects.filter(id=part_id).first()
         part.part_docs.add(added_doc)
         resp = code.get_msg(code.SUCCESS)
@@ -6004,7 +6067,7 @@ def api_bill_part_up(request):
     try:
         section_id = request.GET.get("section_id", None)
         part_number = request.GET.get("part_number", None)
-        if (int(part_number) ==1):
+        if (int(part_number) == 1):
             resp = code.get_msg(code.BUSINESS_BILL_NOT_UP)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         des_part_number = int(part_number) - 1
@@ -6129,10 +6192,10 @@ def api_bill_doc_preview(request):
                     font_part_content.size = Pt(10)
                     paragraph_part_content = document.add_paragraph(part_one.part_content, style='Body Text')
                     paragraph_part_content.add_run().add_break(WD_BREAK.LINE)
-                    if ((parts_lists[len(parts_lists) -1] == part_one) and (sections_lists[len(sections_lists) -1] == section_one)):
-                        if (chapters_lists[len(chapters_lists) -1] != chapter_one):
+                    if ((parts_lists[len(parts_lists) - 1] == part_one) and (
+                        sections_lists[len(sections_lists) - 1] == section_one)):
+                        if (chapters_lists[len(chapters_lists) - 1] != chapter_one):
                             paragraph_part_content.add_run().add_break(WD_BREAK.PAGE)
-
 
         document.add_page_break()
         document.save('demo.docx')
@@ -6142,4 +6205,5 @@ def api_bill_doc_preview(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 ##############################################

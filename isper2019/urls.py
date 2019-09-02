@@ -275,6 +275,7 @@ urlpatterns += (
     url(r'^api/business/node/messages$', business_views.api_business_node_messages),
     url(r'^api/business/node/function$', business_views.api_business_node_function),
     url(r'^api/business/node/role/docs$', business_views.api_business_node_role_docs),
+    url(r'^api/business/node/observable_list', business_views.api_business_node_observable_list),
 
     url(r'^api/business/trans/path$', business_views.api_business_trans_path),
 
