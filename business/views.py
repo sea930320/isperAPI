@@ -48,6 +48,7 @@ from docx.shared import Inches
 from docx.shared import Pt
 from docx.shared import Mm
 from docx.enum.text import WD_BREAK
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -5929,7 +5930,6 @@ def api_bill_update_full(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         chapter_id = request.POST.get("chapter_id", None)
-        print chapter_id
         section_id = request.POST.get("section_id", None)
         part_id = request.POST.get("part_id", None)
         chapter_title = request.POST.get("chapter_title", None)
@@ -6053,7 +6053,6 @@ def api_bill_doc_delete(request):
     try:
         part_id = request.POST.get("part_id", None)
         doc_id = request.POST.get("doc_id", None)
-        print part_id, doc_id
         part = BusinessBillPart.objects.filter(id=part_id).first()
         doc = BusinessBillPartDoc.objects.filter(id=doc_id).first()
         part.part_docs.remove(doc)
@@ -6234,4 +6233,212 @@ def api_bill_doc_preview(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_bill_save(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        bill_data = json.loads(request.POST.get("bill_data", None))
+        business_id = request.POST.get("business_id", None)
+        bill_name = request.POST.get("bill_name", None)
+
+        chapters_all_origin = []
+        sections_all_origin = []
+        parts_all_origin = []
+        bill_name_origin = BusinessBillList.objects.get(business_id=int(business_id))
+        chapters_objects = bill_name_origin.chapters.all().order_by("chapter_number")
+        for chapters_object in chapters_objects:
+            chapters_all_origin_temp = {}
+            chapters_all_origin_temp["chapter_id"] = chapters_object.id
+            chapters_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+            chapters_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+            chapters_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+            chapters_all_origin.append(chapters_all_origin_temp)
+            sections_objects = chapters_object.sections.all().order_by("section_number")
+            for sections_object in sections_objects:
+                sections_all_origin_temp = {}
+                sections_all_origin_temp["chapter_id"] = chapters_object.id
+                sections_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+                sections_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+                sections_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+                sections_all_origin_temp["section_id"] = sections_object.id
+                sections_all_origin_temp["section_number"] = sections_object.section_number
+                sections_all_origin_temp["section_title"] = sections_object.section_title
+                sections_all_origin_temp["section_content"] = sections_object.section_content
+                sections_all_origin.append(sections_all_origin_temp)
+                parts_objects = sections_object.parts.all().order_by("part_number")
+                for parts_object in parts_objects:
+                    parts_all_origin_temp = {}
+                    parts_all_origin_temp["chapter_id"] = chapters_object.id
+                    parts_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+                    parts_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+                    parts_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+                    parts_all_origin_temp["section_id"] = sections_object.id
+                    parts_all_origin_temp["section_number"] = sections_object.section_number
+                    parts_all_origin_temp["section_title"] = sections_object.section_title
+                    parts_all_origin_temp["section_content"] = sections_object.section_content
+                    parts_all_origin_temp["part_id"] = parts_object.id
+                    parts_all_origin_temp["part_number"] = parts_object.part_number
+                    parts_all_origin_temp["part_title"] = parts_object.part_title
+                    parts_all_origin_temp["part_content"] = parts_object.part_content
+                    parts_all_origin_temp["part_reason"] = parts_object.part_reason
+                    parts_all_origin.append(parts_all_origin_temp)
+
+        chapters_all_request = []
+        sections_all_request = []
+        parts_all_request = []
+        for bill_data_request_one in bill_data:
+            chapters_one = {}
+            chapters_temp={}
+            sections_temp = {}
+            parts_temp = {}
+            chapters_one["chapter_id"] = bill_data_request_one["chapter_id"]
+            chapters_one["chapter_number"] = bill_data_request_one["chapter_number"]
+            chapters_one["chapter_title"] = bill_data_request_one["chapter_title"]
+            chapters_one["chapter_content"] = bill_data_request_one["chapter_content"]
+            chapters_temp = copy.copy(chapters_one)
+            if not (chapters_temp in chapters_all_request):
+                chapters_all_request.append(chapters_temp)
+            chapters_one["section_id"] = bill_data_request_one["section_id"]
+            chapters_one["section_number"] = bill_data_request_one["section_number"]
+            chapters_one["section_title"] = bill_data_request_one["section_title"]
+            chapters_one["section_content"] = bill_data_request_one["section_content"]
+            sections_temp = copy.copy(chapters_one)
+            if not (sections_temp in sections_all_request):
+                sections_all_request.append(sections_temp)
+            chapters_one["part_id"] = bill_data_request_one["part_id"]
+            chapters_one["part_number"] = bill_data_request_one["part_number"]
+            chapters_one["part_title"] = bill_data_request_one["part_title"]
+            chapters_one["part_content"] = bill_data_request_one["part_content"]
+            chapters_one["part_reason"] = bill_data_request_one["part_reason"]
+            if ('added_flag' in bill_data_request_one):
+                chapters_one['added_flag'] = bill_data_request_one['added_flag']
+            else:
+                chapters_one['added_flag'] = None
+            parts_temp = copy.copy(chapters_one)
+            if not (parts_temp in parts_all_request):
+                parts_all_request.append(parts_temp)
+
+        # update bill name
+        bill_name_list = BusinessBillList.objects.update_or_create(business_id=business_id, defaults={'bill_name': bill_name})[0]
+        previous_section = []
+        previous_chapter = []
+        previous_part = []
+        previous_chapter = bill_name_list.chapters.all()
+        for previous_one_chapter in previous_chapter:
+            previous_section_temp = previous_one_chapter.sections.all()
+            for previous_one_section_temp in previous_section_temp:
+                previous_section.append(previous_one_section_temp)
+                previous_part_temp = previous_one_section_temp.parts.all()
+                for previous_one_part_temp in previous_part_temp:
+                    previous_part.append(previous_one_part_temp)
+
+        #         UPDATE CHAPTER
+        added_chapter = []
+        for chapters_one_request in chapters_all_request:
+            checksumTemp = 0
+            for previous_one_chapter in previous_chapter:
+                if (int(chapters_one_request['chapter_number']) == int(previous_one_chapter.chapter_number)):
+                    previous_one_chapter.chapter_title = chapters_one_request['chapter_title']
+                    previous_one_chapter.chapter_content = chapters_one_request['chapter_content']
+                    previous_one_chapter.save()
+                    checksumTemp = 1
+                    break
+            if (checksumTemp == 0):
+                added_chapter_item = BusinessBillChapter.objects.create(chapter_number=int(chapters_one_request['chapter_number']),chapter_title=chapters_one_request['chapter_title'],chapter_content="")
+                added_chapter.append(added_chapter_item)
+                bill_name_list.chapters.add(added_chapter_item)
+                # added section
+                for sections_one_request in sections_all_request:
+                    if (int(added_chapter_item.chapter_number) == int(sections_one_request["chapter_number"])):
+                        added_section = BusinessBillSection.objects.create(section_number=int(sections_one_request['section_number']),section_title=sections_one_request['section_title'], section_content="")
+                        added_chapter_item.sections.add(added_section)
+                        for parts_one_request in parts_all_request:
+                            if (int(added_chapter_item.chapter_number) == int(parts_one_request["chapter_number"])):
+                                if (int(added_section.section_number) == int(parts_one_request["section_number"])):
+                                    added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
+                                    added_section.parts.add(added_part)
+
+
+
+        #                 update section
+        added_section = []
+        for sections_one_request in sections_all_request:
+            checksumTemp = 0
+            chapter_number_request = sections_one_request["chapter_number"]
+            for previous_one_chapter in previous_chapter:
+                if (int(previous_one_chapter.chapter_number) == int(chapter_number_request)):
+                    previous_section = previous_one_chapter.sections.all()
+                    for previous_one_section in previous_section:
+                        if (int(sections_one_request["section_number"]) == int(previous_one_section.section_number)):
+                            previous_one_section.section_title = sections_one_request["section_title"]
+                            previous_one_section.section_content = ""
+                            previous_one_section.save()
+                            checksumTemp = 1
+                            break
+                    if (checksumTemp == 0):
+                        added_section_item = BusinessBillSection.objects.create(
+                            section_number=int(sections_one_request['section_number']),
+                            section_title=sections_one_request['section_title'], section_content="")
+                        added_section.append(added_section_item)
+                        previous_one_chapter.sections.add(added_section_item)
+
+                        for parts_one_request in parts_all_request:
+                            if (int(previous_one_chapter.chapter_number) == int(parts_one_request["chapter_number"])):
+                                if (int(added_section.section_number) == int(parts_one_request["section_number"])):
+                                    added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
+                                    added_section.parts.add(added_part)
+
+                        break
+                else:
+                    continue
+
+
+        # update Parts
+        added_part = []
+        for parts_one_request in parts_all_request:
+            checksumTemp = 0
+            chapter_number_request = parts_one_request["chapter_number"]
+            section_number_request = parts_one_request["section_number"]
+            if ('added_flag' in parts_one_request):
+                if (parts_one_request['added_flag'] == '2'):
+                    # inserted, added
+                    for previous_one_chapter in previous_chapter:
+                        if (int(previous_one_chapter.chapter_number) == int(chapter_number_request)):
+                            previous_section = previous_one_chapter.sections.all()
+                            for previous_one_section in previous_section:
+                                if (int(previous_one_section.section_number) == int(section_number_request)):
+                                    added_part_item = BusinessBillPart.objects.create(
+                                        part_number=int(parts_one_request['part_number']),
+                                        part_title=parts_one_request['part_title'],
+                                        part_content=parts_one_request['part_content'],
+                                        part_reason=parts_one_request['part_reason'])
+                                    added_part.append(added_part_item)
+                                    previous_one_section.parts.add(added_part_item)
+                if (parts_one_request['added_flag'] == '1'):
+                    # updated
+                    for previous_one_chapter in previous_chapter:
+                        if (int(previous_one_chapter.chapter_number) == int(
+                                chapter_number_request)):
+                            previous_section = previous_one_chapter.sections.all()
+                            for previous_one_section in previous_section:
+                                if (int(previous_one_section.section_number) == int(
+                                        section_number_request)):
+                                    previous_part = previous_one_section.parts.all()
+                                    for previous_one_part in previous_part:
+                                        if (int(previous_one_part.id) == int(parts_one_request['part_id'])):
+                                            previous_one_part.part_number = int(parts_one_request['part_number'])
+                                            previous_one_part.part_title = parts_one_request['part_title']
+                                            previous_one_part.part_content = parts_one_request['part_content']
+                                            previous_one_part.part_reason = parts_one_request['part_reason']
+                                            previous_one_part.save()
+
+        # deleted Parts
+
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 ##############################################

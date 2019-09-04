@@ -363,6 +363,20 @@ urlpatterns += (
 
     url(r'^api/business/getInitBusinessEvaluation', business_views.api_business_get_init_evaluation),
     url(r'^api/business/evaluationSave', business_views.api_business_save_evaluation),
+
+    url(r'^api/business/bill/name/list$', business_views.api_bill_name_list),
+    url(r'^api/business/bill/update/full$', business_views.api_bill_update_full),
+    url(r'^api/business/bill/update/billname$', business_views.api_bill_update_billname),
+    url(r'^api/business/bill/part/delete$', business_views.api_bill_part_delete),
+    url(r'^api/business/bill/part/add$', business_views.api_bill_part_add),
+    url(r'^api/business/bill/doc/list$', business_views.api_bill_doc_list),
+    url(r'^api/business/bill/doc/delete$', business_views.api_bill_doc_delete),
+    url(r'^api/business/bill/doc/upload$', business_views.api_bill_doc_upload),
+    url(r'^api/business/bill/part/up$', business_views.api_bill_part_up),
+    url(r'^api/business/bill/part/down$', business_views.api_bill_part_down),
+    url(r'^api/business/bill/part/insert$', business_views.api_bill_part_insert),
+    url(r'^api/business/bill/doc/preview$', business_views.api_bill_doc_preview),
+    url(r'^api/business/bill/save$', business_views.api_bill_save),
 )
 
 urlpatterns += (
@@ -403,18 +417,7 @@ urlpatterns += (
     url(r'^api/student/instructor/new-team$', student_views.api_student_instructor_new_team),
     url(r'^api/student/instructor/team-eval$', student_views.api_student_instructor_team_eval),
 
-    url(r'^api/bill/name/list$', business_views.api_bill_name_list),
-    url(r'^api/bill/update/full$', business_views.api_bill_update_full),
-    url(r'^api/bill/update/billname$', business_views.api_bill_update_billname),
-    url(r'^api/bill/part/delete$', business_views.api_bill_part_delete),
-    url(r'^api/bill/part/add$', business_views.api_bill_part_add),
-    url(r'^api/bill/doc/list$', business_views.api_bill_doc_list),
-    url(r'^api/bill/doc/delete$', business_views.api_bill_doc_delete),
-    url(r'^api/bill/doc/upload$', business_views.api_bill_doc_upload),
-    url(r'^api/bill/part/up$', business_views.api_bill_part_up),
-    url(r'^api/bill/part/down$', business_views.api_bill_part_down),
-    url(r'^api/bill/part/insert$', business_views.api_bill_part_insert),
-    url(r'^api/bill/doc/preview$', business_views.api_bill_doc_preview),
+
 
 
 )
