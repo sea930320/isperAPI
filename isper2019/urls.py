@@ -375,6 +375,7 @@ urlpatterns += (
     url(r'^api/business/bill/part/down$', business_views.api_bill_part_down),
     url(r'^api/business/bill/part/insert$', business_views.api_bill_part_insert),
     url(r'^api/business/bill/doc/preview$', business_views.api_bill_doc_preview),
+    url(r'^api/business/bill/save$', business_views.api_bill_save),
 )
 
 urlpatterns += (
