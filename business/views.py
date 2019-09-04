@@ -3674,13 +3674,17 @@ def api_get_poll_init_data(request):
             if role == 1:
                 if poll is None:
                     data = {
-                        'node_members': [{
-                            'value': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
-                                                                       no=item.no).first().user_id,
-                            'text': BusinessTeamMember.objects.filter(business_role_id=item.role_id,
-                                                                      no=item.no).first().user.name
-                        } for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id)],
+                        'node_members': [],
                     }
+                    for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id):
+                        btm = BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first()
+                        print btm
+                        if not btm.user_id or not btm.user.name:
+                            continue
+                        data['node_members'].append({
+                            'value': btm.user_id,
+                            'text': btm.user.name
+                        })
                     resp = code.get_msg(code.SUCCESS)
                     resp['d'] = {'status': 1, 'data': data}
                 elif poll.end_time > timezone.now():
