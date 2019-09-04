@@ -155,7 +155,7 @@ class BusinessRoleAllocationStatus(models.Model):
         verbose_name_plural = verbose_name = u"实验环节角色状态"
 
     def __unicode__(self):
-        return u""
+        return self.business.name
 
 
 # 实验环节占位状态
@@ -172,7 +172,7 @@ class BusinessPositionStatus(models.Model):
         verbose_name_plural = verbose_name = u"实验任务场景占位状态"
 
     def __unicode__(self):
-        return u""
+        return str(self.sitting_status)
 
 
 # 实验心得

@@ -639,8 +639,9 @@ def api_business_start(request):
 # 实验环节详情
 def api_business_node_detail(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get('business_id', None)  # 实验id
@@ -668,39 +669,41 @@ def api_business_node_detail(request):
 
         # path = BusinessTransPath.objects.filter(business=business).last()
 
-        # 当前用户可选角色
-        role_alloc_list = []
-        btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id,
-                                                  user=request.user)
-        for btm in btmQs:
-            try:
-                roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, role=btm.business_role,
-                                                                  no=btm.no, project_id=business.cur_project_id,
-                                                                  can_take_in=True).first()
-                roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
-                                                                              business_role_allocation=roleAlloc).first()
-                role_alloc_list.append({
-                    'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
-                    'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
-                    'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
-                    'speak_times': 0,
-                    'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
-                    'can_brought': roleAlloc.can_brought
-                })
-            except:
-                continue
-
         # 当前环节所有角色状态
         role_alloc_status_list = get_all_simple_role_allocs_status(business, node)
 
-        # 是否投票
-        has_vote = BusinessRoleAllocationStatus.objects.filter(business=business,
-                                                               business_role_allocation_id=roleAllocID,
-                                                               business_role_allocation__can_take_in=1,
-                                                               business_role_allocation__node=node,
-                                                               # path=path,
-                                                               vote_status=0).exists()
-        # if path.vote_status == 1:
+        # 当前用户可选角色
+        role_alloc_list = []
+        if not observable and roleAllocID != 'observable':
+            btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id,
+                                                      user=request.user)
+            for btm in btmQs:
+                try:
+                    roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node,
+                                                                      role=btm.business_role,
+                                                                      no=btm.no, project_id=business.cur_project_id,
+                                                                      can_take_in=True).first()
+                    roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
+                                                                                  business_role_allocation=roleAlloc).first()
+                    role_alloc_list.append({
+                        'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
+                        'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
+                        'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
+                        'speak_times': 0,
+                        'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
+                        'can_brought': roleAlloc.can_brought
+                    })
+                except:
+                    continue
+
+            # 是否投票
+            has_vote = BusinessRoleAllocationStatus.objects.filter(business=business,
+                                                                   business_role_allocation_id=roleAllocID,
+                                                                   business_role_allocation__can_take_in=1,
+                                                                   business_role_allocation__node=node,
+                                                                   # path=path,
+                                                                   vote_status=0).exists()
+            # if path.vote_status == 1:
         end_vote = False
         # else:
         #     end_vote = True
@@ -741,7 +744,9 @@ def api_business_node_detail(request):
             'huanxin_id': business.huanxin_id, 'control_status': 1,
             'entire_graph': project.entire_graph,
             # 'leader': team.leader if team else None,
-            'flow_id': project.flow_id, 'has_vote': False if has_vote else True, 'end_vote': end_vote
+            'flow_id': project.flow_id,
+            'has_vote': False if not observable and roleAllocID != 'observable' and has_vote else True,
+            'end_vote': end_vote
         }
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -802,8 +807,9 @@ def api_business_trans_path(request):
 # 实验环节聊天消息列表
 def api_business_node_messages(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id")  # 实验ID
@@ -1062,15 +1068,15 @@ def api_business_node_function(request):
 
 def api_business_node_role_docs(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get('business_id', None)  # 实验id
         node_id = request.GET.get("node_id", None)  # 环节id
         role_alloc_id = request.GET.get("role_alloc_id", None)  # 角色id
 
-        user = request.user
         business = Business.objects.filter(pk=business_id, del_flag=0).first()
         if business is None:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
@@ -1086,40 +1092,41 @@ def api_business_node_role_docs(request):
 
         # 路径
         path = BusinessTransPath.objects.filter(business_id=business_id).last()
-        # 判断该实验环节是否存在该角色
-        if role_alloc_id is None:
-            brases = BusinessRoleAllocationStatus.objects.filter(
-                business_id=business_id,
-                business_role_allocation__node_id=node_id,
-                business_role_allocation__project_id=business.cur_project_id,
-                # path_id=path.pk
-            )
-            role_alloc = None
-            for bras in brases:
-                bra = bras.business_role_allocation
-                btm = BusinessTeamMember.objects.filter(business=business, user_id=user.id, business_role=bra.role,
-                                                        no=bra.no, del_flag=0, project_id=business.cur_project_id)
-                if btm.exists():
-                    role_alloc = bra
-                    break
-            if role_alloc is None:
-                resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
-                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            else:
-                role_alloc_id = role_alloc.id
+        if not observable and role_alloc_id != 'observable':
+            # 判断该实验环节是否存在该角色
+            if role_alloc_id is None:
+                user = request.user
+                brases = BusinessRoleAllocationStatus.objects.filter(
+                    business_id=business_id,
+                    business_role_allocation__node_id=node_id,
+                    business_role_allocation__project_id=business.cur_project_id,
+                    # path_id=path.pk
+                )
+                role_alloc = None
+                for bras in brases:
+                    bra = bras.business_role_allocation
+                    btm = BusinessTeamMember.objects.filter(business=business, user_id=user.id, business_role=bra.role,
+                                                            no=bra.no, del_flag=0, project_id=business.cur_project_id)
+                    if btm.exists():
+                        role_alloc = bra
+                        break
+                if role_alloc is None:
+                    resp = code.get_msg(code.BUSINESS_NODE_ROLE_NOT_EXIST)
+                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                else:
+                    role_alloc_id = role_alloc.id
+            # 前面所有环节素材
+            pre_doc_list = get_pre_node_role_alloc_docs(business, node_id, project.pk, role_alloc_id)
 
         # 获取该环节角色项目所有素材
         docs = get_node_role_alloc_docs(business, node_id, project.pk, project.flow_id, role_alloc_id)
-
-        # 前面所有环节素材
-        pre_doc_list = get_pre_node_role_alloc_docs(business, node_id, project.pk, role_alloc_id)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {
             'operation_guides': docs['operation_guides'],
             'project_tips_list': docs['project_tips_list'],
             'cur_doc_list': docs['cur_doc_list'],
-            'pre_doc_list': pre_doc_list,
+            'pre_doc_list': pre_doc_list if not observable and role_alloc_id != 'observable' else [],
             'id': business.id, 'name': business.name,
             'flow_id': project.flow_id
         }
@@ -1233,8 +1240,9 @@ def api_business_messages(request):
 # modified by ser -- edit_module param is added
 def api_business_templates(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get('business_id', None)  # 实验id
@@ -1256,11 +1264,10 @@ def api_business_templates(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         business = Business.objects.filter(pk=business_id, del_flag=0).first()
-        bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
-        pra = ProjectRoleAllocation.objects.filter(pk=bra.project_role_alloc_id).first()
+        bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first() if not observable and role_alloc_id != 'observable' else None
+        pra = ProjectRoleAllocation.objects.filter(pk=bra.project_role_alloc_id).first() if bra else None
         if business:
-            user_id = request.user.pk
-            if usage and usage == '3':
+            if usage and usage == '3' and role_alloc_id != 'observable' and not observable:
                 if role_alloc_id is None:
                     resp = code.get_msg(code.PARAMETER_ERROR)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -1268,11 +1275,10 @@ def api_business_templates(request):
                 # 复制编辑模板
                 if edit_module is None:
                     doc_ids = ProjectDocRole.objects.filter(project_id=business.cur_project_id, node_id=node_id,
-                                                            role_id=pra.role_id, no=pra.no).values_list('doc_id',
-                                                                                                        flat=True)
+                                                    role_id=pra.role_id, no=pra.no).values_list('doc_id', flat=True)
                 else:
                     doc_ids = ProjectDocRole.objects.filter(project_id=business.cur_project_id, node_id=node_id,
-                                                            no=pra.no).values_list('doc_id', flat=True)
+                                                        no=pra.no).values_list('doc_id', flat=True)
 
                 project_docs = ProjectDoc.objects.filter(pk__in=doc_ids, usage=3)
                 for doc in project_docs:
@@ -1665,8 +1671,9 @@ def add_more_teammates(request):
 # 实验环节用户角色状态查询
 def api_business_role_status(request):
     resp = auth_check(request, 'GET')
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
         business_id = request.GET.get("business_id")  # 实验任务id
         node_id = request.GET.get("node_id")  # 环节id
@@ -1778,6 +1785,8 @@ def api_business_message_push(request):
         # 三期 - 根据上一步骤自动入席 判断是否入席
         bps = BusinessPositionStatus.objects.filter(business_id=bus.id, path_id=path.id,
                                                     business_role_allocation_id=role_alloc_id)
+        print path.id
+        print bps
         if bps:
             business_position_status = bps.first()
             if business_position_status.sitting_status:  # 已入席
@@ -1796,7 +1805,8 @@ def api_business_message_push(request):
 
         # 角色占位
         pos = get_role_position(bus, project, node, role, role_alloc_id)
-
+        print(model_to_dict(role_status))
+        print(pos)
         time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         opt = None
         if type == const.MSG_TYPE_TXT:
@@ -4328,8 +4338,9 @@ def api_business_docs_delete(request):
 # added by ser
 def api_business_step_status(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id", None)
@@ -4384,8 +4395,9 @@ def api_business_step_status_update(request):
 # added by ser
 def api_business_doc_team_status(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         bdts_list = []
@@ -4419,6 +4431,8 @@ def api_business_doc_team_status(request):
                 b = BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id,
                                                          business_doc_id=doc.pk,
                                                          business_team_member_id=member.pk).first();
+                if not member.user_id:
+                    continue;
                 if b is not None:
                     if b.status == 0:
                         user = Tuser.objects.filter(pk=member.user_id).first().name
@@ -6193,7 +6207,7 @@ def api_bill_doc_preview(request):
                     paragraph_part_content = document.add_paragraph(part_one.part_content, style='Body Text')
                     paragraph_part_content.add_run().add_break(WD_BREAK.LINE)
                     if ((parts_lists[len(parts_lists) - 1] == part_one) and (
-                        sections_lists[len(sections_lists) - 1] == section_one)):
+                                sections_lists[len(sections_lists) - 1] == section_one)):
                         if (chapters_lists[len(chapters_lists) - 1] != chapter_one):
                             paragraph_part_content.add_run().add_break(WD_BREAK.PAGE)
 

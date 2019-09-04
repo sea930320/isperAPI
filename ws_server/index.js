@@ -35,6 +35,10 @@ io.on('connection', function (socket) {
         data.socket_id = socket.id;
         console.log('param', data);
         console.log('before onlineAllocs', onlineAllocs);
+        if (data.alloc_id == 'observable') {
+            io.emit('onlineAllocs', { 'allocs': onlineAllocs })
+            return;
+        }
         if (_.every(onlineAllocs, (alloc) => {
             return alloc.alloc_id !== data.alloc_id
         })) {

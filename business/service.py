@@ -408,13 +408,16 @@ def get_business_templates(business, node_id, role_alloc_id, usage, pra=None, ed
         """
         实验模板
         """
-        if role_alloc_id and pra is None:
+        if role_alloc_id and role_alloc_id != 'observable' and pra is None :
             bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
             pra = ProjectRoleAllocation.objects.filter(pk=bra.project_role_alloc_id).first()
 
         if usage and usage == '3':
             if edit_module is None:
-                docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id,
+                if role_alloc_id == 'observable':
+                    docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id)
+                else:
+                    docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id,
                                                          business_role_allocation_id=role_alloc_id)
             else:
                 docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id)
@@ -562,7 +565,7 @@ def get_all_roles_status(bus, project, node, path):
             LEFT JOIN t_business_team_member m ON a.no=m.no AND a.role_id=m.business_role_id
             LEFT JOIN t_user u ON m.user_id=u.id
             LEFT JOIN t_role_image i ON i.id=f.image_id
-            WHERE t.business_id=%s and a.node_id=%s and t.path_id=%s''' % (bus.pk, node.pk, path.pk)
+            WHERE t.business_id=%s and a.node_id=%s''' % (bus.pk, node.pk)
     sql += ' order by t.sitting_status '
     role_list = query.select(sql, ['alloc_id', 'role_id', 'no', 'come_status', 'sitting_status', 'stand_status',
                                    'vote_status', 'show_status', 'speak_times', 'role_name', 'flow_role_id',
@@ -934,6 +937,7 @@ def action_role_sitdown(bus, path_id, role, pos, role_alloc_id):
     :return:
     """
     try:
+        print role_alloc_id
         BusinessRoleAllocationStatus.objects.filter(
             business_id=bus.id,
             business_role_allocation_id=role_alloc_id,
@@ -953,6 +957,7 @@ def action_role_stand(bus, path_id, role, pos, role_alloc_id):
     :return:
     """
     try:
+        print role_alloc_id
         BusinessRoleAllocationStatus.objects.filter(
             business_id=bus.id,
             business_role_allocation_id=role_alloc_id,
