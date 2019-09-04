@@ -618,7 +618,11 @@ def api_project_detail(request):
             group_id = created_by.allgroups_set.get().id if obj.created_role_id == 2 else created_by.allgroups_set_assistants.get().id if obj.created_role_id == 6 else None
             resp['d'] = {
                 'flow_id': obj.flow_id, 'flow_name': flow.name, 'name': obj.name,
-                'all_role': obj.all_role, 'course': model_to_dict(obj.course) if obj.course else None,
+                'all_role': obj.all_role, 'course': model_to_dict(obj.course,
+                                                                  fields=['experienceTime', 'id', 'courseId',
+                                                                          'courseCount', 'tcompany', 'courseName',
+                                                                          'courseSeqNum', 'studentCount', 'type',
+                                                                          'created_by']) if obj.course else None,
                 'reference': obj.reference, 'public_status': obj.public_status, 'level': obj.level,
                 'entire_graph': obj.entire_graph, 'can_redo': obj.can_redo, 'is_open': obj.is_open,
                 'ability_target': obj.ability_target, 'start_time': start_time, 'has_jump_project': has_jump_project,
@@ -627,6 +631,7 @@ def api_project_detail(request):
                 'step': obj.step, 'role_allocs': pras, 'docs': doc_list, 'created_role': obj.created_role_id,
                 'group_id': group_id
             }
+            print resp['d']
         else:
             resp = code.get_msg(code.PROJECT_NOT_EXIST)
     except Exception as e:
@@ -972,7 +977,8 @@ def api_project_list(request):
                 'ability_target': project.ability_target, 'start_time': start_time, 'end_time': end_time,
                 'created_by': user_simple_info(project.created_by.id),
                 'created_role': project.created_role_id,
-                'create_time': project.create_time is not None and project.create_time.strftime('%Y-%m-%d %H:%M:%S') or '',
+                'create_time': project.create_time is not None and project.create_time.strftime(
+                    '%Y-%m-%d %H:%M:%S') or '',
                 'flow': flow_data, 'intro': project.intro,
                 'purpose': project.purpose, 'requirement': project.requirement, 'protected': project.protected,
                 'is_group_share': project.is_group_share,

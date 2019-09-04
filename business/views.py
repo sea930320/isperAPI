@@ -3435,7 +3435,7 @@ def am_i_vote_member(request, statusMsg):
                 business_id=business_id,
                 node_id=node_id
             ).first()
-            if not vote.members.filter(user_id=request.user.pk).exists():
+            if observable == False and not vote.members.filter(user_id=request.user.pk).exists():
                 resp = code.get_msg(code.SUCCESS)
                 if statusMsg is None:
                     resp['d'] = {'status': 2, 'data': "您不能参与表决"}
@@ -3461,7 +3461,7 @@ def am_i_vote_member(request, statusMsg):
                 else:
                     resp['d'] = {'status': 2, 'data': statusMsg}
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            elif vote.members.get(user_id=request.user.pk).voted == 1:
+            elif observable == False and vote.members.get(user_id=request.user.pk).voted == 1:
                 resp = code.get_msg(code.SUCCESS)
                 if vote.mode == 4:
                     resp['d'] = {'status': 2, 'data': "您已经输入了表决选项"}
@@ -3486,6 +3486,27 @@ def am_i_vote_member(request, statusMsg):
                     resp['d'] = {'status': 5, 'data': data}
                 else:
                     resp['d'] = {'status': 2, 'data': "您已经进行表决"}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            elif observable == True and vote.mode !=4 and not vote.members.filter(voted=0).exists():
+                resp = code.get_msg(code.SUCCESS)
+                data = {
+                    'title': vote.title,
+                    'description': vote.description,
+                    'mode': vote.mode,
+                    'method': vote.method,
+                    'members': [{
+                        'id': member.pk,
+                        'username': member.user.name,
+                        'voted': member.voted,
+                    } for member in vote.members.all()],
+                    'items': [{
+                        'id': item.pk,
+                        'text': item.content,
+                        'voted_count': item.voted_count,
+                        'voted_users': [user.name for user in item.voted_users.all()]
+                    } for item in vote.items.all()]
+                }
+                resp['d'] = {'status': 5, 'data': data}
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             elif vote.end_time <= timezone.now():
                 resp = code.get_msg(code.SUCCESS)
@@ -4689,17 +4710,20 @@ def api_business_doc_create_from_prev(request):
 
 def api_business_survey(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id", None)
         node_id = request.GET.get("node_id", None)
+        is_observable = request.GET.get("is_observable", None)
 
         if None in (business_id, node_id):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+        if (observable or is_observable == '1') and not is_look_on_node(node_id):
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         business = Business.objects.filter(pk=business_id).first();
         if business is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
