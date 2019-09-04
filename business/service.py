@@ -2254,3 +2254,6 @@ def get_business_display_file_read_status(doc_list, can_terminate, user_id):
 
         res_list.append(doc)
     return res_list
+
+def is_look_on_node(node_id):
+    return FlowNode.objects.filter(pk=node_id, look_on=1).exists()

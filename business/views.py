@@ -2931,8 +2931,9 @@ def api_business_save_experience(request):
 
 def api_business_post(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
         business_id = request.GET.get('business_id', None)  # 实验id
         node_id = request.GET.get('node_id', None)
@@ -2940,6 +2941,8 @@ def api_business_post(request):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+        if (observable and not is_look_on_node(node_id)):
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         business = Business.objects.filter(pk=business_id, del_flag=0).first()
         if business is None:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
@@ -2948,6 +2951,7 @@ def api_business_post(request):
         if int(business.node_id) != int(node_id):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
         if business.status == 2:
             businessPost = BusinessPost.objects.filter(business_id=business_id, node_id=node_id).first()
             resp = code.get_msg(code.SUCCESS)
@@ -3057,8 +3061,9 @@ def api_business_post_info(request):
 #
 def api_vote_get_init_data(request):
     resp = auth_check(request, "POST")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
         business_id = int(request.POST.get('business_id', None))
         node_id = int(request.POST.get('node_id', None))
@@ -3066,7 +3071,8 @@ def api_vote_get_init_data(request):
         if business_id is None or node_id is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+        if observable and (not is_look_on_node(node_id) or role != 0):
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         bus = Business.objects.filter(pk=business_id, del_flag=0).first()
         if bus is None:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
@@ -3411,8 +3417,9 @@ def api_business_jump_start(request):
 #
 def am_i_vote_member(request, statusMsg):
     resp = auth_check(request, "POST")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
         business_id = request.POST.get('business_id', None)
         node_id = request.POST.get('node_id', None)
@@ -3649,12 +3656,16 @@ def api_user_vote_item_save(request):
 #
 def api_get_poll_init_data(request):
     resp = auth_check(request, "POST")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
         business_id = request.POST.get('business_id', None)
         node_id = request.POST.get('node_id', None)
         role = int(request.POST.get('role', None))
+        is_observable = request.POST.get('observable', None)
+        if observable and is_observable is None and role == 1:
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if business_id is None or node_id is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
@@ -3678,8 +3689,7 @@ def api_get_poll_init_data(request):
                     }
                     for item in BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node_id):
                         btm = BusinessTeamMember.objects.filter(business_role_id=item.role_id, no=item.no).first()
-                        print btm
-                        if not btm.user_id or not btm.user.name:
+                        if not btm.user_id:
                             continue
                         data['node_members'].append({
                             'value': btm.user_id,
@@ -3759,11 +3769,11 @@ def api_get_poll_init_data(request):
                 if poll is None:
                     resp = code.get_msg(code.SUCCESS)
                     resp['d'] = {'status': 2, 'data': "还没有进行投票设置"}
-                elif not poll.members.filter(user_id=request.user.pk).exists():
+                elif is_observable != '1' and not poll.members.filter(user_id=request.user.pk).exists():
                     resp = code.get_msg(code.SUCCESS)
                     resp['d'] = {'status': 2, 'data': "不能参与投票"}
                 elif poll.end_time <= timezone.now():
-                    if poll.share == 0:
+                    if poll.share == 0 or is_observable == 1:
                         data = {
                             'title': poll.title,
                             'method': poll.method,
@@ -3784,7 +3794,7 @@ def api_get_poll_init_data(request):
                         resp = code.get_msg(code.SUCCESS)
                         resp['d'] = {'status': 2, 'data': "已经过了投票时间"}
                 else:
-                    if poll.members.get(user_id=request.user.pk).poll_status == 0:
+                    if is_observable != '1' and poll.members.get(user_id=request.user.pk).poll_status == 0:
                         data = {
                             'title': poll.title,
                             'method': poll.method,
@@ -3792,7 +3802,7 @@ def api_get_poll_init_data(request):
                         }
                         resp = code.get_msg(code.SUCCESS)
                         resp['d'] = {'status': 3, 'data': data}
-                    elif poll.share == 0 and not poll.members.filter(poll_status=0).exists():
+                    elif (is_observable == 1 or poll.share == 0) and not poll.members.filter(poll_status=0).exists():
                         data = {
                             'title': poll.title,
                             'method': poll.method,
