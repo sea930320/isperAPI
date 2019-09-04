@@ -6268,6 +6268,9 @@ def api_bill_save(request):
                                             previous_one_part.part_content = parts_one_request['part_content']
                                             previous_one_part.part_reason = parts_one_request['part_reason']
                                             previous_one_part.save()
+
+        # deleted Parts
+
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
