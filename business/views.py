@@ -5948,100 +5948,24 @@ def api_bill_name_list(request):
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
-def api_bill_update_full(request):
-    resp = auth_check(request, "POST")
+def api_bill_name_only(request):
+    resp = auth_check(request, "GET")
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
-        chapter_id = request.POST.get("chapter_id", None)
-        section_id = request.POST.get("section_id", None)
-        part_id = request.POST.get("part_id", None)
-        chapter_title = request.POST.get("chapter_title", None)
-        section_title = request.POST.get("section_title", None)
-        part_title = request.POST.get("part_title", None)
-        part_content = request.POST.get("part_content", None)
-        chapter = BusinessBillChapter.objects.get(id=chapter_id)
-        section = BusinessBillSection.objects.get(id=section_id)
-        part = BusinessBillPart.objects.get(id=part_id)
-        chapter.chapter_title = chapter_title
-        section.section_title = section_title
-        part.part_title = part_title
-        part.part_content = part_content
-        chapter.save()
-        section.save()
-        part.save()
+        business_id = request.GET.get("business_id", None)
+        bill_name = BusinessBillList.objects.filter(business_id=business_id)
         resp = code.get_msg(code.SUCCESS)
+        if (len(bill_name) == 0):
+            resp['d'] = {'bill_name': '', 'bill_id': 0, 'bill_data': []}
+        else:
+            resp['d'] = {'bill_name': bill_name.first().bill_name, 'bill_id': bill_name.first().id,'edit_mode':bill_name.first().edit_mode}
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-
-def api_bill_update_billname(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        business_id = request.POST.get("business_id", None)
-        bill_name = request.POST.get("bill_name", None)
-        BusinessBillList.objects.update_or_create(business_id=business_id, defaults={'bill_name': bill_name})
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-def api_bill_part_delete(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        section_id = request.POST.get("section_id", None)
-        part_id = request.POST.get("part_id", None)
-        part = BusinessBillPart.objects.filter(id=part_id).first()
-        part_number = part.part_number
-        section = BusinessBillSection.objects.filter(id=section_id).first()
-        section.parts.remove(part)
-        part_docs = part.part_docs.all()
-        for part_doc in part_docs:
-            part.part_docs.remove(part_doc)
-            part_doc.delete()
-        part.delete()
-        for part_one in section.parts.all():
-            if (part_one.part_number > part_number):
-                part_one.part_number = part_one.part_number - 1
-                part_one.save()
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-def api_bill_part_add(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        section_id = request.POST.get("section_id", None)
-        part_number = request.POST.get("part_number", None)
-        part_title = request.POST.get("part_title", None)
-        part_content = request.POST.get("part_content", None)
-        part_reason = request.POST.get("part_reason", None)
-        added_part = BusinessBillPart.objects.create(part_number=int(part_number), part_title=part_title,
-                                                     part_content=part_content, part_reason=part_reason)
-        section = BusinessBillSection.objects.get(id=section_id)
-        section.parts.add(added_part)
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
 def api_bill_doc_list(request):
@@ -6111,58 +6035,6 @@ def api_bill_doc_upload(request):
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
-def api_bill_part_up(request):
-    resp = auth_check(request, "GET")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        section_id = request.GET.get("section_id", None)
-        part_number = request.GET.get("part_number", None)
-        if (int(part_number) == 1):
-            resp = code.get_msg(code.BUSINESS_BILL_NOT_UP)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        des_part_number = int(part_number) - 1
-        sections = BusinessBillSection.objects.filter(id=section_id).first()
-        selected_part = sections.parts.filter(part_number=part_number)[0]
-        des_part = sections.parts.filter(part_number=des_part_number)[0]
-        selected_part.part_number = des_part_number
-        selected_part.save()
-        des_part.part_number = part_number
-        des_part.save()
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-def api_bill_part_down(request):
-    resp = auth_check(request, "GET")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        section_id = request.GET.get("section_id", None)
-        part_number = request.GET.get("part_number", None)
-        sections = BusinessBillSection.objects.filter(id=section_id).first()
-        selected_part = sections.parts.filter(part_number=part_number)[0]
-        if (int(part_number) == len(sections.parts.all())):
-            resp = code.get_msg(code.BUSINESS_BILL_NOT_DOWN)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        des_part_number = int(part_number) + 1
-        des_part = sections.parts.filter(part_number=des_part_number)[0]
-        selected_part.part_number = des_part_number
-        selected_part.save()
-        des_part.part_number = part_number
-        des_part.save()
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
 def api_bill_part_insert(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -6190,73 +6062,6 @@ def api_bill_part_insert(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-
-def api_bill_doc_preview(request):
-    document = Document()
-    section = document.sections[0]
-    section.page_height = Mm(297)
-    section.page_width = Mm(210)
-    resp = auth_check(request, "GET")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        business_id = request.GET.get("business_id", None)
-        bill_lists = BusinessBillList.objects.filter(business_id=business_id).first()
-        bill_title = bill_lists.bill_name
-        style = document.styles['Heading 1']
-        font_bill = style.font
-        font_bill.name = 'Arial'
-        font_bill.size = Pt(40)
-        paragraph_bill = document.add_paragraph(bill_title, style='Heading 1')
-        paragraph_bill.add_run().add_break(WD_BREAK.LINE)
-
-        chapters_lists = bill_lists.chapters.all()
-        for chapter_one in chapters_lists:
-            style_chapter = document.styles['List Number']
-            font_chapter = style_chapter.font
-            font_chapter.name = 'Arial'
-            font_chapter.size = Pt(30)
-            paragraph_chapter = document.add_paragraph(chapter_one.chapter_title, style='List Number')
-            paragraph_chapter.add_run().add_break(WD_BREAK.LINE)
-
-            sections_lists = chapter_one.sections.all()
-            for section_one in sections_lists:
-                style_section = document.styles['List Number 2']
-                font_section = style_section.font
-                font_section.name = 'Arial'
-                font_section.size = Pt(20)
-                paragraph_section = document.add_paragraph(section_one.section_title, style='List Number 2')
-                paragraph_section.add_run().add_break(WD_BREAK.LINE)
-
-                parts_lists = section_one.parts.all()
-                for part_one in parts_lists:
-                    style_part = document.styles['List Number 3']
-                    font_part = style_part.font
-                    font_part.name = 'Arial'
-                    font_part.size = Pt(15)
-                    paragraph_part = document.add_paragraph(part_one.part_title, style='List Number 3')
-                    paragraph_part.add_run().add_break(WD_BREAK.LINE)
-
-                    style_part_content = document.styles['Body Text']
-                    font_part_content = style_part_content.font
-                    font_part_content.name = 'Arial'
-                    font_part_content.size = Pt(10)
-                    paragraph_part_content = document.add_paragraph(part_one.part_content, style='Body Text')
-                    paragraph_part_content.add_run().add_break(WD_BREAK.LINE)
-                    if ((parts_lists[len(parts_lists) - 1] == part_one) and (
-                                sections_lists[len(sections_lists) - 1] == section_one)):
-                        if (chapters_lists[len(chapters_lists) - 1] != chapter_one):
-                            paragraph_part_content.add_run().add_break(WD_BREAK.PAGE)
-
-        document.add_page_break()
-        document.save('demo.docx')
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
 def api_bill_save(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -6265,48 +6070,55 @@ def api_bill_save(request):
         bill_data = json.loads(request.POST.get("bill_data", None))
         business_id = request.POST.get("business_id", None)
         bill_name = request.POST.get("bill_name", None)
+        edit_mode = request.POST.get("edit_mode", None)
 
         chapters_all_origin = []
         sections_all_origin = []
         parts_all_origin = []
+
+        bill_name_list = BusinessBillList.objects.update_or_create(business_id=business_id,
+                                                                   defaults={'bill_name': bill_name,
+                                                                             'edit_mode': edit_mode})[0]
         bill_name_origin = BusinessBillList.objects.get(business_id=int(business_id))
-        chapters_objects = bill_name_origin.chapters.all().order_by("chapter_number")
-        for chapters_object in chapters_objects:
-            chapters_all_origin_temp = {}
-            chapters_all_origin_temp["chapter_id"] = chapters_object.id
-            chapters_all_origin_temp["chapter_number"] = chapters_object.chapter_number
-            chapters_all_origin_temp["chapter_title"] = chapters_object.chapter_title
-            chapters_all_origin_temp["chapter_content"] = chapters_object.chapter_content
-            chapters_all_origin.append(chapters_all_origin_temp)
-            sections_objects = chapters_object.sections.all().order_by("section_number")
-            for sections_object in sections_objects:
-                sections_all_origin_temp = {}
-                sections_all_origin_temp["chapter_id"] = chapters_object.id
-                sections_all_origin_temp["chapter_number"] = chapters_object.chapter_number
-                sections_all_origin_temp["chapter_title"] = chapters_object.chapter_title
-                sections_all_origin_temp["chapter_content"] = chapters_object.chapter_content
-                sections_all_origin_temp["section_id"] = sections_object.id
-                sections_all_origin_temp["section_number"] = sections_object.section_number
-                sections_all_origin_temp["section_title"] = sections_object.section_title
-                sections_all_origin_temp["section_content"] = sections_object.section_content
-                sections_all_origin.append(sections_all_origin_temp)
-                parts_objects = sections_object.parts.all().order_by("part_number")
-                for parts_object in parts_objects:
-                    parts_all_origin_temp = {}
-                    parts_all_origin_temp["chapter_id"] = chapters_object.id
-                    parts_all_origin_temp["chapter_number"] = chapters_object.chapter_number
-                    parts_all_origin_temp["chapter_title"] = chapters_object.chapter_title
-                    parts_all_origin_temp["chapter_content"] = chapters_object.chapter_content
-                    parts_all_origin_temp["section_id"] = sections_object.id
-                    parts_all_origin_temp["section_number"] = sections_object.section_number
-                    parts_all_origin_temp["section_title"] = sections_object.section_title
-                    parts_all_origin_temp["section_content"] = sections_object.section_content
-                    parts_all_origin_temp["part_id"] = parts_object.id
-                    parts_all_origin_temp["part_number"] = parts_object.part_number
-                    parts_all_origin_temp["part_title"] = parts_object.part_title
-                    parts_all_origin_temp["part_content"] = parts_object.part_content
-                    parts_all_origin_temp["part_reason"] = parts_object.part_reason
-                    parts_all_origin.append(parts_all_origin_temp)
+        chapters_objects = bill_name_origin.chapters.all()
+        if (len(chapters_objects) > 0):
+            chapters_objects = bill_name_origin.chapters.all().order_by("chapter_number")
+            for chapters_object in chapters_objects:
+                chapters_all_origin_temp = {}
+                chapters_all_origin_temp["chapter_id"] = chapters_object.id
+                chapters_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+                chapters_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+                chapters_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+                chapters_all_origin.append(chapters_all_origin_temp)
+                sections_objects = chapters_object.sections.all().order_by("section_number")
+                for sections_object in sections_objects:
+                    sections_all_origin_temp = {}
+                    sections_all_origin_temp["chapter_id"] = chapters_object.id
+                    sections_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+                    sections_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+                    sections_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+                    sections_all_origin_temp["section_id"] = sections_object.id
+                    sections_all_origin_temp["section_number"] = sections_object.section_number
+                    sections_all_origin_temp["section_title"] = sections_object.section_title
+                    sections_all_origin_temp["section_content"] = sections_object.section_content
+                    sections_all_origin.append(sections_all_origin_temp)
+                    parts_objects = sections_object.parts.all().order_by("part_number")
+                    for parts_object in parts_objects:
+                        parts_all_origin_temp = {}
+                        parts_all_origin_temp["chapter_id"] = chapters_object.id
+                        parts_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+                        parts_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+                        parts_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+                        parts_all_origin_temp["section_id"] = sections_object.id
+                        parts_all_origin_temp["section_number"] = sections_object.section_number
+                        parts_all_origin_temp["section_title"] = sections_object.section_title
+                        parts_all_origin_temp["section_content"] = sections_object.section_content
+                        parts_all_origin_temp["part_id"] = parts_object.id
+                        parts_all_origin_temp["part_number"] = parts_object.part_number
+                        parts_all_origin_temp["part_title"] = parts_object.part_title
+                        parts_all_origin_temp["part_content"] = parts_object.part_content
+                        parts_all_origin_temp["part_reason"] = parts_object.part_reason
+                        parts_all_origin.append(parts_all_origin_temp)
 
         chapters_all_request = []
         sections_all_request = []
@@ -6344,7 +6156,7 @@ def api_bill_save(request):
                 parts_all_request.append(parts_temp)
 
         # update bill name
-        bill_name_list = BusinessBillList.objects.update_or_create(business_id=business_id, defaults={'bill_name': bill_name})[0]
+
         previous_section = []
         previous_chapter = []
         previous_part = []
@@ -6383,8 +6195,6 @@ def api_bill_save(request):
                                     added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
                                     added_section.parts.add(added_part)
 
-
-
         #                 update section
         added_section = []
         for sections_one_request in sections_all_request:
@@ -6416,7 +6226,6 @@ def api_bill_save(request):
                         break
                 else:
                     continue
-
 
         # update Parts
         added_part = []
@@ -6458,6 +6267,39 @@ def api_bill_save(request):
                                             previous_one_part.save()
 
         # deleted Parts
+        for previous_one_part in previous_part:
+            deleted_flag = False
+            for parts_one_request in parts_all_request:
+                if (parts_one_request["part_id"] == previous_one_part.id):
+                    deleted_flag = False
+                    break
+                else:
+                    deleted_flag = True
+                    continue
+            if deleted_flag:
+                deleted_part = BusinessBillPart.objects.filter(id=int(previous_one_part.id)).first()
+                deleted_section = BusinessBillSection.objects.filter(id=int(parts_one_request["section_id"])).first()
+                deleted_chapter = BusinessBillChapter.objects.filter(id=int(parts_one_request["chapter_id"])).first()
+                deleted_docs = deleted_part.part_docs.all()
+                for deleted_doc in deleted_docs:
+                    deleted_part.remove(deleted_doc)
+                    deleted_doc.delete()
+                deleted_section_part = deleted_section.parts.all()
+                deleted_chapter_part = deleted_chapter.sections.all()
+                if (len(deleted_chapter_part) == 1):
+                    if (len(deleted_section_part) == 1):
+                        deleted_section.parts.remove(deleted_part)
+                        deleted_part.delete()
+                        deleted_chapter.sections.remove(deleted_section)
+                        deleted_section.delete()
+                        bill_name_origin.chapters.remove(deleted_chapter)
+                        deleted_chapter.delete()
+                    else:
+                        deleted_section.parts.remove(deleted_part)
+                        deleted_part.delete()
+                else:
+                    deleted_section.parts.remove(deleted_part)
+                    deleted_part.delete()
 
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
