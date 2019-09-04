@@ -691,6 +691,7 @@ class BusinessBillList(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE,  blank=True, null=True, verbose_name=u'business')
     create_time = models.DateTimeField(auto_now_add=True, null=True)
     update_time = models.DateTimeField(auto_now=True)
+    edit_mode = models.IntegerField(blank=True, null=True, verbose_name=u'edit_mode')
     chapters = models.ManyToManyField('BusinessBillChapter', blank=True,
                                   verbose_name=u'chapters')
 

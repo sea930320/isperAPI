@@ -364,6 +364,7 @@ urlpatterns += (
     url(r'^api/business/evaluationSave', business_views.api_business_save_evaluation),
 
     url(r'^api/business/bill/name/list$', business_views.api_bill_name_list),
+    url(r'^api/business/bill/name/only$', business_views.api_bill_name_only),
     url(r'^api/business/bill/update/full$', business_views.api_bill_update_full),
     url(r'^api/business/bill/update/billname$', business_views.api_bill_update_billname),
     url(r'^api/business/bill/part/delete$', business_views.api_bill_part_delete),
