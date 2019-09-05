@@ -1319,13 +1319,10 @@ def action_exp_node_end(bus, role_alloc_id, data):
                                                                  can_take_in=True)
                     user_ids = []
                     for bra in bras:
-                        print BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
-                                                                business_role_id=bra.role_id, no=bra.no).values_list(
-                            'user_id', flat=True)
-                        user_ids = list(set(user_ids) | set(
-                            BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
-                                                              business_role_id=bra.role_id, no=bra.no).values_list(
-                                'user_id', flat=True)))
+                        btm = BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
+                                                                business_role_id=bra.role_id, no=bra.no).first()
+                        if btm and btm.user_id:
+                            user_ids.append(btm.user_id)
                     # logger.info(role_ids)
                     print user_ids
                     user_count = len(user_ids)

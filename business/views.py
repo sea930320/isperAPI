@@ -1995,6 +1995,7 @@ def api_business_message_push(request):
                 # 结束环节 opt = {'next_node_id': 1, 'status': 1, 'process_type': 1},
                 # data={'tran_id': 1, 'project_id': 0}
                 data = json.loads(data)
+                data['cur_node'] = bus.node_id
                 result, opt = action_exp_node_end(bus, role_alloc_id, data)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
@@ -2440,13 +2441,21 @@ def api_business_request_sign_roles(request):
 
 def api_business_report_generate(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id")  # 实验ID
+        node_id = request.GET.get("node_id", None)
         user_id = request.GET.get("user_id", None)  # 用户
-        user_id = user_id if user_id else request.user.id
+        is_observable = int(request.GET.get("is_observable", 0))
+
+        if (observable or is_observable == 1) and (not node_id or not is_look_on_node(node_id)):
+            print "this case"
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        user_id = user_id if user_id else request.user.id if observable == False else None
         busi = Business.objects.filter(pk=business_id).first()
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
@@ -2581,14 +2590,14 @@ def api_business_report_generate(request):
 
                 # 个人笔记
                 note = BusinessNotes.objects.filter(business_id=business_id,
-                                                    node_id=item.node_id, created_by_id=user_id).first()
+                                                    node_id=item.node_id, created_by_id=user_id).first() if observable == False else None
                 node_list.append({
                     'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
                     'note': note.content if note else None, 'type': node.process.type if node.process else 0,
                     'vote_status': vote_status
                 })
 
-            experience = BusinessExperience.objects.filter(business_id=busi.id, created_by_id=user_id).first()
+            experience = BusinessExperience.objects.filter(business_id=busi.id, created_by_id=user_id).first() if observable == False else None
             experience_data = {'status': 1, 'content': ''}
             if experience:
                 experience_data = {
@@ -2634,13 +2643,14 @@ def set_style(height, bold=False):
 
 def api_business_report_export(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id")  # 实验ID
         user_id = request.GET.get("user_id", None)  # 用户
-        user_id = user_id if user_id else request.user.id
+        user_id = user_id if user_id else request.user.id if not observable else None
         busi = Business.objects.filter(pk=business_id).first()
 
         docTitle = [u'文件名', u'文件类型', u'签字', u'url']
@@ -2659,6 +2669,8 @@ def api_business_report_export(request):
             member_list = []
 
             for uid in members:
+                if not uid:
+                    continue
                 user = Tuser.objects.get(pk=int(uid))
                 member_list.append(user.name)
 
@@ -2781,7 +2793,7 @@ def api_business_report_export(request):
 
                 # 个人笔记
                 note = BusinessNotes.objects.filter(business_id=business_id,
-                                                    node_id=item.node_id, created_by_id=user_id).first()
+                                                    node_id=item.node_id, created_by_id=user_id).first() if user_id else None
 
                 # 设置样式
                 for i in range(0, len(docTitle)):
@@ -2821,8 +2833,9 @@ def api_business_report_export(request):
                     for i in range(0, len(voteTitle)):
                         sheet.write(row, i, voteTitle[i], set_style(220, True))
                     row += 1
+                    print vote_status
                     for i in range(0, len(vote_status)):
-                        sheet.write(row, i, vote_status[i].num)
+                        sheet.write(row, i, vote_status[i]['num'])
                     row += 1
                 if note:
                     row += 2
@@ -2858,8 +2871,9 @@ def api_business_report_export(request):
 
 def api_business_experience_list(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id")  # 实验ID
@@ -5928,8 +5942,9 @@ def getAllBillList(bill_id, show_mode):
 
 def api_bill_name_list(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
         business_id = request.GET.get("business_id", None)
         show_mode = request.GET.get("show_mode", None)
@@ -5950,8 +5965,9 @@ def api_bill_name_list(request):
 
 def api_bill_name_only(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
         business_id = request.GET.get("business_id", None)
         bill_name = BusinessBillList.objects.filter(business_id=business_id)
