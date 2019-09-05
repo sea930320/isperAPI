@@ -2421,11 +2421,12 @@ def api_get_user_statistic(request):
         print group_id
         print company_id
         # reviewedQs = qs.filter(request_url__icontains="set_Review")
+        utc_delta = datetime.utcnow() - datetime.now()
         start_date = datetime.strptime(start_date, '%Y-%m-%d')
         end_date = datetime.strptime(end_date, '%Y-%m-%d')
         results = []
         for n in range(int((end_date - start_date).days)):
-            iterDate = start_date + timedelta(n)
+            iterDate = start_date + timedelta(n) +utc_delta
             print iterDate.date()
             print qs.count()
             curReviewedQs = qs.filter(login_time__startswith=iterDate.date())
