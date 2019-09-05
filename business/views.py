@@ -5896,16 +5896,16 @@ def api_bill_chapter_list(request):
 
 
 def getAllBillList(bill_id, show_mode):
-    res = []
-    bill_name_object = BusinessBillList.objects.filter(id=bill_id).first()
-    chapters_objects = bill_name_object.chapters.all().order_by("chapter_number")
-    for chapters_object in chapters_objects:
-        sections_objects = chapters_object.sections.all().order_by("section_number")
-        for sections_object in sections_objects:
-            parts_objects = sections_object.parts.all().order_by("part_number")
-            for parts_object in parts_objects:
-                res_json = {}
-                if (show_mode == '1'):
+    bill_name_object = BusinessBillList.objects.filter(id=bill_id, edit_mode=int(show_mode)).first()
+    if (show_mode == '1'):
+        res = []
+        chapters_objects = bill_name_object.chapters.all().order_by("chapter_number")
+        for chapters_object in chapters_objects:
+            sections_objects = chapters_object.sections.all().order_by("section_number")
+            for sections_object in sections_objects:
+                parts_objects = sections_object.parts.all().order_by("part_number")
+                for parts_object in parts_objects:
+                    res_json = {}
                     res_json["chapter_id"] = chapters_object.id
                     res_json["chapter_number"] = chapters_object.chapter_number
                     res_json["chapter_title"] = chapters_object.chapter_title
@@ -5921,22 +5921,18 @@ def getAllBillList(bill_id, show_mode):
                     res_json["part_reason"] = parts_object.part_reason
                     res.append(res_json)
                     continue
-                if (show_mode == '2'):
-                    res_json["chapter_id"] = chapters_object.id
-                    res_json["chapter_number"] = chapters_object.chapter_number
-                    res_json["chapter_title"] = chapters_object.chapter_title
-                    res_json["chapter_content"] = chapters_object.chapter_content
-                    res_json["section_id"] = sections_object.id
-                    res_json["section_number"] = sections_object.section_number
-                    res_json["section_title"] = sections_object.section_title
-                    res_json["section_content"] = sections_object.section_content
-                    res_json["part_id"] = parts_object.id
-                    res_json["part_number"] = parts_object.part_number
-                    res_json["part_title"] = parts_object.part_title
-                    res_json["part_content"] = parts_object.part_content
-                    res_json["part_reason"] = parts_object.part_reason
-                    res.append(res_json)
-                    continue
+    elif (show_mode == '2'):
+        res=[]
+        part_mode_parts_objects = bill_name_object.part_mode_parts.all().order_by("part_number")
+        for part_mode_parts_object in part_mode_parts_objects:
+            res_json = {}
+            res_json["part_id"] = part_mode_parts_object.id
+            res_json["part_number"] = part_mode_parts_object.part_number
+            res_json["part_title"] = part_mode_parts_object.part_title
+            res_json["part_content"] = part_mode_parts_object.part_content
+            res_json["part_reason"] = part_mode_parts_object.part_reason
+            res.append(res_json)
+            continue
     return res
 
 
@@ -5989,20 +5985,36 @@ def api_bill_doc_list(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+        edit_mode = request.GET.get("edit_mode", None)
         part_id = request.GET.get("part_id", None)
-        parts = BusinessBillPart.objects.filter(id=part_id).first()
-        part_docs = parts.part_docs.all()
-        res = []
-        for part_doc in part_docs:
-            res_one = {}
-            res_one["id"] = part_doc.id
-            res_one["doc_id"] = part_doc.doc_id
-            res_one["doc_conception"] = part_doc.doc_conception
-            res_one["doc_url"] = part_doc.doc_url
-            res_one["doc_name"] = part_doc.doc_name
-            res.append(res_one)
-        resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'doc_data': res}
+        if (int(edit_mode) == 1):
+            parts = BusinessBillPart.objects.filter(id=part_id).first()
+            part_docs = parts.part_docs.all()
+            res = []
+            for part_doc in part_docs:
+                res_one = {}
+                res_one["id"] = part_doc.id
+                res_one["doc_id"] = part_doc.doc_id
+                res_one["doc_conception"] = part_doc.doc_conception
+                res_one["doc_url"] = part_doc.doc_url
+                res_one["doc_name"] = part_doc.doc_name
+                res.append(res_one)
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'doc_data': res}
+        if (int(edit_mode) == 2):
+            parts = BusinessBillPartPartMode.objects.filter(id=part_id).first()
+            part_docs = parts.part_docs.all()
+            res = []
+            for part_doc in part_docs:
+                res_one = {}
+                res_one["id"] = part_doc.id
+                res_one["doc_id"] = part_doc.doc_id
+                res_one["doc_conception"] = part_doc.doc_conception
+                res_one["doc_url"] = part_doc.doc_url
+                res_one["doc_name"] = part_doc.doc_name
+                res.append(res_one)
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'doc_data': res}
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -6034,6 +6046,7 @@ def api_bill_doc_upload(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+        edit_mode = request.POST.get("edit_mode", None)
         doc_id = request.POST.get("doc_id", None)
         doc_url = request.POST.get("doc_url", None)
         doc_conception = request.POST.get("doc_conception", None)
@@ -6041,8 +6054,12 @@ def api_bill_doc_upload(request):
         doc_name = doc_url.split("/")[-1]
         added_doc = BusinessBillPartDoc.objects.create(doc_id=int(doc_id), doc_url=doc_url, doc_name=doc_name,
                                                        doc_conception=doc_conception)
-        part = BusinessBillPart.objects.filter(id=part_id).first()
-        part.part_docs.add(added_doc)
+        if (int(edit_mode) == 1):
+            part = BusinessBillPart.objects.filter(id=part_id).first()
+            part.part_docs.add(added_doc)
+        if (int(edit_mode) == 2):
+            part = BusinessBillPartPartMode.objects.filter(id=part_id).first()
+            part.part_docs.add(added_doc)
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
