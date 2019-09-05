@@ -339,7 +339,6 @@ def api_workflow_role_allcation(request):
                         role_position = FlowRolePosition.objects.filter(flow_id=flow_id, node_id=item.id,
                                                                         role_id=r.role_id, no=r.no, del_flag=0).first()
                         position_id = role_position.position_id if role_position else None
-
                         obj = RoleImage.objects.get(pk=r.image_id) if r.image_id else None
                         if obj:
                             img = {'id': obj.id, 'type': obj.type.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None,
