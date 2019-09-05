@@ -706,6 +706,8 @@ class BusinessBillList(models.Model):
     edit_mode = models.IntegerField(blank=True, null=True, verbose_name=u'edit_mode')
     chapters = models.ManyToManyField('BusinessBillChapter', blank=True,
                                   verbose_name=u'chapters')
+    part_mode_parts = models.ManyToManyField('BusinessBillPartPartMode', blank=True,
+                                  verbose_name=u'part_mode_parts')
 
     class Meta:
         db_table = "t_business_bill_list"
@@ -765,6 +767,7 @@ class BusinessBillPart(models.Model):
     def __unicode__(self):
         return str(self.pk)
 
+
 class BusinessBillPartDoc(models.Model):
     doc = models.ForeignKey(UploadFile, null=True, on_delete=models.CASCADE, verbose_name=u'doc_id')
     doc_conception = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_conception')
@@ -776,6 +779,26 @@ class BusinessBillPartDoc(models.Model):
     class Meta:
         db_table = "t_business_bill_part_doc"
         verbose_name_plural = verbose_name = u"BusinessBillPartDoc"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+
+class BusinessBillPartPartMode(models.Model):
+    part_number = models.IntegerField(blank=True, null=True, verbose_name=u'part_number')
+    part_title = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'part_title')
+    part_content = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'part_content')
+    part_reason = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'part_reason')
+    doc_id = models.IntegerField(blank=True, null=True, verbose_name=u'doc_id')
+    doc_conception = models.IntegerField(blank=True, null=True, verbose_name=u'doc_conception')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+    part_docs = models.ManyToManyField('BusinessBillPartDoc', blank=True,
+                                       verbose_name=u'part_docs')
+
+    class Meta:
+        db_table = "t_business_bill_part_part_mode"
+        verbose_name_plural = verbose_name = u"BusinessBillPartPartMode"
 
     def __unicode__(self):
         return str(self.pk)
