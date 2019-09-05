@@ -689,8 +689,8 @@ def create_company_excelUsers(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         excelData = request.POST.get("excelData", None)
-        company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
-
+        company = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany
+        company_id = company.id
         for item in json.loads(excelData):
             newUser = Tuser(
                 username=item[u'username'].encode('utf8'),
@@ -718,8 +718,10 @@ def create_company_excelUsers(request):
                     parts=TParts.objects.filter(Q(company_id=6) & Q(name=item[u'part'].encode('utf8')))))) > 0 else None
             )
             newUser.save()
-            newUser.roles.add(TRole.objects.get(id=9))
-
+            if (company.companyType and company.companyType.name == '学校'):
+                newUser.roles.add(TRole.objects.get(id=9))
+            else:
+                newUser.roles.add(TRole.objects.get(id=5))
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -795,7 +797,7 @@ def delete_company_users(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
     try:
-        if request.session['login_type'] != 3:
+        if request.session['login_type'] not in [3, 7]:
             resp = code.get_msg(code.PERMISSION_DENIED)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -803,12 +805,13 @@ def delete_company_users(request):
         company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
 
         for item in selected:
-            user = Tuser.objects.filter(Q(id=item) & Q(roles=5) & Q(tcompany_id=company_id))
+            user = Tuser.objects.filter(Q(id=item) & Q(roles__in=[5,9]) & Q(tcompany_id=company_id))
             if len(user) > 0:
                 if len(user.get().roles.all()) == 1:
                     user.delete()
                 else:
                     TRole.objects.get(id=5).tuser_set.remove(item)
+                    TRole.objects.get(id=9).tuser_set.remove(item)
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
@@ -819,6 +822,38 @@ def delete_company_users(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
+def delete_group_users(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    try:
+        if request.session['login_type'] not in [2, 6]:
+            resp = code.get_msg(code.PERMISSION_DENIED)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        selected = eval(request.POST.get("ids", ''))
+        group_id = request.user.allgroups_set.get().id
+
+        for item in selected:
+            user = Tuser.objects.filter(Q(id=item) & Q(roles__in=[5,9]) & Q(tcompany__group_id=group_id)).distinct()
+            print user
+            if len(user) > 0:
+                if len(user.get().roles.all()) == 1:
+                    user.delete()
+                else:
+                    TRole.objects.get(id=5).tuser_set.remove(item)
+                    TRole.objects.get(id=9).tuser_set.remove(item)
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'results': 'success'}
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+    except Exception as e:
+        logger.exception('delete_company_users Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def get_group_nonReviewUsers(request):
     resp = auth_check(request, "POST")

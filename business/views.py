@@ -12,6 +12,7 @@ import xlwt
 from django.utils.http import urlquote
 
 from django.utils.timezone import now
+from django.utils.dateparse import parse_datetime
 
 from account.models import Tuser, TNotifications, TInnerPermission
 from django.core.paginator import Paginator, EmptyPage
@@ -4754,9 +4755,9 @@ def api_business_survey(request):
                 'id': qs.id, 'business_id': qs.business_id, 'project_id': qs.project_id, 'node_id': qs.node_id,
                 'title': qs.title,
                 'description': qs.description, 'step': qs.step,
-                'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+                'start_time': qs.start_time.strftime('%Y-%m-%d %H:%M:%S') if qs.start_time else '',
                 'end_time': qs.end_time.strftime(
-                    '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target
+                    '%Y-%m-%d %H:%M:%S') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target
             }
             selectQuestions = BusinessQuestion.objects.filter(
                 survey_id=qs.pk, type=0
@@ -5050,8 +5051,8 @@ def api_business_survey_publish(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         businessSurvey.target = target
         if start_date and end_date:
-            businessSurvey.start_time = datetime.strptime(start_date, '%Y-%m-%d')
-            businessSurvey.end_time = datetime.strptime(end_date, '%Y-%m-%d')
+            businessSurvey.start_time = parse_datetime(start_date+'T00:00:00+08:00')
+            businessSurvey.end_time = parse_datetime(end_date+'T23:59:59+08:00')
         if businessSurvey.step is None or businessSurvey.step < 6:
             businessSurvey.step = 6
         businessSurvey.save()
@@ -5124,8 +5125,8 @@ def api_business_survey_public_list(request):
         page = request.GET.get("page", 1)
         size = request.GET.get("size", 10)
         search = request.GET.get("search", "")
-
-        bsQs = BusinessSurvey.objects.filter(target=0, title__contains=search).order_by('-create_time')
+        print datetime.now()
+        bsQs = BusinessSurvey.objects.filter(target=0, title__contains=search, start_time__lte=datetime.now(), end_time__gte=datetime.now()).order_by('-create_time')
         paginator = Paginator(bsQs, size)
         try:
             bsurveyQs = paginator.page(page)
@@ -5140,9 +5141,9 @@ def api_business_survey_public_list(request):
                 'title': qs.title,
                 'description': qs.description, 'step': qs.step,
                 'created_at': qs.create_time.strftime('%Y-%m-%d') if qs.create_time else '',
-                'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+                'start_time': qs.start_time.strftime('%Y-%m-%d %H:%M:%S') if qs.start_time else '',
                 'end_time': qs.end_time.strftime(
-                    '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
+                    '%%Y-%m-%d %H:%M:%S') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
                 'link': '/survey/' + str(qs.id),
                 'is_ended': qs.business.node_id != qs.node_id
             }
@@ -5240,9 +5241,9 @@ def api_business_survey_public_detail(request):
             'title': qs.title,
             'description': qs.description, 'step': qs.step,
             'created_at': qs.create_time.strftime('%Y-%m-%d') if qs.create_time else '',
-            'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+            'start_time': qs.start_time.strftime('%Y-%m-%d %H:%M:%S') if qs.start_time else '',
             'end_time': qs.end_time.strftime(
-                '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
+                '%Y-%m-%d %H:%M:%S') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
             'link': '/survey/' + str(qs.id),
             'is_ended': cur_node_id != qs.node_id
         }

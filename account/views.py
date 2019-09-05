@@ -198,6 +198,7 @@ def api_account_login(request):
                     resp['d']['position'] = model_to_dict(user.tposition) if user.tposition else None
                     resp['d']['teacher_id'] = user.teacher_id
                     resp['d']['student_id'] = user.student_id
+                    resp['d']['office_items'] = [model_to_dict(office_item) for office_item in user.instructorItems.all()]
                     manager_info = {}
                     if login_type == 2:
                         group = user.allgroups_set.get()
@@ -633,6 +634,7 @@ def api_account_user_update(request):
         director = request.POST.get('director', None)  # 是否具有指导权限
         manage = request.POST.get('manage', None)  # 是否具有管理权限
         verification_code = request.POST.get('verification_code', None)
+        tagsIndexs = json.loads(request.POST.get('tagsIndexs', '[]'))
 
         user = Tuser.objects.get(pk=user_id)
         need_ver_code = True if user.phone != phone else False
@@ -691,7 +693,10 @@ def api_account_user_update(request):
         if ('verification_phone' in request.session):
             del request.session['verification_phone']
         user.save()
-
+        if (identity and int(identity) in [4, 8]):
+            user.instructorItems.clear()
+            for tag in tagsIndexs:
+                user.instructorItems.add(tag)
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 

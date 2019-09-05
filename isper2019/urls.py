@@ -228,6 +228,7 @@ urlpatterns += (
     url(r'^api/userManager/excelDataSave$', userManage_views.create_company_excelUsers),
     url(r'^api/userManager/newUserSet$', userManage_views.create_company_newUser),
     url(r'^api/userManager/deleteUsers$', userManage_views.delete_company_users),
+    url(r'^api/userManager/deleteGroupUsers$', userManage_views.delete_group_users),
     url(r'^api/userManager/getCompanyNonReviewUsers$', userManage_views.get_group_nonReviewUsers),
     url(r'^api/userManager/getCompanyChangeList$', userManage_views.get_company_changes),
     url(r'^api/userManager/set_Review$', userManage_views.set_is_review),
