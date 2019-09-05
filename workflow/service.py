@@ -68,7 +68,7 @@ def flow_nodes(flow_id):
             process = None
         node_list.append({
             'id': node.id, 'name': node.name, 'look_on': node.look_on, 'step': node.step, 'task_id': node.task_id,
-            'condition': node.condition, 'process': process, 'is_start_node': is_start_node
+            'condition': node.condition, 'process': process, 'is_start_node': is_start_node, 'is_parallel_start_node': node.parallel_node_start
         })
 
     return node_list
