@@ -4506,6 +4506,53 @@ def api_business_doc_team_status(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_business_doc_team_status1(request):
+    resp = auth_check(request, "GET")
+
+    try:
+        bdts_list = []
+
+        business_id = request.GET.get("business_id", None)
+        node_id = request.GET.get("node_id", None)
+
+        if None in (business_id, node_id):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        team_members = BusinessTeamMember.objects.filter(business_id=business_id)
+        docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node_id)
+        user = None
+
+        for member in team_members:
+            status = 0
+            for doc in docs:
+                b = BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id,
+                                                         business_doc_id=doc.pk,
+                                                         business_team_member_id=member.pk).first();
+
+                if member.user_id is None:
+                    break;
+                user = Tuser.objects.filter(pk=member.user_id).first().name
+
+                if b is not None:
+                    if b.status == 2:
+                        status = 2;
+                        bdts_list.append({'user_name': user, 'status' : 'signed'})
+                        break
+                    elif b.status == -1:
+                        status = -1;
+                        bdts_list.append({'user_name': user, 'status' : 'reject'})
+                        break
+            if status == 0 and user is not None:
+                bdts_list.append({'user_name': user, 'status': 'review'})
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = bdts_list
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_doc_team_status1 Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def get_group_userList(request):
     resp = auth_check(request, "GET")
@@ -4581,7 +4628,7 @@ def api_business_doc_team_staus_update(request):
         user_id = request.POST.get("user_id", None)
         status = request.POST.get("status", None)
 
-        if None in (business_id, business_doc_id, node_id, user_id, status):
+        if None in (business_id,  node_id, user_id, status):
             resp = code.get_msg(code.SYSTEM_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -4591,8 +4638,11 @@ def api_business_doc_team_staus_update(request):
             resp = code.get_msg(code.SYSTEM_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk,
-                                             business_doc_id=business_doc_id).update(status=1);
+        if business_doc_id is None:
+            BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk).update(status=status);
+        else:
+            BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk,
+                                             business_doc_id=business_doc_id).update(status=status);
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
