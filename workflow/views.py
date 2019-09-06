@@ -1899,15 +1899,19 @@ def api_workflow_trans_query(request):
                             next_nodes.append({'tran_id': item.id, 'tran_name': item.name, 'node': obj})
 
                 for item in next_nodes:
-                    process_type = item['node'].process.type
-                    jump_project_id = None
-                    # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
-                    if process_type in [const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE]:
-                        jump = ProjectJump.objects.filter(project_id=project_id, node_id=item['node'].pk, process_type=process_type).first()
-                        if jump:
-                            jump_project_id = jump.jump_project_id
-                        else:
-                            continue
+                    if item['node'].process:
+                        process_type = item['node'].process.type
+                        jump_project_id = None
+                        # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
+                        if process_type in [const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE]:
+                            jump = ProjectJump.objects.filter(project_id=project_id, node_id=item['node'].pk, process_type=process_type).first()
+                            if jump:
+                                jump_project_id = jump.jump_project_id
+                            else:
+                                continue
+                    else:
+                        process_type = ''
+                        jump_project_id = ''
 
                     tran_list.append({
                         'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
@@ -2477,7 +2481,7 @@ def api_workflow_role_allocation_image_update(request):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        FlowRoleAllocation.objects.filter(node_id=node_id, role_id=role_id, no=no).update(image_id=image_id)
+        FlowRoleAllocation.objects.filter(role_id=role_id, no=no).update(image_id=image_id)
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:

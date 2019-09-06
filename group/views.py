@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.contrib.auth.hashers import (
     check_password, is_password_usable, make_password,
 )
-from group.models import AllGroups, TGroupChange
+from group.models import AllGroups, TGroupChange, TGroupManagerAssistants
 from account.models import Tuser, TRole, OfficeItems, TCompany, TCompanyType, TCompanyChange
 from django.forms.models import model_to_dict
 from utils.permission import permission_check
@@ -257,7 +257,7 @@ def group_add_assistant(request):
                 resp = code.get_msg(code.USER_EXIST)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-            newUser = AllGroups.objects.get(id=groupID).groupManagerAssistants.create(
+            newUser = Tuser.objects.create(
                 username=name,
                 password=make_password(password),
                 is_superuser=0,
@@ -272,6 +272,7 @@ def group_add_assistant(request):
                 del_flag=0,
                 is_register=0
             )
+            TGroupManagerAssistants.objects.create(all_groups_id=groupID, tuser=newUser)
             newUser.roles.add(TRole.objects.get(id=6))
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'results': 'success'}
@@ -1003,7 +1004,10 @@ def company_change_request(request):
         if company_id is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        TCompanyChange.objects.create(user=request.user, reason=reason, target_id=company_id)
+        if request.user.tcompany.name == 'DEFAULT-COMPANY':
+            TCompanyChange.objects.create(user=request.user, reason=reason, target_id=company_id, sAgree=1)
+        else:
+            TCompanyChange.objects.create(user=request.user, reason=reason, target_id=company_id)
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:

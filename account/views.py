@@ -185,7 +185,7 @@ def api_account_login(request):
                     resp['d'] = user_info(user.id)
                     resp['d']['identity'] = role.id
                     resp['d']['defaultGroup'] = (
-                        Tuser.objects.get(id=user.id).allgroups_set.get().default == 1) if role.id == 2 else False
+                            Tuser.objects.get(id=user.id).allgroups_set.get().default == 1) if role.id == 2 else False
                     resp['d']['role'] = role.id
                     resp['d']['role_name'] = role.name
                     resp['d']['manage'] = user.manage
@@ -586,9 +586,9 @@ def api_account_password_update(request):
         try:
             print request.session['verification_code']
             if (verification_code is None) or (
-                            datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
-                                                               "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
-                        verification_code != request.session['verification_code']):
+                    datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
+                                                       "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
+                    verification_code != request.session['verification_code']):
                 resp = code.get_msg(code.PHONE_NOT_VERIFIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         except KeyError as e:
@@ -676,10 +676,10 @@ def api_account_user_update(request):
 
         try:
             if need_ver_code and ((verification_code is None) or (
-                            datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
-                                                               "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
-                        verification_code != request.session['verification_code']) or (
-                        phone != request.session['verification_phone'])):
+                    datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
+                                                       "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
+                                          verification_code != request.session['verification_code']) or (
+                                          phone != request.session['verification_phone'])):
                 resp = code.get_msg(code.PHONE_NOT_VERIFIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         except KeyError as e:
@@ -794,10 +794,10 @@ def api_account_user_create(request):
         try:
             print request.session['verification_code']
             if (verification_code is None) or (
-                            datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
-                                                               "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
-                        verification_code != request.session['verification_code']) or (
-                        phone != request.session['verification_phone']):
+                    datetime.now() - datetime.strptime(request.session['verification_session_start_time'],
+                                                       "%Y-%m-%d %H:%M:%S.%f") > timedelta(0, 5 * 60, 0)) or (
+                    verification_code != request.session['verification_code']) or (
+                    phone != request.session['verification_phone']):
                 resp = code.get_msg(code.PHONE_NOT_VERIFIED)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         except KeyError as e:
@@ -2107,7 +2107,7 @@ def api_unset_assistant(request):
                 if not candidateUser:
                     continue
                 candidateUser.roles.remove(TRole.objects.get(pk=6))
-                candidateUser.allgroups_set_assistants.remove(group)
+                TGroupManagerAssistants.objects.filter(all_groups=group, tuser=candidateUser).delete()
         else:
             company = request.user.tcompanymanagers_set.get().tcompany
             if not company:
@@ -2118,7 +2118,7 @@ def api_unset_assistant(request):
                 if not candidateUser:
                     continue
                 candidateUser.roles.remove(TRole.objects.get(pk=7))
-                candidateUser.t_company_set_assistants.remove(company)
+                TCompanyManagerAssistants.objects.filter(tcompany=company, tuser=candidateUser).delete()
 
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2214,44 +2214,52 @@ def get_own_messages(request):
     try:
         role = request.session['login_type']
         uid = request.session['_auth_user_id']
-        results = [{
-            'id': item.id,
-            'content': eval(item.content) if bool(re.search('^businessMoreTeammate_', item.type)) else item.content,
-            'moreTeammates': 1 if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
-            'attentionCheck': 1 if bool(re.search('^attentionRequest_', item.type)) else 0,
-            'attentionCancelCheck': 1 if bool(re.search('^attentionCancelRequest_', item.type)) else 0,
-            'businessInfo': {
-                'id': item.type.split("businessMoreTeammate_", 1)[1],
-                'title': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().name,
-                'created_by': Business.objects.filter(
-                    pk=item.type.split("businessMoreTeammate_", 1)[1]).first().created_by.name,
-                'created_time': Business.objects.filter(
-                    pk=item.type.split("businessMoreTeammate_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S')
-            } if bool(re.search('^businessMoreTeammate_', item.type)) else {},
-            'attentionInfo': {
-                'id': item.type.split("attentionRequest_", 1)[1],
-                'created_time': UniversityLinkedCompany.objects.filter(
-                    pk=item.type.split("attentionRequest_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S'),
-                'message': UniversityLinkedCompany.objects.filter(
-                    pk=item.type.split("attentionRequest_", 1)[1]).first().message,
-                'created_by': UniversityLinkedCompany.objects.filter(
-                    pk=item.type.split("attentionRequest_", 1)[1]).first().created_by.username,
-                'university': UniversityLinkedCompany.objects.filter(
-                    pk=item.type.split("attentionRequest_", 1)[1]).first().university.name
-            } if bool(re.search('^attentionRequest_', item.type)) else {},
-            'attentionCancelInfo': {
-                'id': item.type.split("attentionCancelRequest_", 1)[1],
-                'created_time': UniversityLinkedCompany.objects.filter(
-                    pk=item.type.split("attentionCancelRequest_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S'),
-                'created_by': UniversityLinkedCompany.objects.filter(
-                    pk=item.type.split("attentionCancelRequest_", 1)[1]).first().created_by.username,
-                'university': UniversityLinkedCompany.objects.filter(
-                    pk=item.type.split("attentionCancelRequest_", 1)[1]).first().university.name
-            } if bool(re.search('^attentionCancelRequest_', item.type)) else {},
-            'business_id': item.type.split("businessMoreTeammate_", 1)[1] if bool(
-                re.search('^businessMoreTeammate_', item.type)) else 0,
-            'link': item.link
-        } for item in TNotifications.objects.filter(Q(role=role) & Q(targets__in=[uid]))]
+        results = []
+        for item in TNotifications.objects.filter(Q(role=role) & Q(targets__in=[uid])):
+            if (bool(re.search('^businessMoreTeammate_', item.type)) and not Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).exists()) \
+                    or (bool(re.search('^attentionRequest_', item.type)) and not UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionRequest_", 1)[1]).exists()) \
+                    or (bool(re.search('^attentionCancelRequest_', item.type)) and not UniversityLinkedCompany.objects.filter(pk=item.type.split("attentionCancelRequest_", 1)[1]).exists()):
+                TNotifications.objects.filter(pk=item.id).delete()
+                continue
+            results.append({
+                'id': item.id,
+                'content': eval(item.content) if bool(re.search('^businessMoreTeammate_', item.type)) else item.content,
+                'moreTeammates': 1 if bool(re.search('^businessMoreTeammate_', item.type)) else 0,
+                'attentionCheck': 1 if bool(re.search('^attentionRequest_', item.type)) else 0,
+                'attentionCancelCheck': 1 if bool(re.search('^attentionCancelRequest_', item.type)) else 0,
+                'businessInfo': {
+                    'id': item.type.split("businessMoreTeammate_", 1)[1],
+                    'title': Business.objects.filter(pk=item.type.split("businessMoreTeammate_", 1)[1]).first().name,
+                    'created_by': Business.objects.filter(
+                        pk=item.type.split("businessMoreTeammate_", 1)[1]).first().created_by.name,
+                    'created_time': Business.objects.filter(
+                        pk=item.type.split("businessMoreTeammate_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S')
+                } if bool(re.search('^businessMoreTeammate_', item.type)) else {},
+                'attentionInfo': {
+                    'id': item.type.split("attentionRequest_", 1)[1],
+                    'created_time': UniversityLinkedCompany.objects.filter(
+                        pk=item.type.split("attentionRequest_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'message': UniversityLinkedCompany.objects.filter(
+                        pk=item.type.split("attentionRequest_", 1)[1]).first().message,
+                    'created_by': UniversityLinkedCompany.objects.filter(
+                        pk=item.type.split("attentionRequest_", 1)[1]).first().created_by.username,
+                    'university': UniversityLinkedCompany.objects.filter(
+                        pk=item.type.split("attentionRequest_", 1)[1]).first().university.name
+                } if bool(re.search('^attentionRequest_', item.type)) else {},
+                'attentionCancelInfo': {
+                    'id': item.type.split("attentionCancelRequest_", 1)[1],
+                    'created_time': UniversityLinkedCompany.objects.filter(
+                        pk=item.type.split("attentionCancelRequest_", 1)[1]).first().create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'created_by': UniversityLinkedCompany.objects.filter(
+                        pk=item.type.split("attentionCancelRequest_", 1)[1]).first().created_by.username,
+                    'university': UniversityLinkedCompany.objects.filter(
+                        pk=item.type.split("attentionCancelRequest_", 1)[1]).first().university.name
+                } if bool(re.search('^attentionCancelRequest_', item.type)) else {},
+                'business_id': item.type.split("businessMoreTeammate_", 1)[1] if bool(
+                    re.search('^businessMoreTeammate_', item.type)) else 0,
+                'link': item.link
+            })
+
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': results}
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
@@ -2326,6 +2334,7 @@ def api_get_worklog_statistic(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_get_project_use_log_statistic(request):
     resp = auth_check(request, "GET")
     if resp != {}:
@@ -2379,6 +2388,7 @@ def api_get_project_use_log_statistic(request):
         logger.exception('api_get_project_use_log_statistic Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def api_get_user_statistic(request):
     resp = auth_check(request, "GET")

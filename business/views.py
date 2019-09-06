@@ -939,13 +939,14 @@ def api_business_node_function(request):
         flow_action_ids = []
         process_action_ids = []
         if role_alloc:
-            flow_actions = FlowRoleAllocationAction.objects.filter(flow_id=project.flow_id, node_id=node_id,
-                                                                   role_allocation_id=role_alloc.flow_role_alloc_id,
-                                                                   del_flag=0).first()
+            flowRoleAlloc = FlowRoleAllocation.objects.get(pk=role_alloc.flow_role_alloc_id)
+            flow_actions = FlowRoleActionNew.objects.filter(flow_id=project.flow_id, node_id=node_id,
+                                                            role_id=flowRoleAlloc.role_id, no=flowRoleAlloc.no,
+                                                            del_flag=0).first()
 
-            process_actions = ProcessRoleAllocationAction.objects.filter(flow_id=project.flow_id, node_id=node_id,
-                                                                         role_allocation_id=role_alloc.flow_role_alloc_id,
-                                                                         del_flag=0).first()
+            process_actions = ProcessRoleActionNew.objects.filter(flow_id=project.flow_id, node_id=node_id,
+                                                                  role_id=flowRoleAlloc.role_id, no=flowRoleAlloc.no,
+                                                                  del_flag=0).first()
             if process_actions and process_actions.actions:
                 process_action_ids = json.loads(process_actions.actions)
             else:
@@ -1419,7 +1420,10 @@ def api_business_list_nodel(request):
             qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(del_flag=0))
 
             if search:
-                qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
+                if search == '已完成':
+                    qs = qs.filter(status=9)
+                else:
+                    qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
 
             paginator = Paginator(qs, size)
 
@@ -2554,9 +2558,7 @@ def api_business_report_export(request):
 
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0,
-                                                        project_id=busi.cur_project_id).values_list('user_id',
-                                                                                                    flat=True)
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id', flat=True)
 
             # 小组成员
             member_list = []
