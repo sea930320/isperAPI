@@ -692,6 +692,10 @@ def create_company_excelUsers(request):
         company_id = Tuser.objects.get(id=request.session['_auth_user_id']).tcompanymanagers_set.get().tcompany.id
 
         for item in json.loads(excelData):
+            if len(TPositions.objects.filter(Q(name=item[u'position'].encode('utf8')) & Q(parts__in=TParts.objects.filter(Q(company_id=company_id) & Q(name=item[u'part'].encode('utf8')))))) > 0:
+                position = TPositions.objects.filter(Q(name=item[u'position'].encode('utf8')) & Q(parts__in=TParts.objects.filter(Q(company_id=company_id) & Q(name=item[u'part'].encode('utf8'))))).first()
+            else:
+                position = None
             newUser = Tuser(
                 username=item[u'username'].encode('utf8'),
                 name=item[u'name'].encode('utf8'),
@@ -712,13 +716,13 @@ def create_company_excelUsers(request):
                 is_register=0,
                 tcompany_id=company_id,
                 is_review=1,
-                tposition=TPositions.objects.filter(Q(name=item[u'position'].encode('utf8')) & Q(
-                    parts=TParts.objects.filter(Q(company_id=6) & Q(name=item[u'part'].encode('utf8'))))).get()
-                if len(TPositions.objects.filter(Q(name=item[u'position'].encode('utf8')) & Q(
-                    parts=TParts.objects.filter(Q(company_id=6) & Q(name=item[u'part'].encode('utf8')))))) > 0 else None
+                tposition=position
             )
             newUser.save()
-            newUser.roles.add(TRole.objects.get(id=9))
+            if TCompany.objects.get(pk=company_id).companyType.name == '学校':
+                newUser.roles.add(TRole.objects.get(id=9))
+            else:
+                newUser.roles.add(TRole.objects.get(id=5))
 
         resp = code.get_msg(code.SUCCESS)
         resp['d'] = {'results': 'success'}
