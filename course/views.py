@@ -178,7 +178,11 @@ def api_course_outside_list(request):
             results = [{
                 'id': flow.id,
                 'courseName': flow.courseName,
+                'courseFullName': (flow.courseName if flow.courseName else '') + '-' + getTeacherLabels(
+                    flow.teachers.all()) + '-' + (flow.courseId if flow.courseId else ''),
                 'teachers': [model_to_dict(teacher, fields=['id', 'name']) for teacher in flow.teachers.all()],
+                'students': [model_to_dict(student, fields=['id', 'student_id', 'name']) for student in
+                             flow.students.all()],
                 'created_by': flow.created_by.username,
                 'create_time': flow.create_time.strftime('%Y-%m-%d'),
                 'linked_business': [{
