@@ -1282,10 +1282,8 @@ def action_exp_node_end(bus, role_alloc_id, data):
             return False, resp
         else:
             cur_node = FlowNode.objects.filter(pk=data['cur_node']).first()
-            if data['parallel'] == 0 or data['parallel'] == '0' or cur_node.is_parallel_merging == 1:
+            if data['parallel'] == 0 or data['parallel'] == '0' or (cur_node.is_parallel_merging == 1 and bus.parallel_count == 1):
                 if cur_node.is_parallel_merging == 1:
-                    data['tran_id'] = data['trans']['id']
-                    data['process_type'] = data['trans']['process_type']
                     bus.parallel_passed_nodes.create(
                         node=cur_node
                     )
@@ -1340,8 +1338,6 @@ def action_exp_node_end(bus, role_alloc_id, data):
                     cur_node = FlowNode.objects.filter(pk=bus.node_id).first()
                     # 判断是否投票环节和配置
                     cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
-                    if cur_node.process.type == const.PROCESS_VOTE_TYPE:
-                        cur_path = BusinessTransPath.objects.filter(business_id=bus.pk).last()
 
                     # 创建新环节路径
                     step = BusinessTransPath.objects.filter(business_id=bus.id).count() + 1
@@ -1435,7 +1431,14 @@ def action_exp_node_end(bus, role_alloc_id, data):
                        'business_id': bus.pk, 'process_type': process_type}
                 return True, opt
             elif data['parallel'] == 1 or data['parallel'] == '1':
-                if FlowTrans.objects.filter(incoming=cur_node.task_id).count() > 1:
+                if cur_node.is_parallel_merging == 1:
+                    cur_count = bus.parallel_count
+                    bus.parallel_count = cur_count - 1
+                    bus.save()
+                if data['select'] == 2 or data['select'] == 3:
+                    tran = FlowTrans.objects.get(pk=data['trans'][0]['id'])
+                    parallel_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.incoming).first()
+                elif FlowTrans.objects.filter(incoming=cur_node.task_id).count() > 1:
                     tran = FlowTrans.objects.get(pk=data['tran_id'])
                     parallel_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
                 else:
@@ -1509,9 +1512,17 @@ def action_exp_node_end(bus, role_alloc_id, data):
                     bus.parallel_passed_nodes.create(
                         node=cur_node
                     )
+                    cur_count = bus.parallel_count
+                    bus.parallel_count = cur_count + 1
                     bus.parallel_passed_nodes.create(
                         node=parallel_node
                     )
+                    if data['select'] == 2 or data['select'] == 3:
+                        bus.node_id = parallel_node.pk
+                        step_now = BusinessTransPath.objects.filter(business_id=bus.id).count() + 1
+                        path_now = BusinessTransPath.objects.create(business_id=bus.id, node_id=parallel_node.pk, project_id=project.pk,
+                                                                    task_id=parallel_node.task_id, step=step_now)
+                        bus.path_id = path_now.pk
                     bus.parallel_nodes.filter(node=cur_node).delete()
                     bus.save()
                     return True, {}

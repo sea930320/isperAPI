@@ -283,7 +283,7 @@ def api_project_roles_detail(request):
                         'image': process.image.url if process.image else None,
                     }
                 else:
-                    prc = None
+                    continue
 
                 pras = ProjectRoleAllocation.objects.filter(project_id=project_id, node_id=item.id).values()
                 look_on = False
@@ -1163,7 +1163,7 @@ def api_project_jump_detail(request):
                         'image': process.image.url if process.image else None,
                     }
                 else:
-                    prc = None
+                    continue
 
                 project_jump = None
                 jump = ProjectJump.objects.filter(project_id=project_id, node_id=item.pk).first()

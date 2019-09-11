@@ -63,6 +63,7 @@ class Business(models.Model):
     jumper_id = models.IntegerField(verbose_name=u'当前项目', null=True, default=None)
     parallel_nodes = models.ManyToManyField(BusinessParallelNodes)
     parallel_passed_nodes = models.ManyToManyField(BusinessParallelPassedNodes)
+    parallel_count = models.IntegerField(verbose_name=u'parallel count', null=True, default=0)
 
     class Meta:
         db_table = "t_business"

@@ -330,32 +330,34 @@ def api_workflow_role_allcation(request):
             nodes = FlowNode.objects.filter(flow_id=flow_id, del_flag=0)
             node_list = []
             for item in nodes:
-                allocation_list = []
-                if item.process.type == 1:
-                    # 环节角色分配
-                    ra_list = FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=item.id, del_flag=0)
-                    for r in ra_list:
-                        # 占位数据
-                        role_position = FlowRolePosition.objects.filter(flow_id=flow_id, node_id=item.id,
-                                                                        role_id=r.role_id, no=r.no, del_flag=0).first()
-                        position_id = role_position.position_id if role_position else None
-                        obj = RoleImage.objects.get(pk=r.image_id) if r.image_id else None
-                        if obj:
-                            img = {'id': obj.id, 'type': obj.type.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None,
-                                   'gender': obj.gender}
-                        else:
-                            img = None
-                        allocation_list.append({
-                            'role_id': r.role_id, 'role_name': r.role.name, 'no': r.no,
-                            'position_id': position_id, 'role_type': r.role.type, 'image':img
-                        })
-                node_list.append({
-                    'id': item.id, 'name': item.name,
-                    'process': {'id': item.process.pk, 'type': item.process.type,
-                                'name': item.process.name if item.process else None,
-                                'image': item.process.image.url if item.process.image else None},
-                    'allocation_list': allocation_list
-                })
+                if item.process:
+                    allocation_list = []
+                    if item.process.type == 1:
+                        # 环节角色分配
+                        ra_list = FlowRoleAllocation.objects.filter(flow_id=flow_id, node_id=item.id, del_flag=0)
+                        for r in ra_list:
+                            # 占位数据
+                            role_position = FlowRolePosition.objects.filter(flow_id=flow_id, node_id=item.id,
+                                                                            role_id=r.role_id, no=r.no, del_flag=0).first()
+                            position_id = role_position.position_id if role_position else None
+
+                            obj = RoleImage.objects.get(pk=r.image_id) if r.image_id else None
+                            if obj:
+                                img = {'id': obj.id, 'type': obj.type.id, 'name': obj.name, 'file': obj.avatar.url if obj.avatar else None,
+                                       'gender': obj.gender}
+                            else:
+                                img = None
+                            allocation_list.append({
+                                'role_id': r.role_id, 'role_name': r.role.name, 'no': r.no,
+                                'position_id': position_id, 'role_type': r.role.type, 'image':img
+                            })
+                    node_list.append({
+                        'id': item.id, 'name': item.name,
+                        'process': {'id': item.process.pk, 'type': item.process.type,
+                                    'name': item.process.name if item.process else None,
+                                    'image': item.process.image.url if item.process.image else None},
+                        'allocation_list': allocation_list
+                    })
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = node_list
         else:
@@ -1819,7 +1821,7 @@ def api_workflow_trans_query(request):
         if direction == const.FLOW_FORWARD:
             trans = FlowTrans.objects.filter(flow_id=flow_id, incoming=node.task_id, del_flag=0)
             next_nodes = []
-
+            # now parallel mode and next is not parallel start
             if Business.objects.get(pk=business_id).node.parallel_node_start == 1 and FlowNode.objects.get(flow_id=flow_id, task_id=trans[0].outgoing).parallel_node_start == 0:
                 for item in trans:
                     obj = FlowNode.objects.filter(task_id=item.outgoing, flow_id=flow_id, del_flag=0).first()
@@ -1856,6 +1858,7 @@ def api_workflow_trans_query(request):
                             # else u'走向'.join([node.name, item['node'].name])
                             'condition': u'走向'.join([node.name, item['node'].name])
                         })
+            # next node is one and next is parallel start
             elif trans.count() == 1 and FlowNode.objects.get(flow_id=flow_id, task_id=trans[0].outgoing).parallel_node_start == 1:
                 trans = FlowTrans.objects.filter(flow_id=flow_id, incoming=trans[0].outgoing, del_flag=0)
                 for item in trans:
@@ -1878,11 +1881,12 @@ def api_workflow_trans_query(request):
                         'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
                         'jump_project_id': jump_project_id,
                         'parallel_mode': 1,
-                        'select': 0,
+                        'select': 3, # select 3 is status that appear parallel start node on middle from non parallel mode
                         # condition': item['tran_name'] if item['tran_name']
                         # else u'走向'.join([node.name, item['node'].name])
                         'condition': u'走向'.join([node.name, item['node'].name])
                     })
+            # other
             else:
                 for item in trans:
                     # 判断是否有gateway类型的分支
@@ -1898,8 +1902,48 @@ def api_workflow_trans_query(request):
                         if obj:
                             next_nodes.append({'tran_id': item.id, 'tran_name': item.name, 'node': obj})
 
+                select = 0
                 for item in next_nodes:
-                    if item['node'].process:
+                    if item['node'].parallel_node_start:
+                        select = 2 # select 2 is status that now is non parallel mode and cur node is select node and also next node have to choose parallel start node or other node.
+                        break
+                for item in next_nodes:
+                    # next is parallel start
+                    if item['node'].parallel_node_start:
+                        next_nodes_parallel = []
+                        trans_parallel = FlowTrans.objects.filter(flow_id=flow_id, incoming=item['node'].task_id, del_flag=0)
+                        for item_parallel in trans_parallel:
+                            obj = FlowNode.objects.filter(task_id=item_parallel.outgoing, flow_id=flow_id, del_flag=0).first()
+                            if obj:
+                                next_nodes_parallel.append({'tran_id': item_parallel.id, 'tran_name': item_parallel.name, 'node': obj})
+                        tran_parallel_list = []
+                        for item_parallel in next_nodes_parallel:
+                            process_type = item_parallel['node'].process.type
+                            jump_project_id = None
+                            # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
+                            if process_type in [const.PROCESS_JUMP_TYPE, const.PROCESS_NEST_TYPE]:
+                                jump = ProjectJump.objects.filter(project_id=project_id, node_id=item_parallel['node'].pk, process_type=process_type).first()
+                                if jump:
+                                    jump_project_id = jump.jump_project_id
+                                else:
+                                    continue
+
+                            tran_parallel_list.append({
+                                'id': item_parallel['tran_id'], 'name': item_parallel['tran_name'], 'process_type': process_type,
+                                'parallel_mode': 1,
+                            })
+                        tran_list.append({
+                            'id': item['tran_id'], 'name': item['tran_name'], 'process_type': '',
+                            'jump_project_id': '',
+                            'parallel_mode': 1,
+                            'select': select,
+                            # condition': item['tran_name'] if item['tran_name']
+                            # else u'走向'.join([node.name, item['node'].name])
+                            'condition': u'走向'.join([node.name, item['node'].name]),
+                            'parallel_nodes': tran_parallel_list
+                        })
+                    # next is not parallel start
+                    else:
                         process_type = item['node'].process.type
                         jump_project_id = None
                         # 如果下一环节为跳转，重新获取跳转项目id和项目流程的第一个节点tran_id
@@ -1909,19 +1953,15 @@ def api_workflow_trans_query(request):
                                 jump_project_id = jump.jump_project_id
                             else:
                                 continue
-                    else:
-                        process_type = ''
-                        jump_project_id = ''
-
-                    tran_list.append({
-                        'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
-                        'jump_project_id': jump_project_id,
-                        'parallel_mode': 0,
-                        'select': 0,
-                        # condition': item['tran_name'] if item['tran_name']
-                        # else u'走向'.join([node.name, item['node'].name])
-                        'condition': u'走向'.join([node.name, item['node'].name])
-                    })
+                        tran_list.append({
+                            'id': item['tran_id'], 'name': item['tran_name'], 'process_type': process_type,
+                            'jump_project_id': jump_project_id,
+                            'parallel_mode': 0,
+                            'select': select,
+                            # condition': item['tran_name'] if item['tran_name']
+                            # else u'走向'.join([node.name, item['node'].name])
+                            'condition': u'走向'.join([node.name, item['node'].name])
+                        })
         else:
             trans = FlowTrans.objects.filter(flow_id=flow_id, outgoing=node.task_id, del_flag=0)
             previous_nodes = []

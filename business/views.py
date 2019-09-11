@@ -607,8 +607,10 @@ def api_business_start(request):
         business.save()
 
         if node.parallel_node_start == 1:
+            business.parallel_count = 1
+            business.save()
             for item in FlowTrans.objects.filter(incoming=node.task_id):
-                fn = FlowNode.objects.get(task_id=item.outgoing)
+                fn = FlowNode.objects.get(task_id=item.outgoing, flow_id=project.flow_id)
                 business.parallel_nodes.create(
                     node=fn
                 )
