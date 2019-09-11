@@ -27,6 +27,7 @@ from utils.request_auth import auth_check
 from workflow.models import FlowNode, FlowAction, FlowRoleActionNew, FlowRolePosition, \
     FlowPosition, RoleImage, Flow, ProcessRoleActionNew, FlowDocs, FlowRole, FlowRoleAllocation, \
     FlowRoleAllocationAction, ProcessRoleAllocationAction, FlowNodeSelectDecide, SelectDecideItem
+from student.models import *
 from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
 from django.utils import timezone
@@ -398,6 +399,8 @@ def api_business_list(request):
             else:
                 cur_node = None
 
+            isRequested = StudentRequestAssistStatus.objects.filter(business_id=item.id,
+                                                               requestedTo_id=user.id, del_flag=0, status__in=[0, 1]).exists()
             business = {
                 'id': item.id, 'name': item.name, 'show_nickname': item.show_nickname,
                 'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
@@ -409,7 +412,8 @@ def api_business_list(request):
                 'huanxin_id': item.huanxin_id,
                 'node': cur_node, 'flow_id': project.flow_id if project else None,
                 'officeItem': model_to_dict(item.officeItem) if item.officeItem else None,
-                'jumper_id': item.jumper_id
+                'jumper_id': item.jumper_id,
+                'is_requested': isRequested
             }
             results.append(business)
 
