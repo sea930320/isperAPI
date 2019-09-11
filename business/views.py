@@ -1809,7 +1809,7 @@ def api_business_message_push(request):
         name = request.user.name
 
         project = Project.objects.get(pk=cur_project_id)
-        node = FlowNode.objects.filter(pk=bus.node_id, del_flag=0).first()
+        node = FlowNode.objects.filter(pk=(node_id if node_id else bus.node_id), del_flag=0).first()
 
         # 角色形象
         image = get_role_image(bra.flow_role_alloc_id)
