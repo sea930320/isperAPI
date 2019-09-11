@@ -165,6 +165,7 @@ urlpatterns += (
     # Jonas
     url(r'^api/workflow/selectDecide/get_setting', workflow_views.api_workflow_selectDecide_get_setting),
     url(r'^api/workflow/selectDecide/set_setting', workflow_views.api_workflow_selectDecide_set_setting),
+    url(r'^api/workflow/selectDecide/get_related_business_count', workflow_views.api_workflow_selectDecide_get_related_business_count),
 )
 
 urlpatterns += (

@@ -324,6 +324,9 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
             )
             newTeammate.save()
         else:
+            print(targetUnitUsers)
+            print("------")
+            print(teamItem)
             selectedUser = random.choice(
                 [a for a in targetUnitUsers if a['position'] == teamItem['role__job_type__name']])
             targetUnitUsers.pop(next((index for (index, x) in enumerate(targetUnitUsers) if x == selectedUser), None))
