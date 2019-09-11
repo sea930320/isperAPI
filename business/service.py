@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding=utf-8 -*-
 
+import json
 from business.models import *
 import logging
 from datetime import datetime
@@ -653,6 +654,7 @@ def get_role_position(bus, project, node, role, role_alloc_id):
         fra = FlowRoleAllocation.objects.filter(pk=bra.flow_role_alloc_id).first()
         role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node.pk,
                                                         role_id=fra.role_id, no=fra.no, del_flag=0).first()
+        print role_position
         pos = None
         if role_position:
             pos = FlowPosition.objects.filter(pk=role_position.position_id, del_flag=0).first()
@@ -1317,13 +1319,10 @@ def action_exp_node_end(bus, role_alloc_id, data):
                                                                  can_take_in=True)
                     user_ids = []
                     for bra in bras:
-                        print BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
-                                                                business_role_id=bra.role_id, no=bra.no).values_list(
-                            'user_id', flat=True)
-                        user_ids = list(set(user_ids) | set(
-                            BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
-                                                              business_role_id=bra.role_id, no=bra.no).values_list(
-                                'user_id', flat=True)))
+                        btm = BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0,
+                                                                business_role_id=bra.role_id, no=bra.no).first()
+                        if btm and btm.user_id:
+                            user_ids.append(btm.user_id)
                     # logger.info(role_ids)
                     print user_ids
                     user_count = len(user_ids)
@@ -2268,3 +2267,139 @@ def get_business_display_file_read_status(doc_list, can_terminate, user_id):
 
 def is_look_on_node(node_id):
     return FlowNode.objects.filter(pk=node_id, look_on=1).exists()
+
+
+def report_gen(business_id, item, user_id, observable, is_path=True):
+    node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first() if is_path else item
+    if node.process.type == const.PROCESS_NEST_TYPE:
+        return False
+    doc_list = []
+    vote_status = []
+    if node.process.type == 2:
+        # 如果是编辑
+        # 应用模板
+        contents = BusinessDocContent.objects.filter(business_id=business_id, node_id=node.id,
+                                                     has_edited=True)
+        for d in contents:
+            doc_list.append({
+                'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
+                'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                'url': d.file.url if d.file else None
+            })
+        # 提交的文件
+        if is_path:
+            docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id,
+                                          path_id=item.pk)
+        else:
+            docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
+        for d in docs:
+            sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
+            doc_list.append({
+                'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                'signs': list(sign_list), 'url': d.file.url if d.file else None
+            })
+    elif node.process.type == 3:
+        if is_path:
+            project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id,
+                                                  path_id=item.pk)
+        else:
+            project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
+        for d in project_docs:
+            doc_list.append({
+                'id': d.id, 'filename': d.filename, 'signs': [],
+                'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
+            })
+    elif node.process.type == 5:
+        # 如果是投票   三期 - 增加投票结果数量汇总
+        vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
+            business_id=business_id,
+            business_role_allocation__node_id=node.id,
+            # path_id=item.id,
+            vote_status=0)
+        vote_status_0 = []
+        # 去掉老师观察者角色的数据
+        for item0 in vote_status_0_temp:
+            role_alloc_temp = item0.business_role_allocation
+            if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
+                vote_status_0.append(item0)
+
+        vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
+            business_id=business_id,
+            business_role_allocation__node_id=node.id,
+            # path_id=item.id,
+            vote_status=1)
+        vote_status_1 = []
+        # 去掉老师观察者角色的数据
+        for item1 in vote_status_1_temp:
+            role_alloc_temp = item1.business_role_allocation
+            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
+                vote_status_1.append(item1)
+
+        vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
+            business_id=business_id,
+            business_role_allocation__node_id=node.id,
+            # path_id=item.id,
+            vote_status=2)
+        vote_status_2 = []
+        # 去掉老师观察者角色的数据
+        for item2 in vote_status_2_temp:
+            role_alloc_temp = item2.business_role_allocation
+            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
+                vote_status_2.append(item2)
+
+        vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
+            business_id=business_id,
+            business_role_allocation__node_id=node.id,
+            # path_id=item.id,
+            vote_status=9)
+        vote_status_9 = []
+        # 去掉老师观察者角色的数据
+        for item9 in vote_status_9_temp:
+            role_alloc_temp = item9.business_role_allocation
+            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
+                vote_status_9.append(item9)
+        vote_status = [{'status': '同意', 'num': len(vote_status_1)},
+                       {'status': '不同意', 'num': len(vote_status_2)},
+                       {'status': '弃权', 'num': len(vote_status_9)},
+                       {'status': '未投票', 'num': len(vote_status_0)}]
+        pass
+    else:
+        # 提交的文件
+        if is_path:
+            docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id,
+                                          path_id=item.id)
+        else:
+            docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
+        for d in docs:
+            sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
+            doc_list.append({
+                'id': d.id, 'filename': d.filename, 'content': d.content,
+                'signs': list(sign_list), 'url': d.file.url if d.file else None, 'file_type': d.file_type
+            })
+
+    # 消息
+    if is_path:
+        messages = BusinessMessage.objects.filter(business_id=business_id,
+                                              business_role_allocation__node_id=node.id,
+                                              path_id=item.id).order_by('timestamp')
+    else:
+        messages = BusinessMessage.objects.filter(business_id=business_id,
+                                                  business_role_allocation__node_id=node.id).order_by('timestamp')
+    message_list = []
+    for m in messages:
+        message = {
+            'user_name': m.user_name, 'role_name': m.role_name,
+            'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
+            'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        message_list.append(message)
+
+    # 个人笔记
+    note = BusinessNotes.objects.filter(business_id=business_id,
+                                        node_id=node.id,
+                                        created_by_id=user_id).first() if observable == False else None
+    return {
+        'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
+        'note': note.content if note else None, 'type': node.process.type if node.process else 0,
+        'vote_status': vote_status
+    }

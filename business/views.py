@@ -12,6 +12,7 @@ import xlwt
 from django.utils.http import urlquote
 
 from django.utils.timezone import now
+from django.utils.dateparse import parse_datetime
 
 from account.models import Tuser, TNotifications, TInnerPermission
 from django.core.paginator import Paginator, EmptyPage
@@ -26,6 +27,7 @@ from utils.request_auth import auth_check
 from workflow.models import FlowNode, FlowAction, FlowRoleActionNew, FlowRolePosition, \
     FlowPosition, RoleImage, Flow, ProcessRoleActionNew, FlowDocs, FlowRole, FlowRoleAllocation, \
     FlowRoleAllocationAction, ProcessRoleAllocationAction, FlowNodeSelectDecide, SelectDecideItem
+from student.models import *
 from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
 from django.utils import timezone
@@ -400,6 +402,8 @@ def api_business_list(request):
             else:
                 cur_node = None
 
+            isRequested = StudentRequestAssistStatus.objects.filter(business_id=item.id,
+                                                               requestedTo_id=user.id, del_flag=0, status__in=[0, 1]).exists()
             business = {
                 'id': item.id, 'name': item.name, 'show_nickname': item.show_nickname,
                 'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
@@ -411,7 +415,8 @@ def api_business_list(request):
                 'huanxin_id': item.huanxin_id,
                 'node': cur_node, 'flow_id': project.flow_id if project else None,
                 'officeItem': model_to_dict(item.officeItem) if item.officeItem else None,
-                'jumper_id': item.jumper_id
+                'jumper_id': item.jumper_id,
+                'is_requested': isRequested
             }
             results.append(business)
 
@@ -1271,7 +1276,8 @@ def api_business_templates(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         business = Business.objects.filter(pk=business_id, del_flag=0).first()
-        bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first() if not observable and role_alloc_id != 'observable' else None
+        bra = BusinessRoleAllocation.objects.filter(
+            pk=role_alloc_id).first() if not observable and role_alloc_id != 'observable' else None
         pra = ProjectRoleAllocation.objects.filter(pk=bra.project_role_alloc_id).first() if bra else None
         if business:
             if usage and usage == '3' and role_alloc_id != 'observable' and not observable:
@@ -1282,10 +1288,11 @@ def api_business_templates(request):
                 # 复制编辑模板
                 if edit_module is None:
                     doc_ids = ProjectDocRole.objects.filter(project_id=business.cur_project_id, node_id=node_id,
-                                                    role_id=pra.role_id, no=pra.no).values_list('doc_id', flat=True)
+                                                            role_id=pra.role_id, no=pra.no).values_list('doc_id',
+                                                                                                        flat=True)
                 else:
                     doc_ids = ProjectDocRole.objects.filter(project_id=business.cur_project_id, node_id=node_id,
-                                                        no=pra.no).values_list('doc_id', flat=True)
+                                                            no=pra.no).values_list('doc_id', flat=True)
 
                 project_docs = ProjectDoc.objects.filter(pk__in=doc_ids, usage=3)
                 for doc in project_docs:
@@ -1805,7 +1812,7 @@ def api_business_message_push(request):
         name = request.user.name
 
         project = Project.objects.get(pk=cur_project_id)
-        node = FlowNode.objects.filter(pk=bus.node_id, del_flag=0).first()
+        node = FlowNode.objects.filter(pk=(node_id if node_id else bus.node_id), del_flag=0).first()
 
         # 角色形象
         image = get_role_image(bra.flow_role_alloc_id)
@@ -2004,6 +2011,7 @@ def api_business_message_push(request):
                 # 结束环节 opt = {'next_node_id': 1, 'status': 1, 'process_type': 1},
                 # data={'tran_id': 1, 'project_id': 0}
                 data = json.loads(data)
+                data['cur_node'] = bus.node_id
                 result, opt = action_exp_node_end(bus, role_alloc_id, data)
                 if not result:
                     return HttpResponse(json.dumps(opt, ensure_ascii=False), content_type="application/json")
@@ -2449,13 +2457,21 @@ def api_business_request_sign_roles(request):
 
 def api_business_report_generate(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id")  # 实验ID
+        node_id = request.GET.get("node_id", None)
         user_id = request.GET.get("user_id", None)  # 用户
-        user_id = user_id if user_id else request.user.id
+        is_observable = int(request.GET.get("is_observable", 0))
+
+        if (observable or is_observable == 1) and (not node_id or not is_look_on_node(node_id)):
+            print "this case"
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        user_id = user_id if user_id else request.user.id if observable == False else None
         busi = Business.objects.filter(pk=business_id).first()
         if busi:
             project = Project.objects.filter(pk=busi.project_id).first()
@@ -2475,130 +2491,19 @@ def api_business_report_generate(request):
             # 各环节提交文件信息和聊天信息
             paths = BusinessTransPath.objects.filter(business_id=busi.id)
             node_list = []
-
+            parallel_passed_nodes = busi.parallel_passed_nodes.all()
             for item in paths:
-                node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
-                if node.process:
-                    if node.process.type == const.PROCESS_NEST_TYPE:
-                        continue
-                    doc_list = []
-                    vote_status = []
-                    if node.process.type == 2:
-                        # 如果是编辑
-                        # 应用模板
-                        contents = BusinessDocContent.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                                     has_edited=True)
-                        for d in contents:
-                            doc_list.append({
-                                'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
-                                'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                                'url': d.file.url if d.file else None
-                            })
-                        # 提交的文件
-                        docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                          path_id=item.pk)
-                        for d in docs:
-                            sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                            doc_list.append({
-                                'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                                'signs': list(sign_list), 'url': d.file.url if d.file else None
-                            })
-                    elif node.process.type == 3:
-                        project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                                  path_id=item.pk)
-                        for d in project_docs:
-                            doc_list.append({
-                                'id': d.id, 'filename': d.filename, 'signs': [],
-                                'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
-                            })
-                    elif node.process.type == 5:
-                        # 如果是投票   三期 - 增加投票结果数量汇总
-                        vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
-                            business_id=business_id,
-                            business_role_allocation__node_id=item.node_id,
-                            # path_id=item.id,
-                            vote_status=0)
-                        vote_status_0 = []
-                        # 去掉老师观察者角色的数据
-                        for item0 in vote_status_0_temp:
-                            role_alloc_temp = item0.business_role_allocation
-                            if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
-                                vote_status_0.append(item0)
-
-                        vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
-                            business_id=business_id,
-                            business_role_allocation__node_id=item.node_id,
-                            # path_id=item.id,
-                            vote_status=1)
-                        vote_status_1 = []
-                        # 去掉老师观察者角色的数据
-                        for item1 in vote_status_1_temp:
-                            role_alloc_temp = item1.business_role_allocation
-                            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                                vote_status_1.append(item1)
-
-                        vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
-                            business_id=business_id,
-                            business_role_allocation__node_id=item.node_id,
-                            # path_id=item.id,
-                            vote_status=2)
-                        vote_status_2 = []
-                        # 去掉老师观察者角色的数据
-                        for item2 in vote_status_2_temp:
-                            role_alloc_temp = item2.business_role_allocation
-                            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                                vote_status_2.append(item2)
-
-                        vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
-                            business_id=business_id,
-                            business_role_allocation__node_id=item.node_id,
-                            # path_id=item.id,
-                            vote_status=9)
-                        vote_status_9 = []
-                        # 去掉老师观察者角色的数据
-                        for item9 in vote_status_9_temp:
-                            role_alloc_temp = item9.business_role_allocation
-                            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                                vote_status_9.append(item9)
-                        vote_status = [{'status': '同意', 'num': len(vote_status_1)},
-                                       {'status': '不同意', 'num': len(vote_status_2)},
-                                       {'status': '弃权', 'num': len(vote_status_9)},
-                                       {'status': '未投票', 'num': len(vote_status_0)}]
-                        pass
-                    else:
-                        # 提交的文件
-                        docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                          path_id=item.id)
-                        for d in docs:
-                            sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                            doc_list.append({
-                                'id': d.id, 'filename': d.filename, 'content': d.content,
-                                'signs': list(sign_list), 'url': d.file.url if d.file else None, 'file_type': d.file_type
-                            })
-
-                    # 消息
-                    messages = BusinessMessage.objects.filter(business_id=business_id,
-                                                              business_role_allocation__node_id=item.node_id,
-                                                              path_id=item.id).order_by('timestamp')
-                    message_list = []
-                    for m in messages:
-                        message = {
-                            'user_name': m.user_name, 'role_name': m.role_name,
-                            'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
-                            'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                        }
-                        message_list.append(message)
-
-                    # 个人笔记
-                    note = BusinessNotes.objects.filter(business_id=business_id,
-                                                        node_id=item.node_id, created_by_id=user_id).first()
-                    node_list.append({
-                        'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
-                        'note': note.content if note else None, 'type': node.process.type if node.process else 0,
-                        'vote_status': vote_status
-                    })
-
-            experience = BusinessExperience.objects.filter(business_id=busi.id, created_by_id=user_id).first()
+                node_item = report_gen(business_id, item, user_id, observable)
+                if node_item == False:
+                    continue
+                node_list.append(node_item)
+            for item in parallel_passed_nodes:
+                node_item = report_gen(business_id, item.node, user_id, observable, False)
+                if node_item == False:
+                    continue
+                node_list.append(node_item)
+            experience = BusinessExperience.objects.filter(business_id=busi.id,
+                                                           created_by_id=user_id).first() if observable == False else None
             experience_data = {'status': 1, 'content': ''}
             if experience:
                 experience_data = {
@@ -2641,16 +2546,16 @@ def set_style(height, bold=False):
     style.pattern = pattern
     return style
 
-
 def api_business_report_export(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id")  # 实验ID
         user_id = request.GET.get("user_id", None)  # 用户
-        user_id = user_id if user_id else request.user.id
+        user_id = user_id if user_id else request.user.id if not observable else None
         busi = Business.objects.filter(pk=business_id).first()
 
         docTitle = [u'文件名', u'文件类型', u'签字', u'url']
@@ -2660,200 +2565,79 @@ def api_business_report_export(request):
         experienceTitle = [u'user_name', u'time', u'content']
 
         if busi:
-            project = Project.objects.filter(pk=busi.project_id).first()
+            project = Project.objects.get(pk=busi.project_id)
+            flow = Flow.objects.get(pk=project.flow_id)
             members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id', flat=True)
-
             # 小组成员
             member_list = []
-
+            member_names = ""
             for uid in members:
-                if uid is not None:
-                    user = Tuser.objects.get(pk=int(uid))
-                    member_list.append(user.name)
+                if not uid:
+                    continue
+                user = Tuser.objects.get(pk=int(uid))
+                member_list.append(user.name)
+                if member_names == "":
+                    member_names = user.name + "(" + user.username + ")"
+                else:
+                    member_names = ", " + user.name + "(" + user.username + ")"
+            # 打开文档
+            document = Document()
+            # 加入不同等级的标题
+            document.add_heading(u'业务报告', 1)
+            table = document.add_table(rows=6, cols=4)
+            table.style = 'Table Grid'
+
+            for i in [0, 1, 2, 4, 5]:
+                table.cell(i, 0).merge(table.cell(i, 1))
+                table.cell(i, 2).merge(table.cell(i, 3))
+
+            table.cell(0, 0).text = u'业务名称'
+            table.cell(0, 2).text = busi.name
+            table.cell(1, 0).text = u'项目名称'
+            table.cell(1, 2).text = project.name
+            table.cell(2, 0).text = u'流程名称'
+            table.cell(2, 2).text = flow.name
+            table.cell(4, 0).text = u'参与人员'
+            table.cell(4, 2).text = member_names
+            table.cell(5, 0).text = u'启动人'
+            table.cell(5, 2).text = busi.created_by.name if busi.created_by else ""
+            table.cell(3, 0).text =  u'启动时间'
+            table.cell(3, 1).text =  busi.create_time.strftime('%Y-%m-%d') if busi.create_time else ""
+            table.cell(3, 2).text =  u'完成时间'
+            table.cell(3, 3).text =  busi.finish_time.strftime('%Y-%m-%d') if busi.finish_time else ""
+
+            p = document.add_paragraph()
+            run = p.add_run()
+            run.add_break()
+
+            document.add_heading(u'业务成果', 1)
 
             # 各环节提交文件信息和聊天信息
             paths = BusinessTransPath.objects.filter(business_id=busi.id)
-            report = xlwt.Workbook(encoding='utf8')
+            node_list = []
             for item in paths:
-                node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
-                if node.process.type == const.PROCESS_NEST_TYPE:
+                node_item = report_gen(business_id, item, user_id, observable)
+                if node_item == False:
                     continue
-                doc_list = []
-                vote_status = []
-                sheet = report.add_sheet(node.name)
-
-                if node.process.type == 2:
-                    # 如果是编辑
-                    # 应用模板
-                    contents = BusinessDocContent.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                                 has_edited=True)
-                    for d in contents:
-                        doc_list.append({
-                            'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
-                            'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                            'url': d.file.url if d.file else None
-                        })
-                    # 提交的文件
-                    docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                      path_id=item.pk)
-                    for d in docs:
-                        sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                            'signs': list(sign_list), 'url': d.file.url if d.file else None
-                        })
-                elif node.process.type == 3:
-                    project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                              path_id=item.pk)
-                    for d in project_docs:
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'signs': [],
-                            'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
-                        })
-                elif node.process.type == 5:
-                    # 如果是投票   三期 - 增加投票结果数量汇总
-                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=0)
-                    vote_status_0 = []
-                    # 去掉老师观察者角色的数据
-                    for item0 in vote_status_0_temp:
-                        role_alloc_temp = item0.business_role_allocation
-                        if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_0.append(item0)
-
-                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=1)
-                    vote_status_1 = []
-                    # 去掉老师观察者角色的数据
-                    for item1 in vote_status_1_temp:
-                        role_alloc_temp = item1.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_1.append(item1)
-
-                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=2)
-                    vote_status_2 = []
-                    # 去掉老师观察者角色的数据
-                    for item2 in vote_status_2_temp:
-                        role_alloc_temp = item2.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_2.append(item2)
-
-                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=9)
-                    vote_status_9 = []
-                    # 去掉老师观察者角色的数据
-                    for item9 in vote_status_9_temp:
-                        role_alloc_temp = item9.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_9.append(item9)
-                    vote_status = [{'status': '同意', 'num': len(vote_status_1)},
-                                   {'status': '不同意', 'num': len(vote_status_2)},
-                                   {'status': '弃权', 'num': len(vote_status_9)},
-                                   {'status': '未投票', 'num': len(vote_status_0)}]
-                    pass
-                else:
-                    # 提交的文件
-                    docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                      path_id=item.id)
-                    for d in docs:
-                        sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'content': d.content,
-                            'signs': list(sign_list), 'url': d.file.url if d.file else None, 'file_type': d.file_type
-                        })
-
-                # 消息
-                messages = BusinessMessage.objects.filter(business_id=business_id,
-                                                          business_role_allocation__node_id=item.node_id,
-                                                          path_id=item.id).order_by('timestamp')
-                message_list = []
-                for m in messages:
-                    message = {
-                        'user_name': m.user_name, 'role_name': m.role_name,
-                        'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
-                        'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                    }
-                    message_list.append(message)
-
-                # 个人笔记
-                note = BusinessNotes.objects.filter(business_id=business_id,
-                                                    node_id=item.node_id, created_by_id=user_id).first()
-
-                # 设置样式
-                for i in range(0, len(docTitle)):
-                    sheet.write(0, i, docTitle[i], set_style(220, True))
-                row = 1
-                for d in doc_list:
-                    sheet.write(row, 0, d['filename'])
-                    sheet.write(row, 1, d['file_type'])
-                    topRow = row
-                    for sign in d['signs']:
-                        if int(sign['sign_status']) == 1:
-                            sheet.write(topRow, 2, sign['sign'] + u'--已签字')
-                            topRow += 1
-                        elif int(sign['sign_status']) == 2:
-                            sheet.write(topRow, 2, sign['sign'] + u'--已拒绝签字')
-                            topRow += 1
-                    sheet.write(row, 3, d['url'])
-                    row = topRow
-                    row += 1
-
-                row += 2
-                for i in range(0, len(messageTitle)):
-                    sheet.write(row, i, messageTitle[i], set_style(220, True))
-                row += 1
-                for m in message_list:
-                    sheet.write(row, 0, m['user_name'])
-                    sheet.write(row, 1, m['role_name'])
-                    sheet.write(row, 2, m['timestamp'])
-                    if m['ext']['cmd'] == 'action_submit_experience':
-                        sheet.write(row, 3, m['ext']['opt']['content'])
-                    else:
-                        sheet.write(row, 3, m['msg'])
-                    row += 1
-
-                if node.process.type == 5:
-                    row += 2
-                    for i in range(0, len(voteTitle)):
-                        sheet.write(row, i, voteTitle[i], set_style(220, True))
-                    row += 1
-                    for i in range(0, len(vote_status)):
-                        sheet.write(row, i, vote_status[i].num)
-                    row += 1
-                if note:
-                    row += 2
-                    sheet.write(row, 0, noteTitle, set_style(220, True))
-                    row += 1
-                    sheet.write(row, 0, note.content, set_style(220, True))
-
+                node_list.append(node_item)
+            for node in node_list:
+                document.add_heading(node['node_name'], level=2)
             experiences = BusinessExperience.objects.filter(business_id=busi.id)
-            sheet = report.add_sheet(u'Experience')  # 设置样式
-            for i in range(0, len(experienceTitle)):
-                sheet.write(0, i, experienceTitle[i], set_style(220, True))
-            row = 1
-            for e in experiences:
-                sheet.write(row, 0, e.created_by.name)
-                sheet.write(row, 1, e.create_time.strftime('%Y-%m-%d'))
-                sheet.write(row, 2, e.content)
-                row += 1
+            # sheet = report.add_sheet(u'Experience')  # 设置样式
+            # for i in range(0, len(experienceTitle)):
+            #     sheet.write(0, i, experienceTitle[i], set_style(220, True))
+            # row = 1
+            # for e in experiences:
+            #     sheet.write(row, 0, e.created_by.name)
+            #     sheet.write(row, 1, e.create_time.strftime('%Y-%m-%d'))
+            #     sheet.write(row, 2, e.content)
+            #     row += 1
 
-            response = HttpResponse(content_type='application/vnd.ms-excel')
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             filename = urlquote(u'心得')
-            response['Content-Disposition'] = u'attachment;filename=%s.xls' % filename
-            report.save(response)
+            response['Content-Disposition'] = u'attachment;filename=%s.docx' % filename
+            document.save(response)
+            # report.save(response)
             return response
         else:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
@@ -2867,8 +2651,9 @@ def api_business_report_export(request):
 
 def api_business_experience_list(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id")  # 实验ID
@@ -3444,7 +3229,7 @@ def am_i_vote_member(request, statusMsg):
                 business_id=business_id,
                 node_id=node_id
             ).first()
-            if not vote.members.filter(user_id=request.user.pk).exists():
+            if observable == False and not vote.members.filter(user_id=request.user.pk).exists():
                 resp = code.get_msg(code.SUCCESS)
                 if statusMsg is None:
                     resp['d'] = {'status': 2, 'data': "您不能参与表决"}
@@ -3470,7 +3255,7 @@ def am_i_vote_member(request, statusMsg):
                 else:
                     resp['d'] = {'status': 2, 'data': statusMsg}
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-            elif vote.members.get(user_id=request.user.pk).voted == 1:
+            elif observable == False and vote.members.get(user_id=request.user.pk).voted == 1:
                 resp = code.get_msg(code.SUCCESS)
                 if vote.mode == 4:
                     resp['d'] = {'status': 2, 'data': "您已经输入了表决选项"}
@@ -3495,6 +3280,27 @@ def am_i_vote_member(request, statusMsg):
                     resp['d'] = {'status': 5, 'data': data}
                 else:
                     resp['d'] = {'status': 2, 'data': "您已经进行表决"}
+                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            elif observable == True and vote.mode != 4 and not vote.members.filter(voted=0).exists():
+                resp = code.get_msg(code.SUCCESS)
+                data = {
+                    'title': vote.title,
+                    'description': vote.description,
+                    'mode': vote.mode,
+                    'method': vote.method,
+                    'members': [{
+                        'id': member.pk,
+                        'username': member.user.name,
+                        'voted': member.voted,
+                    } for member in vote.members.all()],
+                    'items': [{
+                        'id': item.pk,
+                        'text': item.content,
+                        'voted_count': item.voted_count,
+                        'voted_users': [user.name for user in item.voted_users.all()]
+                    } for item in vote.items.all()]
+                }
+                resp['d'] = {'status': 5, 'data': data}
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
             elif vote.end_time <= timezone.now():
                 resp = code.get_msg(code.SUCCESS)
@@ -4479,6 +4285,53 @@ def api_business_doc_team_status(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+def api_business_doc_team_status1(request):
+    resp = auth_check(request, "GET")
+
+    try:
+        bdts_list = []
+
+        business_id = request.GET.get("business_id", None)
+        node_id = request.GET.get("node_id", None)
+
+        if None in (business_id, node_id):
+            resp = code.get_msg(code.SYSTEM_ERROR)
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+        team_members = BusinessTeamMember.objects.filter(business_id=business_id)
+        docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node_id)
+        user = None
+
+        for member in team_members:
+            status = 0
+            for doc in docs:
+                b = BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id,
+                                                         business_doc_id=doc.pk,
+                                                         business_team_member_id=member.pk).first();
+
+                if member.user_id is None:
+                    break;
+                user = Tuser.objects.filter(pk=member.user_id).first().name
+
+                if b is not None:
+                    if b.status == 2:
+                        status = 2;
+                        bdts_list.append({'user_name': user, 'status' : 'signed'})
+                        break
+                    elif b.status == -1:
+                        status = -1;
+                        bdts_list.append({'user_name': user, 'status' : 'reject'})
+                        break
+            if status == 0 and user is not None:
+                bdts_list.append({'user_name': user, 'status': 'review'})
+
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = bdts_list
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    except Exception as e:
+        logger.exception('api_business_doc_team_status1 Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 def get_group_userList(request):
     resp = auth_check(request, "GET")
@@ -4554,7 +4407,7 @@ def api_business_doc_team_staus_update(request):
         user_id = request.POST.get("user_id", None)
         status = request.POST.get("status", None)
 
-        if None in (business_id, business_doc_id, node_id, user_id, status):
+        if None in (business_id,  node_id, user_id, status):
             resp = code.get_msg(code.SYSTEM_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -4564,8 +4417,11 @@ def api_business_doc_team_staus_update(request):
             resp = code.get_msg(code.SYSTEM_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-        BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk,
-                                             business_doc_id=business_doc_id).update(status=1);
+        if business_doc_id is None:
+            BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk).update(status=status);
+        else:
+            BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk,
+                                             business_doc_id=business_doc_id).update(status=status);
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
@@ -4698,17 +4554,20 @@ def api_business_doc_create_from_prev(request):
 
 def api_business_survey(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
 
     try:
         business_id = request.GET.get("business_id", None)
         node_id = request.GET.get("node_id", None)
+        is_observable = request.GET.get("is_observable", None)
 
         if None in (business_id, node_id):
             resp = code.get_msg(code.PARAMETER_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
+        if (observable or is_observable == '1') and not is_look_on_node(node_id):
+            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         business = Business.objects.filter(pk=business_id).first();
         if business is None:
             resp = code.get_msg(code.PARAMETER_ERROR)
@@ -4725,9 +4584,9 @@ def api_business_survey(request):
                 'id': qs.id, 'business_id': qs.business_id, 'project_id': qs.project_id, 'node_id': qs.node_id,
                 'title': qs.title,
                 'description': qs.description, 'step': qs.step,
-                'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+                'start_time': qs.start_time.strftime('%Y-%m-%d %H:%M:%S') if qs.start_time else '',
                 'end_time': qs.end_time.strftime(
-                    '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target
+                    '%Y-%m-%d %H:%M:%S') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target
             }
             selectQuestions = BusinessQuestion.objects.filter(
                 survey_id=qs.pk, type=0
@@ -5021,8 +4880,8 @@ def api_business_survey_publish(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
         businessSurvey.target = target
         if start_date and end_date:
-            businessSurvey.start_time = datetime.strptime(start_date, '%Y-%m-%d')
-            businessSurvey.end_time = datetime.strptime(end_date, '%Y-%m-%d')
+            businessSurvey.start_time = parse_datetime(start_date + 'T00:00:00+08:00')
+            businessSurvey.end_time = parse_datetime(end_date + 'T23:59:59+08:00')
         if businessSurvey.step is None or businessSurvey.step < 6:
             businessSurvey.step = 6
         businessSurvey.save()
@@ -5095,8 +4954,9 @@ def api_business_survey_public_list(request):
         page = request.GET.get("page", 1)
         size = request.GET.get("size", 10)
         search = request.GET.get("search", "")
-
-        bsQs = BusinessSurvey.objects.filter(target=0, title__contains=search).order_by('-create_time')
+        print datetime.now()
+        bsQs = BusinessSurvey.objects.filter(target=0, title__contains=search, start_time__lte=datetime.now(),
+                                             end_time__gte=datetime.now()).order_by('-create_time')
         paginator = Paginator(bsQs, size)
         try:
             bsurveyQs = paginator.page(page)
@@ -5111,9 +4971,9 @@ def api_business_survey_public_list(request):
                 'title': qs.title,
                 'description': qs.description, 'step': qs.step,
                 'created_at': qs.create_time.strftime('%Y-%m-%d') if qs.create_time else '',
-                'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+                'start_time': qs.start_time.strftime('%Y-%m-%d %H:%M:%S') if qs.start_time else '',
                 'end_time': qs.end_time.strftime(
-                    '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
+                    '%%Y-%m-%d %H:%M:%S') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
                 'link': '/survey/' + str(qs.id),
                 'is_ended': qs.business.node_id != qs.node_id
             }
@@ -5211,9 +5071,9 @@ def api_business_survey_public_detail(request):
             'title': qs.title,
             'description': qs.description, 'step': qs.step,
             'created_at': qs.create_time.strftime('%Y-%m-%d') if qs.create_time else '',
-            'start_time': qs.start_time.strftime('%Y-%m-%d') if qs.start_time else '',
+            'start_time': qs.start_time.strftime('%Y-%m-%d %H:%M:%S') if qs.start_time else '',
             'end_time': qs.end_time.strftime(
-                '%Y-%m-%d') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
+                '%Y-%m-%d %H:%M:%S') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target,
             'link': '/survey/' + str(qs.id),
             'is_ended': cur_node_id != qs.node_id
         }
@@ -5729,35 +5589,43 @@ def api_business_get_init_evaluation(request):
         except EmptyPage:
             allBusiness = paginator.page(1)
         if allBusiness:
-            results = [{
-                'business_id': b.id,
-                'business_name': b.name,
-                'create_company': b.target_company.name if b.target_company else b.target_part.company.name,
-                'create_time': b.create_time.strftime('%Y-%m-%d %H:%M:%S'),
-                'business_status': u'已完成',
-                'members': [{
+            results = []
+            for b in allBusiness:
+                result = {
                     'business_id': b.id,
-                    'user_id': member.user_id,
-                    'name': member.user.username,
-                    'company': '' if not member.user.tcompany else member.user.tcompany.name if not member.user.tcompany.is_default else '',
-                    'part': member.user.tposition.parts.name if member.user.tposition else '',
-                    'position': member.user.tposition.name if member.user.tposition else '',
-                    'role': member.business_role.name,
-                    'value': BusinessEvaluation.objects.get(business_id=b.id,
-                                                            user_id=member.user_id).value if BusinessEvaluation.objects.filter(
-                        business_id=b.id, user_id=member.user_id).first() else '',
-                    'comment': BusinessEvaluation.objects.get(business_id=b.id,
-                                                              user_id=member.user_id).comment if BusinessEvaluation.objects.filter(
-                        business_id=b.id, user_id=member.user_id).first() else '',
-                    'node_evaluation': [{
-                        'alloc_id': alloc.id,
-                        'node_name': alloc.node.name,
-                        'node_comment': BusinessEvaluation.objects.get(
-                            role_alloc_id=alloc.id).comment if BusinessEvaluation.objects.filter(
-                            role_alloc_id=alloc.id).first() else '',
-                    } for alloc in BusinessRoleAllocation.objects.filter(role_id=member.business_role_id, no=member.no)]
-                } for member in BusinessTeamMember.objects.filter(business_id=b.id)]
-            } for b in allBusiness]
+                    'business_name': b.name,
+                    'create_company': b.target_company.name if b.target_company else b.target_part.company.name,
+                    'create_time': b.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'business_status': u'已完成',
+                    'members': []
+                }
+                for member in BusinessTeamMember.objects.filter(business_id=b.id):
+                    if not member.user:
+                        continue
+                    result['members'].append({
+                        'business_id': b.id,
+                        'user_id': member.user_id,
+                        'name': member.user.username,
+                        'company': '' if not member.user.tcompany else member.user.tcompany.name if not member.user.tcompany.is_default else '',
+                        'part': member.user.tposition.parts.name if member.user.tposition else '',
+                        'position': member.user.tposition.name if member.user.tposition else '',
+                        'role': member.business_role.name,
+                        'value': BusinessEvaluation.objects.get(business_id=b.id,
+                                                                user_id=member.user_id).value if BusinessEvaluation.objects.filter(
+                            business_id=b.id, user_id=member.user_id).first() else '',
+                        'comment': BusinessEvaluation.objects.get(business_id=b.id,
+                                                                  user_id=member.user_id).comment if BusinessEvaluation.objects.filter(
+                            business_id=b.id, user_id=member.user_id).first() else '',
+                        'node_evaluation': [{
+                            'alloc_id': alloc.id,
+                            'node_name': alloc.node.name,
+                            'node_comment': BusinessEvaluation.objects.get(
+                                role_alloc_id=alloc.id).comment if BusinessEvaluation.objects.filter(
+                                role_alloc_id=alloc.id).first() else '',
+                        } for alloc in
+                            BusinessRoleAllocation.objects.filter(role_id=member.business_role_id, no=member.no)]
+                    })
+                results.append(result)
         else:
             results = []
 
@@ -5867,16 +5735,16 @@ def api_bill_chapter_list(request):
 
 
 def getAllBillList(bill_id, show_mode):
-    res = []
-    bill_name_object = BusinessBillList.objects.filter(id=bill_id).first()
-    chapters_objects = bill_name_object.chapters.all().order_by("chapter_number")
-    for chapters_object in chapters_objects:
-        sections_objects = chapters_object.sections.all().order_by("section_number")
-        for sections_object in sections_objects:
-            parts_objects = sections_object.parts.all().order_by("part_number")
-            for parts_object in parts_objects:
-                res_json = {}
-                if (show_mode == '1'):
+    bill_name_object = BusinessBillList.objects.filter(id=bill_id, edit_mode=int(show_mode)).first()
+    if (show_mode == '1'):
+        res = []
+        chapters_objects = bill_name_object.chapters.all().order_by("chapter_number")
+        for chapters_object in chapters_objects:
+            sections_objects = chapters_object.sections.all().order_by("section_number")
+            for sections_object in sections_objects:
+                parts_objects = sections_object.parts.all().order_by("part_number")
+                for parts_object in parts_objects:
+                    res_json = {}
                     res_json["chapter_id"] = chapters_object.id
                     res_json["chapter_number"] = chapters_object.chapter_number
                     res_json["chapter_title"] = chapters_object.chapter_title
@@ -5892,29 +5760,26 @@ def getAllBillList(bill_id, show_mode):
                     res_json["part_reason"] = parts_object.part_reason
                     res.append(res_json)
                     continue
-                if (show_mode == '2'):
-                    res_json["chapter_id"] = chapters_object.id
-                    res_json["chapter_number"] = chapters_object.chapter_number
-                    res_json["chapter_title"] = chapters_object.chapter_title
-                    res_json["chapter_content"] = chapters_object.chapter_content
-                    res_json["section_id"] = sections_object.id
-                    res_json["section_number"] = sections_object.section_number
-                    res_json["section_title"] = sections_object.section_title
-                    res_json["section_content"] = sections_object.section_content
-                    res_json["part_id"] = parts_object.id
-                    res_json["part_number"] = parts_object.part_number
-                    res_json["part_title"] = parts_object.part_title
-                    res_json["part_content"] = parts_object.part_content
-                    res_json["part_reason"] = parts_object.part_reason
-                    res.append(res_json)
-                    continue
+    elif (show_mode == '2'):
+        res = []
+        part_mode_parts_objects = bill_name_object.part_mode_parts.all().order_by("part_number")
+        for part_mode_parts_object in part_mode_parts_objects:
+            res_json = {}
+            res_json["part_id"] = part_mode_parts_object.id
+            res_json["part_number"] = part_mode_parts_object.part_number
+            res_json["part_title"] = part_mode_parts_object.part_title
+            res_json["part_content"] = part_mode_parts_object.part_content
+            res_json["part_reason"] = part_mode_parts_object.part_reason
+            res.append(res_json)
+            continue
     return res
 
 
 def api_bill_name_list(request):
     resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
         business_id = request.GET.get("business_id", None)
         show_mode = request.GET.get("show_mode", None)
@@ -5933,95 +5798,20 @@ def api_bill_name_list(request):
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
-def api_bill_update_full(request):
-    resp = auth_check(request, "POST")
+def api_bill_name_only(request):
+    resp = auth_check(request, "GET")
+    observable = False
     if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+        observable = True
     try:
-        chapter_id = request.POST.get("chapter_id", None)
-        section_id = request.POST.get("section_id", None)
-        part_id = request.POST.get("part_id", None)
-        chapter_title = request.POST.get("chapter_title", None)
-        section_title = request.POST.get("section_title", None)
-        part_title = request.POST.get("part_title", None)
-        part_content = request.POST.get("part_content", None)
-        chapter = BusinessBillChapter.objects.get(id=chapter_id)
-        section = BusinessBillSection.objects.get(id=section_id)
-        part = BusinessBillPart.objects.get(id=part_id)
-        chapter.chapter_title = chapter_title
-        section.section_title = section_title
-        part.part_title = part_title
-        part.part_content = part_content
-        chapter.save()
-        section.save()
-        part.save()
+        business_id = request.GET.get("business_id", None)
+        bill_name = BusinessBillList.objects.filter(business_id=business_id)
         resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-def api_bill_update_billname(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        business_id = request.POST.get("business_id", None)
-        bill_name = request.POST.get("bill_name", None)
-        BusinessBillList.objects.update_or_create(business_id=business_id, defaults={'bill_name': bill_name})
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-def api_bill_part_delete(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        section_id = request.POST.get("section_id", None)
-        part_id = request.POST.get("part_id", None)
-        part = BusinessBillPart.objects.filter(id=part_id).first()
-        part_number = part.part_number
-        section = BusinessBillSection.objects.filter(id=section_id).first()
-        section.parts.remove(part)
-        part_docs = part.part_docs.all()
-        for part_doc in part_docs:
-            part.part_docs.remove(part_doc)
-            part_doc.delete()
-        part.delete()
-        for part_one in section.parts.all():
-            if (part_one.part_number > part_number):
-                part_one.part_number = part_one.part_number - 1
-                part_one.save()
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-def api_bill_part_add(request):
-    resp = auth_check(request, "POST")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        section_id = request.POST.get("section_id", None)
-        part_number = request.POST.get("part_number", None)
-        part_title = request.POST.get("part_title", None)
-        part_content = request.POST.get("part_content", None)
-        part_reason = request.POST.get("part_reason", None)
-        added_part = BusinessBillPart.objects.create(part_number=int(part_number), part_title=part_title,
-                                                     part_content=part_content, part_reason=part_reason)
-        section = BusinessBillSection.objects.get(id=section_id)
-        section.parts.add(added_part)
-        resp = code.get_msg(code.SUCCESS)
+        if (len(bill_name) == 0):
+            resp['d'] = {'bill_name': '', 'bill_id': 0, 'bill_data': []}
+        else:
+            resp['d'] = {'bill_name': bill_name.first().bill_name, 'bill_id': bill_name.first().id,
+                         'edit_mode': bill_name.first().edit_mode}
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -6034,20 +5824,36 @@ def api_bill_doc_list(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+        edit_mode = request.GET.get("edit_mode", None)
         part_id = request.GET.get("part_id", None)
-        parts = BusinessBillPart.objects.filter(id=part_id).first()
-        part_docs = parts.part_docs.all()
-        res = []
-        for part_doc in part_docs:
-            res_one = {}
-            res_one["id"] = part_doc.id
-            res_one["doc_id"] = part_doc.doc_id
-            res_one["doc_conception"] = part_doc.doc_conception
-            res_one["doc_url"] = part_doc.doc_url
-            res_one["doc_name"] = part_doc.doc_name
-            res.append(res_one)
-        resp = code.get_msg(code.SUCCESS)
-        resp['d'] = {'doc_data': res}
+        if (int(edit_mode) == 1):
+            parts = BusinessBillPart.objects.filter(id=part_id).first()
+            part_docs = parts.part_docs.all()
+            res = []
+            for part_doc in part_docs:
+                res_one = {}
+                res_one["id"] = part_doc.id
+                res_one["doc_id"] = part_doc.doc_id
+                res_one["doc_conception"] = part_doc.doc_conception
+                res_one["doc_url"] = part_doc.doc_url
+                res_one["doc_name"] = part_doc.doc_name
+                res.append(res_one)
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'doc_data': res}
+        if (int(edit_mode) == 2):
+            parts = BusinessBillPartPartMode.objects.filter(id=part_id).first()
+            part_docs = parts.part_docs.all()
+            res = []
+            for part_doc in part_docs:
+                res_one = {}
+                res_one["id"] = part_doc.id
+                res_one["doc_id"] = part_doc.doc_id
+                res_one["doc_conception"] = part_doc.doc_conception
+                res_one["doc_url"] = part_doc.doc_url
+                res_one["doc_name"] = part_doc.doc_name
+                res.append(res_one)
+            resp = code.get_msg(code.SUCCESS)
+            resp['d'] = {'doc_data': res}
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -6079,6 +5885,7 @@ def api_bill_doc_upload(request):
     if resp != {}:
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
+        edit_mode = request.POST.get("edit_mode", None)
         doc_id = request.POST.get("doc_id", None)
         doc_url = request.POST.get("doc_url", None)
         doc_conception = request.POST.get("doc_conception", None)
@@ -6086,60 +5893,12 @@ def api_bill_doc_upload(request):
         doc_name = doc_url.split("/")[-1]
         added_doc = BusinessBillPartDoc.objects.create(doc_id=int(doc_id), doc_url=doc_url, doc_name=doc_name,
                                                        doc_conception=doc_conception)
-        part = BusinessBillPart.objects.filter(id=part_id).first()
-        part.part_docs.add(added_doc)
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-def api_bill_part_up(request):
-    resp = auth_check(request, "GET")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        section_id = request.GET.get("section_id", None)
-        part_number = request.GET.get("part_number", None)
-        if (int(part_number) == 1):
-            resp = code.get_msg(code.BUSINESS_BILL_NOT_UP)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        des_part_number = int(part_number) - 1
-        sections = BusinessBillSection.objects.filter(id=section_id).first()
-        selected_part = sections.parts.filter(part_number=part_number)[0]
-        des_part = sections.parts.filter(part_number=des_part_number)[0]
-        selected_part.part_number = des_part_number
-        selected_part.save()
-        des_part.part_number = part_number
-        des_part.save()
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
-
-def api_bill_part_down(request):
-    resp = auth_check(request, "GET")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        section_id = request.GET.get("section_id", None)
-        part_number = request.GET.get("part_number", None)
-        sections = BusinessBillSection.objects.filter(id=section_id).first()
-        selected_part = sections.parts.filter(part_number=part_number)[0]
-        if (int(part_number) == len(sections.parts.all())):
-            resp = code.get_msg(code.BUSINESS_BILL_NOT_DOWN)
-            return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-        des_part_number = int(part_number) + 1
-        des_part = sections.parts.filter(part_number=des_part_number)[0]
-        selected_part.part_number = des_part_number
-        selected_part.save()
-        des_part.part_number = part_number
-        des_part.save()
+        if (int(edit_mode) == 1):
+            part = BusinessBillPart.objects.filter(id=part_id).first()
+            part.part_docs.add(added_doc)
+        if (int(edit_mode) == 2):
+            part = BusinessBillPartPartMode.objects.filter(id=part_id).first()
+            part.part_docs.add(added_doc)
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
@@ -6176,72 +5935,6 @@ def api_bill_part_insert(request):
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
-def api_bill_doc_preview(request):
-    document = Document()
-    section = document.sections[0]
-    section.page_height = Mm(297)
-    section.page_width = Mm(210)
-    resp = auth_check(request, "GET")
-    if resp != {}:
-        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-    try:
-        business_id = request.GET.get("business_id", None)
-        bill_lists = BusinessBillList.objects.filter(business_id=business_id).first()
-        bill_title = bill_lists.bill_name
-        style = document.styles['Heading 1']
-        font_bill = style.font
-        font_bill.name = 'Arial'
-        font_bill.size = Pt(40)
-        paragraph_bill = document.add_paragraph(bill_title, style='Heading 1')
-        paragraph_bill.add_run().add_break(WD_BREAK.LINE)
-
-        chapters_lists = bill_lists.chapters.all()
-        for chapter_one in chapters_lists:
-            style_chapter = document.styles['List Number']
-            font_chapter = style_chapter.font
-            font_chapter.name = 'Arial'
-            font_chapter.size = Pt(30)
-            paragraph_chapter = document.add_paragraph(chapter_one.chapter_title, style='List Number')
-            paragraph_chapter.add_run().add_break(WD_BREAK.LINE)
-
-            sections_lists = chapter_one.sections.all()
-            for section_one in sections_lists:
-                style_section = document.styles['List Number 2']
-                font_section = style_section.font
-                font_section.name = 'Arial'
-                font_section.size = Pt(20)
-                paragraph_section = document.add_paragraph(section_one.section_title, style='List Number 2')
-                paragraph_section.add_run().add_break(WD_BREAK.LINE)
-
-                parts_lists = section_one.parts.all()
-                for part_one in parts_lists:
-                    style_part = document.styles['List Number 3']
-                    font_part = style_part.font
-                    font_part.name = 'Arial'
-                    font_part.size = Pt(15)
-                    paragraph_part = document.add_paragraph(part_one.part_title, style='List Number 3')
-                    paragraph_part.add_run().add_break(WD_BREAK.LINE)
-
-                    style_part_content = document.styles['Body Text']
-                    font_part_content = style_part_content.font
-                    font_part_content.name = 'Arial'
-                    font_part_content.size = Pt(10)
-                    paragraph_part_content = document.add_paragraph(part_one.part_content, style='Body Text')
-                    paragraph_part_content.add_run().add_break(WD_BREAK.LINE)
-                    if ((parts_lists[len(parts_lists) - 1] == part_one) and (
-                                sections_lists[len(sections_lists) - 1] == section_one)):
-                        if (chapters_lists[len(chapters_lists) - 1] != chapter_one):
-                            paragraph_part_content.add_run().add_break(WD_BREAK.PAGE)
-
-        document.add_page_break()
-        document.save('demo.docx')
-        resp = code.get_msg(code.SUCCESS)
-    except Exception as e:
-        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
-        resp = code.get_msg(code.SYSTEM_ERROR)
-
-    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-
 def api_bill_save(request):
     resp = auth_check(request, "POST")
     if resp != {}:
@@ -6250,199 +5943,318 @@ def api_bill_save(request):
         bill_data = json.loads(request.POST.get("bill_data", None))
         business_id = request.POST.get("business_id", None)
         bill_name = request.POST.get("bill_name", None)
+        edit_mode = request.POST.get("edit_mode", None)
+        if int(edit_mode) == 1:
+            chapters_all_origin = []
+            sections_all_origin = []
+            parts_all_origin = []
 
-        chapters_all_origin = []
-        sections_all_origin = []
-        parts_all_origin = []
-        bill_name_origin = BusinessBillList.objects.get(business_id=int(business_id))
-        chapters_objects = bill_name_origin.chapters.all().order_by("chapter_number")
-        for chapters_object in chapters_objects:
-            chapters_all_origin_temp = {}
-            chapters_all_origin_temp["chapter_id"] = chapters_object.id
-            chapters_all_origin_temp["chapter_number"] = chapters_object.chapter_number
-            chapters_all_origin_temp["chapter_title"] = chapters_object.chapter_title
-            chapters_all_origin_temp["chapter_content"] = chapters_object.chapter_content
-            chapters_all_origin.append(chapters_all_origin_temp)
-            sections_objects = chapters_object.sections.all().order_by("section_number")
-            for sections_object in sections_objects:
-                sections_all_origin_temp = {}
-                sections_all_origin_temp["chapter_id"] = chapters_object.id
-                sections_all_origin_temp["chapter_number"] = chapters_object.chapter_number
-                sections_all_origin_temp["chapter_title"] = chapters_object.chapter_title
-                sections_all_origin_temp["chapter_content"] = chapters_object.chapter_content
-                sections_all_origin_temp["section_id"] = sections_object.id
-                sections_all_origin_temp["section_number"] = sections_object.section_number
-                sections_all_origin_temp["section_title"] = sections_object.section_title
-                sections_all_origin_temp["section_content"] = sections_object.section_content
-                sections_all_origin.append(sections_all_origin_temp)
-                parts_objects = sections_object.parts.all().order_by("part_number")
-                for parts_object in parts_objects:
-                    parts_all_origin_temp = {}
-                    parts_all_origin_temp["chapter_id"] = chapters_object.id
-                    parts_all_origin_temp["chapter_number"] = chapters_object.chapter_number
-                    parts_all_origin_temp["chapter_title"] = chapters_object.chapter_title
-                    parts_all_origin_temp["chapter_content"] = chapters_object.chapter_content
-                    parts_all_origin_temp["section_id"] = sections_object.id
-                    parts_all_origin_temp["section_number"] = sections_object.section_number
-                    parts_all_origin_temp["section_title"] = sections_object.section_title
-                    parts_all_origin_temp["section_content"] = sections_object.section_content
-                    parts_all_origin_temp["part_id"] = parts_object.id
-                    parts_all_origin_temp["part_number"] = parts_object.part_number
-                    parts_all_origin_temp["part_title"] = parts_object.part_title
-                    parts_all_origin_temp["part_content"] = parts_object.part_content
-                    parts_all_origin_temp["part_reason"] = parts_object.part_reason
-                    parts_all_origin.append(parts_all_origin_temp)
+            bill_name_list = BusinessBillList.objects.update_or_create(business_id=business_id,
+                                                                       defaults={'bill_name': bill_name,
+                                                                                 'edit_mode': edit_mode})[0]
+            bill_name_origin = BusinessBillList.objects.get(business_id=int(business_id))
+            chapters_objects = bill_name_origin.chapters.all()
+            if (len(chapters_objects) > 0):
+                chapters_objects = bill_name_origin.chapters.all().order_by("chapter_number")
+                for chapters_object in chapters_objects:
+                    chapters_all_origin_temp = {}
+                    chapters_all_origin_temp["chapter_id"] = chapters_object.id
+                    chapters_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+                    chapters_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+                    chapters_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+                    chapters_all_origin.append(chapters_all_origin_temp)
+                    sections_objects = chapters_object.sections.all().order_by("section_number")
+                    for sections_object in sections_objects:
+                        sections_all_origin_temp = {}
+                        sections_all_origin_temp["chapter_id"] = chapters_object.id
+                        sections_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+                        sections_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+                        sections_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+                        sections_all_origin_temp["section_id"] = sections_object.id
+                        sections_all_origin_temp["section_number"] = sections_object.section_number
+                        sections_all_origin_temp["section_title"] = sections_object.section_title
+                        sections_all_origin_temp["section_content"] = sections_object.section_content
+                        sections_all_origin.append(sections_all_origin_temp)
+                        parts_objects = sections_object.parts.all().order_by("part_number")
+                        for parts_object in parts_objects:
+                            parts_all_origin_temp = {}
+                            parts_all_origin_temp["chapter_id"] = chapters_object.id
+                            parts_all_origin_temp["chapter_number"] = chapters_object.chapter_number
+                            parts_all_origin_temp["chapter_title"] = chapters_object.chapter_title
+                            parts_all_origin_temp["chapter_content"] = chapters_object.chapter_content
+                            parts_all_origin_temp["section_id"] = sections_object.id
+                            parts_all_origin_temp["section_number"] = sections_object.section_number
+                            parts_all_origin_temp["section_title"] = sections_object.section_title
+                            parts_all_origin_temp["section_content"] = sections_object.section_content
+                            parts_all_origin_temp["part_id"] = parts_object.id
+                            parts_all_origin_temp["part_number"] = parts_object.part_number
+                            parts_all_origin_temp["part_title"] = parts_object.part_title
+                            parts_all_origin_temp["part_content"] = parts_object.part_content
+                            parts_all_origin_temp["part_reason"] = parts_object.part_reason
+                            parts_all_origin.append(parts_all_origin_temp)
 
-        chapters_all_request = []
-        sections_all_request = []
-        parts_all_request = []
-        for bill_data_request_one in bill_data:
-            chapters_one = {}
-            chapters_temp={}
-            sections_temp = {}
-            parts_temp = {}
-            chapters_one["chapter_id"] = bill_data_request_one["chapter_id"]
-            chapters_one["chapter_number"] = bill_data_request_one["chapter_number"]
-            chapters_one["chapter_title"] = bill_data_request_one["chapter_title"]
-            chapters_one["chapter_content"] = bill_data_request_one["chapter_content"]
-            chapters_temp = copy.copy(chapters_one)
-            if not (chapters_temp in chapters_all_request):
-                chapters_all_request.append(chapters_temp)
-            chapters_one["section_id"] = bill_data_request_one["section_id"]
-            chapters_one["section_number"] = bill_data_request_one["section_number"]
-            chapters_one["section_title"] = bill_data_request_one["section_title"]
-            chapters_one["section_content"] = bill_data_request_one["section_content"]
-            sections_temp = copy.copy(chapters_one)
-            if not (sections_temp in sections_all_request):
-                sections_all_request.append(sections_temp)
-            chapters_one["part_id"] = bill_data_request_one["part_id"]
-            chapters_one["part_number"] = bill_data_request_one["part_number"]
-            chapters_one["part_title"] = bill_data_request_one["part_title"]
-            chapters_one["part_content"] = bill_data_request_one["part_content"]
-            chapters_one["part_reason"] = bill_data_request_one["part_reason"]
-            if ('added_flag' in bill_data_request_one):
-                chapters_one['added_flag'] = bill_data_request_one['added_flag']
-            else:
-                chapters_one['added_flag'] = None
-            parts_temp = copy.copy(chapters_one)
-            if not (parts_temp in parts_all_request):
-                parts_all_request.append(parts_temp)
-
-        # update bill name
-        bill_name_list = BusinessBillList.objects.update_or_create(business_id=business_id, defaults={'bill_name': bill_name})[0]
-        previous_section = []
-        previous_chapter = []
-        previous_part = []
-        previous_chapter = bill_name_list.chapters.all()
-        for previous_one_chapter in previous_chapter:
-            previous_section_temp = previous_one_chapter.sections.all()
-            for previous_one_section_temp in previous_section_temp:
-                previous_section.append(previous_one_section_temp)
-                previous_part_temp = previous_one_section_temp.parts.all()
-                for previous_one_part_temp in previous_part_temp:
-                    previous_part.append(previous_one_part_temp)
-
-        #         UPDATE CHAPTER
-        added_chapter = []
-        for chapters_one_request in chapters_all_request:
-            checksumTemp = 0
-            for previous_one_chapter in previous_chapter:
-                if (int(chapters_one_request['chapter_number']) == int(previous_one_chapter.chapter_number)):
-                    previous_one_chapter.chapter_title = chapters_one_request['chapter_title']
-                    previous_one_chapter.chapter_content = chapters_one_request['chapter_content']
-                    previous_one_chapter.save()
-                    checksumTemp = 1
-                    break
-            if (checksumTemp == 0):
-                added_chapter_item = BusinessBillChapter.objects.create(chapter_number=int(chapters_one_request['chapter_number']),chapter_title=chapters_one_request['chapter_title'],chapter_content="")
-                added_chapter.append(added_chapter_item)
-                bill_name_list.chapters.add(added_chapter_item)
-                # added section
-                for sections_one_request in sections_all_request:
-                    if (int(added_chapter_item.chapter_number) == int(sections_one_request["chapter_number"])):
-                        added_section = BusinessBillSection.objects.create(section_number=int(sections_one_request['section_number']),section_title=sections_one_request['section_title'], section_content="")
-                        added_chapter_item.sections.add(added_section)
-                        for parts_one_request in parts_all_request:
-                            if (int(added_chapter_item.chapter_number) == int(parts_one_request["chapter_number"])):
-                                if (int(added_section.section_number) == int(parts_one_request["section_number"])):
-                                    added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
-                                    added_section.parts.add(added_part)
-
-
-
-        #                 update section
-        added_section = []
-        for sections_one_request in sections_all_request:
-            checksumTemp = 0
-            chapter_number_request = sections_one_request["chapter_number"]
-            for previous_one_chapter in previous_chapter:
-                if (int(previous_one_chapter.chapter_number) == int(chapter_number_request)):
-                    previous_section = previous_one_chapter.sections.all()
-                    for previous_one_section in previous_section:
-                        if (int(sections_one_request["section_number"]) == int(previous_one_section.section_number)):
-                            previous_one_section.section_title = sections_one_request["section_title"]
-                            previous_one_section.section_content = ""
-                            previous_one_section.save()
-                            checksumTemp = 1
-                            break
-                    if (checksumTemp == 0):
-                        added_section_item = BusinessBillSection.objects.create(
-                            section_number=int(sections_one_request['section_number']),
-                            section_title=sections_one_request['section_title'], section_content="")
-                        added_section.append(added_section_item)
-                        previous_one_chapter.sections.add(added_section_item)
-
-                        for parts_one_request in parts_all_request:
-                            if (int(previous_one_chapter.chapter_number) == int(parts_one_request["chapter_number"])):
-                                if (int(added_section.section_number) == int(parts_one_request["section_number"])):
-                                    added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
-                                    added_section.parts.add(added_part)
-
-                        break
+            chapters_all_request = []
+            sections_all_request = []
+            parts_all_request = []
+            for bill_data_request_one in bill_data:
+                chapters_one = {}
+                chapters_temp={}
+                sections_temp = {}
+                parts_temp = {}
+                chapters_one["chapter_id"] = bill_data_request_one["chapter_id"]
+                chapters_one["chapter_number"] = bill_data_request_one["chapter_number"]
+                chapters_one["chapter_title"] = bill_data_request_one["chapter_title"]
+                chapters_one["chapter_content"] = bill_data_request_one["chapter_content"]
+                chapters_temp = copy.copy(chapters_one)
+                if not (chapters_temp in chapters_all_request):
+                    chapters_all_request.append(chapters_temp)
+                chapters_one["section_id"] = bill_data_request_one["section_id"]
+                chapters_one["section_number"] = bill_data_request_one["section_number"]
+                chapters_one["section_title"] = bill_data_request_one["section_title"]
+                chapters_one["section_content"] = bill_data_request_one["section_content"]
+                sections_temp = copy.copy(chapters_one)
+                if not (sections_temp in sections_all_request):
+                    sections_all_request.append(sections_temp)
+                chapters_one["part_id"] = bill_data_request_one["part_id"]
+                chapters_one["part_number"] = bill_data_request_one["part_number"]
+                chapters_one["part_title"] = bill_data_request_one["part_title"]
+                chapters_one["part_content"] = bill_data_request_one["part_content"]
+                chapters_one["part_reason"] = bill_data_request_one["part_reason"]
+                if ('added_flag' in bill_data_request_one):
+                    chapters_one['added_flag'] = bill_data_request_one['added_flag']
                 else:
-                    continue
+                    chapters_one['added_flag'] = None
+                parts_temp = copy.copy(chapters_one)
+                if not (parts_temp in parts_all_request):
+                    parts_all_request.append(parts_temp)
 
+            # update bill name
 
-        # update Parts
-        added_part = []
-        for parts_one_request in parts_all_request:
-            checksumTemp = 0
-            chapter_number_request = parts_one_request["chapter_number"]
-            section_number_request = parts_one_request["section_number"]
-            if ('added_flag' in parts_one_request):
-                if (parts_one_request['added_flag'] == '2'):
-                    # inserted, added
-                    for previous_one_chapter in previous_chapter:
-                        if (int(previous_one_chapter.chapter_number) == int(chapter_number_request)):
-                            previous_section = previous_one_chapter.sections.all()
-                            for previous_one_section in previous_section:
-                                if (int(previous_one_section.section_number) == int(section_number_request)):
-                                    added_part_item = BusinessBillPart.objects.create(
-                                        part_number=int(parts_one_request['part_number']),
-                                        part_title=parts_one_request['part_title'],
-                                        part_content=parts_one_request['part_content'],
-                                        part_reason=parts_one_request['part_reason'])
-                                    added_part.append(added_part_item)
-                                    previous_one_section.parts.add(added_part_item)
-                if (parts_one_request['added_flag'] == '1'):
-                    # updated
-                    for previous_one_chapter in previous_chapter:
-                        if (int(previous_one_chapter.chapter_number) == int(
-                                chapter_number_request)):
-                            previous_section = previous_one_chapter.sections.all()
-                            for previous_one_section in previous_section:
-                                if (int(previous_one_section.section_number) == int(
-                                        section_number_request)):
-                                    previous_part = previous_one_section.parts.all()
-                                    for previous_one_part in previous_part:
-                                        if (int(previous_one_part.id) == int(parts_one_request['part_id'])):
-                                            previous_one_part.part_number = int(parts_one_request['part_number'])
-                                            previous_one_part.part_title = parts_one_request['part_title']
-                                            previous_one_part.part_content = parts_one_request['part_content']
-                                            previous_one_part.part_reason = parts_one_request['part_reason']
-                                            previous_one_part.save()
+            previous_section = []
+            previous_chapter = []
+            previous_part = []
+            previous_chapter = bill_name_list.chapters.all()
+            for previous_one_chapter in previous_chapter:
+                previous_section_temp = previous_one_chapter.sections.all()
+                for previous_one_section_temp in previous_section_temp:
+                    previous_section.append(previous_one_section_temp)
+                    previous_part_temp = previous_one_section_temp.parts.all()
+                    for previous_one_part_temp in previous_part_temp:
+                        previous_part.append(previous_one_part_temp)
 
-        # deleted Parts
+            #         UPDATE CHAPTER
+            added_chapter = []
+            for chapters_one_request in chapters_all_request:
+                checksumTemp = 0
+                for previous_one_chapter in previous_chapter:
+                    if (int(chapters_one_request['chapter_number']) == int(previous_one_chapter.chapter_number)):
+                        previous_one_chapter.chapter_title = chapters_one_request['chapter_title']
+                        previous_one_chapter.chapter_content = chapters_one_request['chapter_content']
+                        previous_one_chapter.save()
+                        checksumTemp = 1
+                        break
+                if (checksumTemp == 0):
+                    added_chapter_item = BusinessBillChapter.objects.create(chapter_number=int(chapters_one_request['chapter_number']),chapter_title=chapters_one_request['chapter_title'],chapter_content="")
+                    added_chapter.append(added_chapter_item)
+                    bill_name_list.chapters.add(added_chapter_item)
+                    # added section
+                    for sections_one_request in sections_all_request:
+                        if (int(added_chapter_item.chapter_number) == int(sections_one_request["chapter_number"])):
+                            added_section = BusinessBillSection.objects.create(section_number=int(sections_one_request['section_number']),section_title=sections_one_request['section_title'], section_content="")
+                            added_chapter_item.sections.add(added_section)
+                            for parts_one_request in parts_all_request:
+                                if (int(added_chapter_item.chapter_number) == int(parts_one_request["chapter_number"])):
+                                    if (int(added_section.section_number) == int(parts_one_request["section_number"])):
+                                        added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
+                                        added_section.parts.add(added_part)
+
+            #                 update section
+            added_section = []
+            for sections_one_request in sections_all_request:
+                checksumTemp = 0
+                chapter_number_request = sections_one_request["chapter_number"]
+                for previous_one_chapter in previous_chapter:
+                    if (int(previous_one_chapter.chapter_number) == int(chapter_number_request)):
+                        previous_section = previous_one_chapter.sections.all()
+                        for previous_one_section in previous_section:
+                            if (int(sections_one_request["section_number"]) == int(previous_one_section.section_number)):
+                                previous_one_section.section_title = sections_one_request["section_title"]
+                                previous_one_section.section_content = ""
+                                previous_one_section.save()
+                                checksumTemp = 1
+                                break
+                        if (checksumTemp == 0):
+                            added_section_item = BusinessBillSection.objects.create(
+                                section_number=int(sections_one_request['section_number']),
+                                section_title=sections_one_request['section_title'], section_content="")
+                            added_section.append(added_section_item)
+                            previous_one_chapter.sections.add(added_section_item)
+
+                            for parts_one_request in parts_all_request:
+                                if (int(previous_one_chapter.chapter_number) == int(parts_one_request["chapter_number"])):
+                                    if (int(added_section.section_number) == int(parts_one_request["section_number"])):
+                                        added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
+                                        added_section.parts.add(added_part)
+
+                            break
+                    else:
+                        continue
+
+            # update Parts
+            added_part = []
+            for parts_one_request in parts_all_request:
+                checksumTemp = 0
+                chapter_number_request = parts_one_request["chapter_number"]
+                section_number_request = parts_one_request["section_number"]
+                if ('added_flag' in parts_one_request):
+                    if (parts_one_request['added_flag'] == '2'):
+                        # inserted, added
+                        for previous_one_chapter in previous_chapter:
+                            if (int(previous_one_chapter.chapter_number) == int(chapter_number_request)):
+                                previous_section = previous_one_chapter.sections.all()
+                                for previous_one_section in previous_section:
+                                    if (int(previous_one_section.section_number) == int(section_number_request)):
+                                        added_part_item = BusinessBillPart.objects.create(
+                                            part_number=int(parts_one_request['part_number']),
+                                            part_title=parts_one_request['part_title'],
+                                            part_content=parts_one_request['part_content'],
+                                            part_reason=parts_one_request['part_reason'])
+                                        added_part.append(added_part_item)
+                                        previous_one_section.parts.add(added_part_item)
+                    if (parts_one_request['added_flag'] == '1'):
+                        # updated
+                        for previous_one_chapter in previous_chapter:
+                            if (int(previous_one_chapter.chapter_number) == int(
+                                    chapter_number_request)):
+                                previous_section = previous_one_chapter.sections.all()
+                                for previous_one_section in previous_section:
+                                    if (int(previous_one_section.section_number) == int(
+                                            section_number_request)):
+                                        previous_part = previous_one_section.parts.all()
+                                        for previous_one_part in previous_part:
+                                            if (int(previous_one_part.id) == int(parts_one_request['part_id'])):
+                                                previous_one_part.part_number = int(parts_one_request['part_number'])
+                                                previous_one_part.part_title = parts_one_request['part_title']
+                                                previous_one_part.part_content = parts_one_request['part_content']
+                                                previous_one_part.part_reason = parts_one_request['part_reason']
+                                                previous_one_part.save()
+
+            # deleted Parts
+            for previous_one_part in previous_part:
+                deleted_flag = False
+                for parts_one_request in parts_all_request:
+                    if (parts_one_request["part_id"] == previous_one_part.id):
+                        deleted_flag = False
+                        break
+                    else:
+                        deleted_flag = True
+                        continue
+                if deleted_flag:
+                    deleted_part = BusinessBillPart.objects.filter(id=int(previous_one_part.id)).first()
+                    deleted_section = BusinessBillSection.objects.filter(id=int(parts_one_request["section_id"])).first()
+                    deleted_chapter = BusinessBillChapter.objects.filter(id=int(parts_one_request["chapter_id"])).first()
+                    deleted_docs = deleted_part.part_docs.all()
+                    for deleted_doc in deleted_docs:
+                        deleted_part.remove(deleted_doc)
+                        deleted_doc.delete()
+                    deleted_section_part = deleted_section.parts.all()
+                    deleted_chapter_part = deleted_chapter.sections.all()
+                    if (len(deleted_chapter_part) == 1):
+                        if (len(deleted_section_part) == 1):
+                            deleted_section.parts.remove(deleted_part)
+                            deleted_part.delete()
+                            deleted_chapter.sections.remove(deleted_section)
+                            deleted_section.delete()
+                            bill_name_origin.chapters.remove(deleted_chapter)
+                            deleted_chapter.delete()
+                        else:
+                            deleted_section.parts.remove(deleted_part)
+                            deleted_part.delete()
+                    else:
+                        deleted_section.parts.remove(deleted_part)
+                        deleted_part.delete()
+
+        if int(edit_mode) == 2:
+            parts_all_origin = []
+
+            bill_name_list = BusinessBillList.objects.update_or_create(business_id=business_id,
+                                                                       defaults={'bill_name': bill_name,
+                                                                                 'edit_mode': edit_mode})[0]
+            bill_name_origin = BusinessBillList.objects.get(business_id=int(business_id))
+            parts_objects = bill_name_origin.part_mode_parts.all()
+            for parts_object in parts_objects:
+                parts_all_origin_temp = {}
+                parts_all_origin_temp["part_id"] = parts_object.id
+                parts_all_origin_temp["part_number"] = parts_object.part_number
+                parts_all_origin_temp["part_title"] = parts_object.part_title
+                parts_all_origin_temp["part_content"] = parts_object.part_content
+                parts_all_origin_temp["part_reason"] = parts_object.part_reason
+                parts_all_origin.append(parts_all_origin_temp)
+
+            parts_all_request = []
+            for bill_data_request_one in bill_data:
+                chapters_one = {}
+                chapters_one["part_id"] = bill_data_request_one["part_id"]
+                chapters_one["part_number"] = bill_data_request_one["part_number"]
+                chapters_one["part_title"] = bill_data_request_one["part_title"]
+                chapters_one["part_content"] = bill_data_request_one["part_content"]
+                chapters_one["part_reason"] = bill_data_request_one["part_reason"]
+                if ('added_flag' in bill_data_request_one):
+                    chapters_one['added_flag'] = bill_data_request_one['added_flag']
+                else:
+                    chapters_one['added_flag'] = None
+                parts_temp = copy.copy(chapters_one)
+                if not (parts_temp in parts_all_request):
+                    parts_all_request.append(parts_temp)
+
+            # update bill name
+            previous_part_temp = bill_name_list.part_mode_parts.all()
+            previous_part = []
+            for previous_one_part in previous_part_temp:
+                previous_part.append(previous_one_part)
+
+            # update Parts
+            added_part = []
+            for parts_one_request in parts_all_request:
+                if ('added_flag' in parts_one_request):
+                    if (parts_one_request['added_flag'] == '2'):
+                        # inserted, added
+                        added_part_item = BusinessBillPartPartMode.objects.create(
+                            part_number=int(parts_one_request['part_number']),
+                            part_title=parts_one_request['part_title'],
+                            part_content=parts_one_request['part_content'],
+                            part_reason=parts_one_request['part_reason'])
+                        added_part.append(added_part_item)
+                        bill_name_list.part_mode_parts.add(added_part_item)
+                    if (parts_one_request['added_flag'] == '1'):
+                        # updated
+                        for previous_one_part in previous_part:
+                            if (int(previous_one_part.id) == int(parts_one_request['part_id'])):
+                                previous_one_part.part_number = int(parts_one_request['part_number'])
+                                previous_one_part.part_title = parts_one_request['part_title']
+                                previous_one_part.part_content = parts_one_request['part_content']
+                                previous_one_part.part_reason = parts_one_request['part_reason']
+                                previous_one_part.save()
+                                break
+
+            # deleted Parts
+            for previous_one_part in previous_part:
+                deleted_flag = False
+                for parts_one_request in parts_all_request:
+                    if (parts_one_request["part_id"] == previous_one_part.id):
+                        deleted_flag = False
+                        break
+                    else:
+                        deleted_flag = True
+                        continue
+                if deleted_flag:
+                    deleted_part = BusinessBillPartPartMode.objects.filter(id=int(previous_one_part.id)).first()
+                    deleted_docs = deleted_part.part_docs.all()
+                    for deleted_doc in deleted_docs:
+                        deleted_part.remove(deleted_doc)
+                        deleted_doc.delete()
+                    bill_name_list.part_mode_parts.remove(deleted_part)
+                    deleted_part.delete()
 
         resp = code.get_msg(code.SUCCESS)
     except Exception as e:
@@ -6450,4 +6262,5 @@ def api_bill_save(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 ##############################################

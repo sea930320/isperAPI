@@ -14,7 +14,7 @@ class Project(models.Model):
     flow_id = models.IntegerField(verbose_name=u'流程')
     name = models.CharField(max_length=64, verbose_name=u'名称')#
     all_role = models.PositiveIntegerField(default=1, choices=const.PROJECT_ALL_ROLE, verbose_name=u'允许一人扮演所有角色')
-    course = models.ForeignKey(Course, verbose_name=u'课程')
+    course = models.ForeignKey(Course, null=True, verbose_name=u'课程')
     reference = models.PositiveIntegerField(default=1, choices=const.PROJECT_REFERENCE, verbose_name=u'成果参考释放方式')
     public_status = models.PositiveIntegerField(default=1, choices=const.PROJECT_PUBLIC, verbose_name=u'申请为公共项目状态')
     level = models.PositiveIntegerField(default=1, choices=const.PROJECT_LEVEL, verbose_name=u'实验层次')
