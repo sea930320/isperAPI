@@ -20,8 +20,8 @@ USER_NOT_EXIST = 10001
 USERNAME_OR_PASSWORD_ERROR = 10002
 # 用户未登录
 USER_NOT_LOGGED_IN = 10003
-# 不是实验人员
-# 不是实验指导
+# 不是业务人员
+# 不是业务指导
 # 不是系统管理员
 # 不是超级管理员
 # 上传文件格式只支持docx格式
@@ -52,7 +52,7 @@ FLOW_DIRECTION_ERROR = 20007
 FLOW_PROCESS_NOT_EXIST = 20008
 # 流程角色已使用，无法删除
 FLOW_ROLE_HAS_USE = 20009
-# 结束环节类型必须为实验报告类型
+# 结束环节类型必须为业务报告类型
 FLOW_END_NODE_MUST_REPORT_TYPE = 20010
 # 操作指南导入失败
 FLOW_OPT_DOC_IMPORT_FAIL = 20011
@@ -66,13 +66,13 @@ PROJECT_NOT_EXIST = 30001
 PROJECT_NAME_HAS_EXIST = 30002
 # 跳转项目不能设置自身
 PROJECT_JUMP_CANNOT_SETUP_SELF = 30003
-# 跳转项目已创建实验
+# 跳转项目已创建业务
 PROJECT_JUMP_HAS_USE = 30004
 PROJECT_ROLE_NOT_EXIST = 30005
 
 # 小组名称已存在
 TEAM_HAS_EXIST = 40001
-# 小组已参加实验
+# 小组已参加业务
 TEAM_HAS_JOIN_EXP = 40002
 # 没有小组操作权限
 TEAM_HAS_NOT_PERM = 40003
@@ -84,17 +84,17 @@ TEAM_MEMBER_NOT_EXIST = 40005
 TEAM_CANNOT_DELETE_SELF = 40006
 # 小组成员已入席
 TEAM_MEMBER_SITING = 40007
-# 实验任务不存在
+# 业务任务不存在
 BUSINESS_NOT_EXIST = 50001
-# 实验任务已经开始
+# 业务任务已经开始
 BUSINESS_HAS_STARTED = 50002
-# 实验环节错误
+# 业务环节错误
 BUSINESS_NODE_ERROR = 50003
-# 实验任务已经结束
+# 业务任务已经结束
 BUSINESS_HAS_FINISHED = 50004
-# 实验未开始
+# 业务未开始
 BUSINESS_HAS_NOT_STARTED = 50005
-# 实验当前处于第一个环节
+# 业务当前处于第一个环节
 BUSINESS_IN_FIRST_NODE = 50006
 # 角色分配错误
 BUSINESS_ROLE_ALLOCATE_ERROR = 50007
@@ -102,13 +102,13 @@ BUSINESS_ROLE_ALLOCATE_ERROR = 50007
 BUSINESS_NODE_ROLE_NOT_EXIST = 50008
 # 当前该角色形象不存在
 BUSINESS_ROLE_IMAGE_NOT_EXIST = 50009
-# 当前该角色实验心得已提交
+# 当前该角色业务心得已提交
 BUSINESS_EXPERIENCE_HAS_EXIST = 50010
-# 当前该角色实验心得还没提交
+# 当前该角色业务心得还没提交
 BUSINESS_EXPERIENCE_USER_NOT_SUBMIT = 50011
-# 实验任务启动失败
+# 业务任务启动失败
 BUSINESS_START_FAILED = 50012
-# 实验操作权限
+# 业务操作权限
 BUSINESS_PERMISSION_DENIED = 50013
 # 角色占位缺失
 BUSINESS_ROLE_POSITION_NOT_EXIST = 50014
@@ -134,23 +134,23 @@ BUSINESS_HAS_REQUEST_SIGN_ERROR = 50023
 BUSINESS_FILE_TYPE_NOT_ALLOW = 50024
 # 有角色未设置
 BUSINESS_ROLE_NOT_SET = 50025
-# 该实验没有注册到课堂
+# 该业务没有注册到课堂
 BUSINESS_NOT_REGISTER = 50026
 BUSINESS_NO_ACCESS_TO_START = 50027
 BUSINESS_BILL_NOT_UP = 50028
 BUSINESS_BILL_NOT_DOWN = 50029
 
-# 实验任务不存在
+# 业务任务不存在
 EXPERIMENT_NOT_EXIST = 50001
-# 实验任务已经开始
+# 业务任务已经开始
 EXPERIMENT_HAS_STARTED = 50002
-# 实验环节错误
+# 业务环节错误
 EXPERIMENT_NODE_ERROR = 50003
-# 实验任务已经结束
+# 业务任务已经结束
 EXPERIMENT_HAS_FINISHED = 50004
-# 实验未开始
+# 业务未开始
 EXPERIMENT_HAS_NOT_STARTED = 50005
-# 实验当前处于第一个环节
+# 业务当前处于第一个环节
 EXPERIMENT_IN_FIRST_NODE = 50006
 # 角色分配错误
 EXPERIMENT_ROLE_ALLOCATE_ERROR = 50007
@@ -158,13 +158,13 @@ EXPERIMENT_ROLE_ALLOCATE_ERROR = 50007
 EXPERIMENT_NODE_ROLE_NOT_EXIST = 50008
 # 当前该角色形象不存在
 EXPERIMENT_ROLE_IMAGE_NOT_EXIST = 50009
-# 当前该角色实验心得已提交
+# 当前该角色业务心得已提交
 EXPERIMENT_EXPERIENCE_HAS_EXIST = 50010
-# 当前该角色实验心得还没提交
+# 当前该角色业务心得还没提交
 EXPERIMENT_EXPERIENCE_USER_NOT_SUBMIT = 50011
-# 实验任务启动失败
+# 业务任务启动失败
 EXPERIMENT_START_FAILED = 50012
-# 实验操作权限
+# 业务操作权限
 EXPERIMENT_PERMISSION_DENIED = 50013
 # 角色占位缺失
 EXPERIMENT_ROLE_POSITION_NOT_EXIST = 50014
@@ -190,7 +190,7 @@ EXPERIMENT_HAS_REQUEST_SIGN_ERROR = 50023
 EXPERIMENT_FILE_TYPE_NOT_ALLOW = 50024
 # 有角色未设置
 EXPERIMENT_ROLE_NOT_SET = 50025
-# 该实验没有注册到课堂
+# 该业务没有注册到课堂
 EXPERIMENT_NOT_REGISTER = 50026
 
 # 消息发送失败
@@ -237,7 +237,7 @@ MSG = {
     20007: u'流程走向错误',
     20008: u'流程未完成设置程序模块',
     20009: u'该流程角色已被使用，无法删除',
-    20010: u'结束环节类型必须为实验报告类型！',
+    20010: u'结束环节类型必须为业务报告类型！',
     20011: u'文件数据没有编辑完，请编辑完。',
     20012: u'每个环节只能有一个操作指南!',
     20013: u'该身份已经在使用！',
@@ -245,30 +245,30 @@ MSG = {
     30001: u'项目不存在',
     30002: u'项目名称已存在',
     30003: u'跳转项目不能设置自身',
-    30004: u'该项目已创建实验，无法修改跳转设置！',
+    30004: u'该项目已创建业务，无法修改跳转设置！',
     30005: u'流程未设置角色',
 
     40001: u'小组名称已存在',
-    40002: u'小组已参加实验,无法删除小组和成员',
+    40002: u'小组已参加业务,无法删除小组和成员',
     40003: u'您不是小组组长，没有操作权限！',
     40004: u'小组不存在',
     40005: u'小组成员不存在',
     40006: u'不能删除组长',
-    40007: u'该成员存在实验中已经入席，不能删除',
+    40007: u'该成员存在业务中已经入席，不能删除',
 
-    50001: u'实验任务不存在',
-    50002: u'实验任务已开始',
-    50003: u'当前实验已走向其它环节，请重新进入实验！',
-    50004: u'实验任务已结束',
-    50005: u'实验任务未开始',
-    50006: u'实验任务当前处于第一个环节',
+    50001: u'业务任务不存在',
+    50002: u'业务任务已开始',
+    50003: u'当前业务已走向其它环节，请重新进入业务！',
+    50004: u'业务任务已结束',
+    50005: u'业务任务未开始',
+    50006: u'业务任务当前处于第一个环节',
     50007: u'角色分配未完成或分配不正确',
-    50008: u'当前实验环节不存在该角色',
+    50008: u'当前业务环节不存在该角色',
     50009: u'当前该角色形象不存在',
-    50010: u'当前实验该用户已提交实验心得',
-    50011: u'当前实验还有未提交实验心得用户,无法结束',
-    50012: u'实验任务启动失败',
-    50013: u'没有实验操作权限',
+    50010: u'当前业务该用户已提交业务心得',
+    50011: u'当前业务还有未提交业务心得用户,无法结束',
+    50012: u'业务任务启动失败',
+    50013: u'没有业务操作权限',
     50014: u'角色没有设置好位置',
     50015: u'该站位已有角色入席',
     50016: u'该角色已入席',
@@ -281,14 +281,14 @@ MSG = {
     50023: u'已要求签字',
     50024: u'不支持的文件类型',
     50025: u'当前环节还有角色没有设置',
-    50026: u'该实验没有注册到课堂',
+    50026: u'该业务没有注册到课堂',
     50027: u'没有启动业务的权限',
     50028: u'不能上移',
     50029: u'不能下移',
 
     60001: u'消息发送失败',
     60002: u'动作指令错误',
-    60003: u'实验当前环节启动了表达管理，禁止发言',
+    60003: u'业务当前环节启动了表达管理，禁止发言',
     60004: u'表达管理中,每次申请发言只能发言三次',
     60005: u'角色未入席，不能执行相关操作！',
 

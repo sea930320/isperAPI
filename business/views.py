@@ -607,8 +607,10 @@ def api_business_start(request):
         business.save()
 
         if node.parallel_node_start == 1:
+            business.parallel_count = 1
+            business.save()
             for item in FlowTrans.objects.filter(incoming=node.task_id):
-                fn = FlowNode.objects.get(task_id=item.outgoing)
+                fn = FlowNode.objects.get(task_id=item.outgoing, flow_id=project.flow_id)
                 business.parallel_nodes.create(
                     node=fn
                 )
@@ -2537,7 +2539,6 @@ def set_style(height, bold=False):
     style.pattern = pattern
     return style
 
-
 def api_business_report_export(request):
     resp = auth_check(request, "GET")
     observable = False
@@ -2557,203 +2558,79 @@ def api_business_report_export(request):
         experienceTitle = [u'user_name', u'time', u'content']
 
         if busi:
-            project = Project.objects.filter(pk=busi.project_id).first()
+            project = Project.objects.get(pk=busi.project_id)
+            flow = Flow.objects.get(pk=project.flow_id)
             members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id', flat=True)
-
             # 小组成员
             member_list = []
-
+            member_names = ""
             for uid in members:
                 if not uid:
                     continue
                 user = Tuser.objects.get(pk=int(uid))
                 member_list.append(user.name)
+                if member_names == "":
+                    member_names = user.name + "(" + user.username + ")"
+                else:
+                    member_names = ", " + user.name + "(" + user.username + ")"
+            # 打开文档
+            document = Document()
+            # 加入不同等级的标题
+            document.add_heading(u'业务报告', 1)
+            table = document.add_table(rows=6, cols=4)
+            table.style = 'Table Grid'
+
+            for i in [0, 1, 2, 4, 5]:
+                table.cell(i, 0).merge(table.cell(i, 1))
+                table.cell(i, 2).merge(table.cell(i, 3))
+
+            table.cell(0, 0).text = u'业务名称'
+            table.cell(0, 2).text = busi.name
+            table.cell(1, 0).text = u'项目名称'
+            table.cell(1, 2).text = project.name
+            table.cell(2, 0).text = u'流程名称'
+            table.cell(2, 2).text = flow.name
+            table.cell(4, 0).text = u'参与人员'
+            table.cell(4, 2).text = member_names
+            table.cell(5, 0).text = u'启动人'
+            table.cell(5, 2).text = busi.created_by.name if busi.created_by else ""
+            table.cell(3, 0).text =  u'启动时间'
+            table.cell(3, 1).text =  busi.create_time.strftime('%Y-%m-%d') if busi.create_time else ""
+            table.cell(3, 2).text =  u'完成时间'
+            table.cell(3, 3).text =  busi.finish_time.strftime('%Y-%m-%d') if busi.finish_time else ""
+
+            p = document.add_paragraph()
+            run = p.add_run()
+            run.add_break()
+
+            document.add_heading(u'业务成果', 1)
 
             # 各环节提交文件信息和聊天信息
             paths = BusinessTransPath.objects.filter(business_id=busi.id)
-            report = xlwt.Workbook(encoding='utf8')
+            node_list = []
             for item in paths:
-                node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
-                if node.process.type == const.PROCESS_NEST_TYPE:
+                node_item = report_gen(business_id, item, user_id, observable)
+                if node_item == False:
                     continue
-                doc_list = []
-                vote_status = []
-                sheet = report.add_sheet(node.name)
-
-                if node.process.type == 2:
-                    # 如果是编辑
-                    # 应用模板
-                    contents = BusinessDocContent.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                                 has_edited=True)
-                    for d in contents:
-                        doc_list.append({
-                            'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
-                            'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                            'url': d.file.url if d.file else None
-                        })
-                    # 提交的文件
-                    docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                      path_id=item.pk)
-                    for d in docs:
-                        sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                            'signs': list(sign_list), 'url': d.file.url if d.file else None
-                        })
-                elif node.process.type == 3:
-                    project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                              path_id=item.pk)
-                    for d in project_docs:
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'signs': [],
-                            'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
-                        })
-                elif node.process.type == 5:
-                    # 如果是投票   三期 - 增加投票结果数量汇总
-                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=0)
-                    vote_status_0 = []
-                    # 去掉老师观察者角色的数据
-                    for item0 in vote_status_0_temp:
-                        role_alloc_temp = item0.business_role_allocation
-                        if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_0.append(item0)
-
-                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=1)
-                    vote_status_1 = []
-                    # 去掉老师观察者角色的数据
-                    for item1 in vote_status_1_temp:
-                        role_alloc_temp = item1.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_1.append(item1)
-
-                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=2)
-                    vote_status_2 = []
-                    # 去掉老师观察者角色的数据
-                    for item2 in vote_status_2_temp:
-                        role_alloc_temp = item2.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_2.append(item2)
-
-                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=9)
-                    vote_status_9 = []
-                    # 去掉老师观察者角色的数据
-                    for item9 in vote_status_9_temp:
-                        role_alloc_temp = item9.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_9.append(item9)
-                    vote_status = [{'status': '同意', 'num': len(vote_status_1)},
-                                   {'status': '不同意', 'num': len(vote_status_2)},
-                                   {'status': '弃权', 'num': len(vote_status_9)},
-                                   {'status': '未投票', 'num': len(vote_status_0)}]
-                    pass
-                else:
-                    # 提交的文件
-                    docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                      path_id=item.id)
-                    for d in docs:
-                        sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'content': d.content,
-                            'signs': list(sign_list), 'url': d.file.url if d.file else None, 'file_type': d.file_type
-                        })
-
-                # 消息
-                messages = BusinessMessage.objects.filter(business_id=business_id,
-                                                          business_role_allocation__node_id=item.node_id,
-                                                          path_id=item.id).order_by('timestamp')
-                message_list = []
-                for m in messages:
-                    message = {
-                        'user_name': m.user_name, 'role_name': m.role_name,
-                        'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
-                        'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                    }
-                    message_list.append(message)
-
-                # 个人笔记
-                note = BusinessNotes.objects.filter(business_id=business_id,
-                                                    node_id=item.node_id,
-                                                    created_by_id=user_id).first() if user_id else None
-
-                # 设置样式
-                for i in range(0, len(docTitle)):
-                    sheet.write(0, i, docTitle[i], set_style(220, True))
-                row = 1
-                for d in doc_list:
-                    sheet.write(row, 0, d['filename'])
-                    sheet.write(row, 1, d['file_type'])
-                    topRow = row
-                    for sign in d['signs']:
-                        if int(sign['sign_status']) == 1:
-                            sheet.write(topRow, 2, sign['sign'] + u'--已签字')
-                            topRow += 1
-                        elif int(sign['sign_status']) == 2:
-                            sheet.write(topRow, 2, sign['sign'] + u'--已拒绝签字')
-                            topRow += 1
-                    sheet.write(row, 3, d['url'])
-                    row = topRow
-                    row += 1
-
-                row += 2
-                for i in range(0, len(messageTitle)):
-                    sheet.write(row, i, messageTitle[i], set_style(220, True))
-                row += 1
-                for m in message_list:
-                    sheet.write(row, 0, m['user_name'])
-                    sheet.write(row, 1, m['role_name'])
-                    sheet.write(row, 2, m['timestamp'])
-                    if m['ext']['cmd'] == 'action_submit_experience':
-                        sheet.write(row, 3, m['ext']['opt']['content'])
-                    else:
-                        sheet.write(row, 3, m['msg'])
-                    row += 1
-
-                if node.process.type == 5:
-                    row += 2
-                    for i in range(0, len(voteTitle)):
-                        sheet.write(row, i, voteTitle[i], set_style(220, True))
-                    row += 1
-                    print vote_status
-                    for i in range(0, len(vote_status)):
-                        sheet.write(row, i, vote_status[i]['num'])
-                    row += 1
-                if note:
-                    row += 2
-                    sheet.write(row, 0, noteTitle, set_style(220, True))
-                    row += 1
-                    sheet.write(row, 0, note.content, set_style(220, True))
-
+                node_list.append(node_item)
+            for node in node_list:
+                document.add_heading(node['node_name'], level=2)
             experiences = BusinessExperience.objects.filter(business_id=busi.id)
-            sheet = report.add_sheet(u'Experience')  # 设置样式
-            for i in range(0, len(experienceTitle)):
-                sheet.write(0, i, experienceTitle[i], set_style(220, True))
-            row = 1
-            for e in experiences:
-                sheet.write(row, 0, e.created_by.name)
-                sheet.write(row, 1, e.create_time.strftime('%Y-%m-%d'))
-                sheet.write(row, 2, e.content)
-                row += 1
+            # sheet = report.add_sheet(u'Experience')  # 设置样式
+            # for i in range(0, len(experienceTitle)):
+            #     sheet.write(0, i, experienceTitle[i], set_style(220, True))
+            # row = 1
+            # for e in experiences:
+            #     sheet.write(row, 0, e.created_by.name)
+            #     sheet.write(row, 1, e.create_time.strftime('%Y-%m-%d'))
+            #     sheet.write(row, 2, e.content)
+            #     row += 1
 
-            response = HttpResponse(content_type='application/vnd.ms-excel')
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             filename = urlquote(u'心得')
-            response['Content-Disposition'] = u'attachment;filename=%s.xls' % filename
-            report.save(response)
+            response['Content-Disposition'] = u'attachment;filename=%s.docx' % filename
+            document.save(response)
+            # report.save(response)
             return response
         else:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
