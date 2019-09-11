@@ -140,6 +140,7 @@ def get_end_parallel_node(node_id):
     print merging_nodes
     return merging_nodes
 
+
 def get_end_parallel_node_stack():
     global stacks
     global merging_nodes
