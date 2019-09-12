@@ -199,7 +199,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     # check team counts
 
     business = Business.objects.get(id=business_id)
-    business_team_counts = list(BusinessRole.objects.filter(
+    business_team_counts_tmp = list(BusinessRole.objects.filter(
         Q(business_id=business_id, project_id=business.cur_project_id) & ~Q(job_type_id=None)).values('job_type__name',
                                                                                                       'capacity'))
 
@@ -208,9 +208,17 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     node = FlowNode.objects.get(pk=first_node_id)
     startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
                                                            can_take_in=1).first()
-    for item in business_team_counts:
+    business_team_counts = []
+    for item in business_team_counts_tmp:
         if item['job_type__name'] == startRoleAlloc.role.name:
             item['capacity'] -= 1
+        xIndex = next(
+            (index for (index, xt) in enumerate(business_team_counts) if xt['job_type__name'] == item['job_type__name']),
+            None)
+        if xIndex is None:
+            business_team_counts.append({'job_type__name': item['job_type__name'], 'capacity': item['capacity']})
+        else:
+            business_team_counts[xIndex]['capacity'] += item['capacity']
 
     company_id = None
     target_user_counts = []
@@ -326,9 +334,6 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
             )
             newTeammate.save()
         else:
-            print(targetUnitUsers)
-            print("------")
-            print(teamItem)
             selectedUser = random.choice(
                 [a for a in targetUnitUsers if a['position'] == teamItem['role__job_type__name']])
             targetUnitUsers.pop(next((index for (index, x) in enumerate(targetUnitUsers) if x == selectedUser), None))
