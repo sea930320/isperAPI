@@ -654,6 +654,7 @@ def get_role_position(bus, project, node, role, role_alloc_id):
         fra = FlowRoleAllocation.objects.filter(pk=bra.flow_role_alloc_id).first()
         role_position = FlowRolePosition.objects.filter(flow_id=project.flow_id, node_id=node.pk,
                                                         role_id=fra.role_id, no=fra.no, del_flag=0).first()
+        print role_position
         pos = None
         if role_position:
             pos = FlowPosition.objects.filter(pk=role_position.position_id, del_flag=0).first()

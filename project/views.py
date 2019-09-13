@@ -437,18 +437,19 @@ def api_project_update(request):
         use_to = request.POST.get("use_to", None)
 
         # 课程没有就保存
-        TCourse.objects.get_or_create(courseName=course)
+        if course:
+            TCourse.objects.get_or_create(courseName=course)
 
         obj = Project.objects.filter(id=project_id, del_flag=0).first()
         if obj:
-            if all([name, all_role, course, reference, public_status, level, entire_graph, can_redo,
+            if all([name, all_role, reference, public_status, level, entire_graph, can_redo,
                     is_open, ability_target, intro, purpose, requirement]):
                 if len(name) == 0 or len(name) > 60:
                     resp = code.get_msg(code.PARAMETER_ERROR)
                     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
-                if len(course) == 0 or len(course) > 45:
-                    resp = code.get_msg(code.PARAMETER_ERROR)
-                    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+                # if len(course) == 0 or len(course) > 45:
+                #     resp = code.get_msg(code.PARAMETER_ERROR)
+                #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
                 if is_open == '3':
                     if start_time is None or start_time == '' or end_time is None or end_time == '':
@@ -469,7 +470,7 @@ def api_project_update(request):
 
                 obj.name = name
                 obj.all_role = all_role
-                obj.course = TCourse.objects.get(id=course)
+                obj.course = TCourse.objects.get(id=course) if course else None
                 obj.reference = reference
                 obj.public_status = public_status
                 obj.level = level
@@ -671,16 +672,16 @@ def api_project_create(request):
         use_to = request.POST.get("use_to", None)
         logger.info('-----api_project_create----')
 
-        if all([flow_id, name, all_role, course, reference, public_status, level, entire_graph, can_redo,
+        if all([flow_id, name, all_role, reference, public_status, level, entire_graph, can_redo,
                 is_open, ability_target, intro, purpose, requirement, officeItem]):
             name = name.strip()
             if len(name) == 0 or len(name) > 32:
                 resp = code.get_msg(code.PARAMETER_ERROR)
                 return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
-            if len(course) == 0 or len(course) > 45:
-                resp = code.get_msg(code.PARAMETER_ERROR)
-                return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+            # if len(course) == 0 or len(course) > 45:
+            #     resp = code.get_msg(code.PARAMETER_ERROR)
+            #     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
             if is_open == '3' and (start_time is None or start_time is None):
                 resp = code.get_msg(code.PARAMETER_ERROR)
@@ -726,7 +727,7 @@ def api_project_create(request):
             # TCourse.objects.get(courseName=course)
             with transaction.atomic():
                 obj = Project.objects.create(
-                    flow_id=flow_id, name=name, all_role=all_role, course=Course.objects.get(id=course),
+                    flow_id=flow_id, name=name, all_role=all_role, course=Course.objects.get(id=course) if course else None,
                     reference=reference, public_status=public_status, level=level, officeItem_id=officeItem,
                     entire_graph=entire_graph, can_redo=can_redo, is_open=is_open,
                     ability_target=ability_target, start_time=start_time, end_time=end_time,

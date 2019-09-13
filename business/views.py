@@ -27,6 +27,7 @@ from utils.request_auth import auth_check
 from workflow.models import FlowNode, FlowAction, FlowRoleActionNew, FlowRolePosition, \
     FlowPosition, RoleImage, Flow, ProcessRoleActionNew, FlowDocs, FlowRole, FlowRoleAllocation, \
     FlowRoleAllocationAction, ProcessRoleAllocationAction, FlowNodeSelectDecide, SelectDecideItem
+from student.models import *
 from workflow.service import get_start_node, bpmn_color
 from datetime import datetime
 from django.utils import timezone
@@ -198,7 +199,7 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     # check team counts
 
     business = Business.objects.get(id=business_id)
-    business_team_counts = list(BusinessRole.objects.filter(
+    business_team_counts_tmp = list(BusinessRole.objects.filter(
         Q(business_id=business_id, project_id=business.cur_project_id) & ~Q(job_type_id=None)).values('job_type__name',
                                                                                                       'capacity'))
 
@@ -207,9 +208,17 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     node = FlowNode.objects.get(pk=first_node_id)
     startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
                                                            can_take_in=1).first()
-    for item in business_team_counts:
+    business_team_counts = []
+    for item in business_team_counts_tmp:
         if item['job_type__name'] == startRoleAlloc.role.name:
             item['capacity'] -= 1
+        xIndex = next(
+            (index for (index, xt) in enumerate(business_team_counts) if xt['job_type__name'] == item['job_type__name']),
+            None)
+        if xIndex is None:
+            business_team_counts.append({'job_type__name': item['job_type__name'], 'capacity': item['capacity']})
+        else:
+            business_team_counts[xIndex]['capacity'] += item['capacity']
 
     company_id = None
     target_user_counts = []
@@ -398,6 +407,8 @@ def api_business_list(request):
             else:
                 cur_node = None
 
+            isRequested = StudentRequestAssistStatus.objects.filter(business_id=item.id,
+                                                               requestedTo_id=user.id, del_flag=0, status__in=[0, 1]).exists()
             business = {
                 'id': item.id, 'name': item.name, 'show_nickname': item.show_nickname,
                 'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
@@ -409,7 +420,8 @@ def api_business_list(request):
                 'huanxin_id': item.huanxin_id,
                 'node': cur_node, 'flow_id': project.flow_id if project else None,
                 'officeItem': model_to_dict(item.officeItem) if item.officeItem else None,
-                'jumper_id': item.jumper_id
+                'jumper_id': item.jumper_id,
+                'is_requested': isRequested
             }
             results.append(business)
 
@@ -1805,7 +1817,7 @@ def api_business_message_push(request):
         name = request.user.name
 
         project = Project.objects.get(pk=cur_project_id)
-        node = FlowNode.objects.filter(pk=bus.node_id, del_flag=0).first()
+        node = FlowNode.objects.filter(pk=(node_id if node_id else bus.node_id), del_flag=0).first()
 
         # 角色形象
         image = get_role_image(bra.flow_role_alloc_id)
