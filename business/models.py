@@ -817,7 +817,7 @@ class BusinessBillDoc(models.Model):
     update_time = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "t_business_bill_part_doc"
+        db_table = "t_business_bill_doc"
         verbose_name_plural = verbose_name = u"BusinessBillDoc"
 
     def __unicode__(self):
