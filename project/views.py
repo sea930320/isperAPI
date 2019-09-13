@@ -158,7 +158,7 @@ def api_project_docs_detail(request):
                                                             node_id=item.id).values_list('doc_id', flat=True)
                     role = ProjectRole.objects.get(pk=ra.role_id)
                     project_role_allocs.append(
-                        {'id': ra.id, 'role_id': role.id, 'no': ra.no, 'name': role.name, 'type': role.type,
+                        {'id': ra.id, 'role_id': role.id, 'no': ra.no, 'name': role.name, 'type': role.type, 'job_name': role.job_type.name if role.job_type else '',
                          'doc_ids': list(doc_ids)})
                 project_nodes.append(
                     {'id': item.pk, 'name': item.name, 'process_id': pid, 'project_role_allocs': project_role_allocs,
@@ -865,6 +865,7 @@ def api_project_list(request):
                     ((Q(created_by__in=createdByCMs) & Q(created_role_id=3) & Q(is_company_share=1)) |
                      (Q(created_by__in=createdByCMAs) & Q(created_role_id=7) & Q(is_company_share=1)))
                 )
+
             if request.session['login_type'] == 5:
                 group_id = request.GET.get("group_id", None)
                 company_id = request.GET.get("company_id", None)
@@ -887,10 +888,11 @@ def api_project_list(request):
                         for companyAssistant in companyAssistants:
                             createdByCMAs.append(companyAssistant.id)
                     qs = qs.filter(
-                        (Q(created_by__in=createdByGMs) & Q(created_role_id=2)) |
-                        (Q(created_by__in=createdByGMAs) & Q(created_role_id=6)) |
-                        (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
-                        (Q(created_by__in=createdByCMAs) & Q(created_role_id=7))
+                        (Q(created_by_id=request.user.id) & Q(is_open=2) & Q(created_role_id__in=[2, 3, 6, 7])) |
+                        (Q(created_by__in=createdByGMs) & Q(created_role_id=2) & ~Q(is_open=2)) |
+                        (Q(created_by__in=createdByGMAs) & Q(created_role_id=6) & ~Q(is_open=2)) |
+                        (Q(created_by__in=createdByCMs) & Q(created_role_id=3) & ~Q(is_open=2)) |
+                        (Q(created_by__in=createdByCMAs) & Q(created_role_id=7) & ~Q(is_open=2))
                     )
                 if company_id and by_method == 'company':
                     company = TCompany.objects.get(pk=int(company_id))
@@ -903,9 +905,22 @@ def api_project_list(request):
                     for companyAssistant in companyAssistants:
                         createdByCMAs.append(companyAssistant.id)
                     qs = qs.filter(
-                        (Q(created_by__in=createdByCMs) & Q(created_role_id=3)) |
-                        (Q(created_by__in=createdByCMAs) & Q(created_role_id=7))
+                        (Q(created_by_id=request.user.id) & Q(is_open=2) & Q(created_role_id__in=[3, 7])) |
+                        (Q(created_by__in=createdByCMs) & Q(created_role_id=3) & ~Q(is_open=2)) |
+                        (Q(created_by__in=createdByCMAs) & Q(created_role_id=7) & ~Q(is_open=2))
                     )
+                request_user_position = request.user.tposition.name if request.user.tposition else ''
+                pkList = []
+                for qItem in qs:
+                    if ProjectRoleAllocation.objects.filter(project_id=qItem.id, can_start=1, can_take_in=1).first() is None:
+                        continue
+                    elif ProjectRole.objects.get(pk=ProjectRoleAllocation.objects.filter(project_id=qItem.id, can_start=1, can_take_in=1).first().role_id).job_type:
+                        project_start_position = ProjectRole.objects.get(pk=ProjectRoleAllocation.objects.filter(project_id=qItem.id, can_start=1, can_take_in=1).first().role_id).job_type.name
+                    else:
+                        project_start_position = ''
+                    if request_user_position == project_start_position:
+                        pkList.append(qItem.id)
+                qs = qs.filter(id__in=pkList)
                 projectIDs = qs.values_list('pk', flat=True)
                 businessIDs = Business.objects.filter(
                     Q(del_flag=0, project_id__in=projectIDs) | Q(del_flag=0, cur_project_id__in=projectIDs)).filter(
@@ -922,7 +937,7 @@ def api_project_list(request):
                 else:
                     query = Q(is_open=1) | (Q(is_open=3) & Q(start_time__lte=today) & Q(end_time__gte=today)) | (
                         Q(is_open=4) & Q(target_users__in=[user]))
-                qs = qs.exclude(Q(is_open=2)).filter(query)
+                # qs = qs.exclude(Q(is_open=2)).filter(query)
 
         qs = qs.filter(del_flag=0)
         paginator = Paginator(qs, size)
