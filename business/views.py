@@ -209,9 +209,12 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
     startRoleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=node, can_start=1,
                                                            can_take_in=1).first()
     business_team_counts = []
+    start_role_jobType = startRoleAlloc.role.job_type.name if startRoleAlloc.role.job_type else ''
     for item in business_team_counts_tmp:
-        if item['job_type__name'] == startRoleAlloc.role.name:
+        if item['job_type__name'] == start_role_jobType:
             item['capacity'] -= 1
+            if item['capacity'] == 0:
+                continue
         xIndex = next(
             (index for (index, xt) in enumerate(business_team_counts) if
              xt['job_type__name'] == item['job_type__name']),
@@ -966,11 +969,11 @@ def api_business_node_function(request):
             if process_actions and process_actions.actions:
                 process_action_ids = json.loads(process_actions.actions)
             else:
-                process_action_ids = [58, 60, 61]
+                process_action_ids = []
             if flow_actions and flow_actions.actions:
                 flow_action_ids = json.loads(flow_actions.actions)
             else:
-                flow_action_ids = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34]
+                flow_action_ids = []
 
         # 当前角色动画
         process_action_list = get_role_alloc_process_actions(business, path, role_alloc_id, process_action_ids)
