@@ -213,7 +213,8 @@ def teammates_configuration(business_id, seted_users_fromInnerPermission):
         if item['job_type__name'] == startRoleAlloc.role.name:
             item['capacity'] -= 1
         xIndex = next(
-            (index for (index, xt) in enumerate(business_team_counts) if xt['job_type__name'] == item['job_type__name']),
+            (index for (index, xt) in enumerate(business_team_counts) if
+             xt['job_type__name'] == item['job_type__name']),
             None)
         if xIndex is None:
             business_team_counts.append({'job_type__name': item['job_type__name'], 'capacity': item['capacity']})
@@ -408,7 +409,8 @@ def api_business_list(request):
                 cur_node = None
 
             isRequested = StudentRequestAssistStatus.objects.filter(business_id=item.id,
-                                                               requestedTo_id=user.id, del_flag=0, status__in=[0, 1]).exists()
+                                                                    requestedTo_id=user.id, del_flag=0,
+                                                                    status__in=[0, 1]).exists()
             business = {
                 'id': item.id, 'name': item.name, 'show_nickname': item.show_nickname,
                 'start_time': item.start_time.strftime('%Y-%m-%d') if item.start_time else None,
@@ -1430,8 +1432,10 @@ def api_business_list_nodel(request):
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
-
+            completed_only = request.GET.get("completed_only", "false")  # 页面条数
             qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(del_flag=0))
+            if completed_only == "true":
+                qs = qs.filter(Q(status = 9))
 
             if search:
                 if search == '已完成':
@@ -1510,8 +1514,11 @@ def api_business_list_del(request):
             search = request.GET.get("search", None)  # 关键字
             page = int(request.GET.get("page", 1))  # 页码
             size = int(request.GET.get("size", const.ROW_SIZE))  # 页面条数
+            completed_only = request.GET.get("completed_only", "false")  # 页面条数
 
             qs = Business.objects.filter(Q(project_id__in=projectAvailableList) & Q(del_flag=1))
+            if completed_only == "true":
+                qs = qs.filter(Q(status = 9))
 
             if search:
                 qs = qs.filter(Q(name__icontains=search) | Q(pk__icontains=search))
@@ -2015,6 +2022,11 @@ def api_business_message_push(request):
             elif cmd == const.ACTION_EXP_NODE_END:
                 # 结束环节 opt = {'next_node_id': 1, 'status': 1, 'process_type': 1},
                 # data={'tran_id': 1, 'project_id': 0}
+                if node.process.type == 11:
+                    bs = BusinessSurvey.objects.filter(business=bus, node_id=node_id).first()
+                    if bs:
+                        bs.is_ended = True
+                        bs.save()
                 data = json.loads(data)
                 data['cur_node'] = bus.node_id
                 result, opt = action_exp_node_end(bus, role_alloc_id, data)
@@ -2551,6 +2563,7 @@ def set_style(height, bold=False):
     style.pattern = pattern
     return style
 
+
 def api_business_report_export(request):
     resp = auth_check(request, "GET")
     observable = False
@@ -2561,18 +2574,16 @@ def api_business_report_export(request):
         business_id = request.GET.get("business_id")  # 实验ID
         user_id = request.GET.get("user_id", None)  # 用户
         user_id = user_id if user_id else request.user.id if not observable else None
+        if request.session['login_type'] in [2, 3, 6, 7]:
+           user_id = None
         busi = Business.objects.filter(pk=business_id).first()
-
-        docTitle = [u'文件名', u'文件类型', u'签字', u'url']
-        messageTitle = [u'user_name', u'role_name', u'time', u'msg']
-        voteTitle = [u'同意', u'不同意', u'弃权', u'未投票']
-        noteTitle = u'Note'
-        experienceTitle = [u'user_name', u'time', u'content']
 
         if busi:
             project = Project.objects.get(pk=busi.project_id)
             flow = Flow.objects.get(pk=project.flow_id)
-            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id', flat=True)
+            members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0,
+                                                        project_id=busi.cur_project_id).values_list('user_id',
+                                                                                                    flat=True)
             # 小组成员
             member_list = []
             member_names = ""
@@ -2581,10 +2592,10 @@ def api_business_report_export(request):
                     continue
                 user = Tuser.objects.get(pk=int(uid))
                 member_list.append(user.name)
-                if member_names == "":
+                if member_names == "" or not member_names:
                     member_names = user.name + "(" + user.username + ")"
                 else:
-                    member_names = ", " + user.name + "(" + user.username + ")"
+                    member_names = member_names + ", " + user.name + "(" + user.username + ")"
             # 打开文档
             document = Document()
             # 加入不同等级的标题
@@ -2606,14 +2617,12 @@ def api_business_report_export(request):
             table.cell(4, 2).text = member_names
             table.cell(5, 0).text = u'启动人'
             table.cell(5, 2).text = busi.created_by.name if busi.created_by else ""
-            table.cell(3, 0).text =  u'启动时间'
-            table.cell(3, 1).text =  busi.create_time.strftime('%Y-%m-%d') if busi.create_time else ""
-            table.cell(3, 2).text =  u'完成时间'
-            table.cell(3, 3).text =  busi.finish_time.strftime('%Y-%m-%d') if busi.finish_time else ""
+            table.cell(3, 0).text = u'启动时间'
+            table.cell(3, 1).text = busi.create_time.strftime('%Y-%m-%d') if busi.create_time else ""
+            table.cell(3, 2).text = u'完成时间'
+            table.cell(3, 3).text = busi.finish_time.strftime('%Y-%m-%d') if busi.finish_time else ""
 
             p = document.add_paragraph()
-            run = p.add_run()
-            run.add_break()
 
             document.add_heading(u'业务成果', 1)
 
@@ -2627,6 +2636,42 @@ def api_business_report_export(request):
                 node_list.append(node_item)
             for node in node_list:
                 document.add_heading(node['node_name'], level=2)
+                document.add_heading(u'交流记录', 3)
+                table = document.add_table(0, 2)
+                if len(node['messages']) == 0:
+                    cells = table.add_row().cells
+                    cells[0].text = u'无'
+                else:
+                    for m in node['messages']:
+                        cells = table.add_row().cells
+                        cells[0].text = m['timestamp'] + ' ' + m['role_name'] + ' (' + m['name'] + ')'
+                        if m['ext']['cmd'] == 'action_submit_experience':
+                            cells[1].text = m['ext']['opt']['content']
+                        else:
+                            cells[1].text = m['msg']
+
+                document.add_heading(u'提交文件', 3)
+                table = document.add_table(0, 1)
+                if len(node['docs']) == 0:
+                    cells = table.add_row().cells
+                    cells[0].text = u'无'
+                else:
+                    for d in node['docs']:
+                        cells = table.add_row().cells
+                        cells[0].text = '(' + const.FILE_TYPE[d['file_type']][1] + u')/提交文件/' + node['node_name'] + '/' + d['filename']
+
+                document.add_heading(u'自我备忘', 3)
+                if len(node['notes']) > 0:
+                    table = document.add_table(0, 2)
+                    for note in node['notes']:
+                        cells = table.add_row().cells
+                        cells[0].text = note.created_by.name
+                        cells[1].text = note.content
+                if node['note']:
+                    table = document.add_table(0, 1)
+                    cells = table.add_row().cells
+                    cells[0].text = node['note']
+
             experiences = BusinessExperience.objects.filter(business_id=busi.id)
             # sheet = report.add_sheet(u'Experience')  # 设置样式
             # for i in range(0, len(experienceTitle)):
@@ -2638,7 +2683,8 @@ def api_business_report_export(request):
             #     sheet.write(row, 2, e.content)
             #     row += 1
 
-            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             filename = urlquote(u'心得')
             response['Content-Disposition'] = u'attachment;filename=%s.docx' % filename
             document.save(response)
@@ -4290,6 +4336,7 @@ def api_business_doc_team_status(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
 def api_business_doc_team_status1(request):
     resp = auth_check(request, "GET")
 
@@ -4321,11 +4368,11 @@ def api_business_doc_team_status1(request):
                 if b is not None:
                     if b.status == 2:
                         status = 2;
-                        bdts_list.append({'user_name': user, 'status' : 'signed'})
+                        bdts_list.append({'user_name': user, 'status': 'signed'})
                         break
                     elif b.status == -1:
                         status = -1;
-                        bdts_list.append({'user_name': user, 'status' : 'reject'})
+                        bdts_list.append({'user_name': user, 'status': 'reject'})
                         break
             if status == 0 and user is not None:
                 bdts_list.append({'user_name': user, 'status': 'review'})
@@ -4337,6 +4384,7 @@ def api_business_doc_team_status1(request):
         logger.exception('api_business_doc_team_status1 Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 
 def get_group_userList(request):
     resp = auth_check(request, "GET")
@@ -4412,7 +4460,7 @@ def api_business_doc_team_staus_update(request):
         user_id = request.POST.get("user_id", None)
         status = request.POST.get("status", None)
 
-        if None in (business_id,  node_id, user_id, status):
+        if None in (business_id, node_id, user_id, status):
             resp = code.get_msg(code.SYSTEM_ERROR)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
@@ -4423,10 +4471,11 @@ def api_business_doc_team_staus_update(request):
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
         if business_doc_id is None:
-            BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk).update(status=status);
+            BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id,
+                                                 business_team_member_id=b.pk).update(status=status);
         else:
             BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node_id, business_team_member_id=b.pk,
-                                             business_doc_id=business_doc_id).update(status=status);
+                                                 business_doc_id=business_doc_id).update(status=status);
         resp = code.get_msg(code.SUCCESS)
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     except Exception as e:
@@ -4961,6 +5010,7 @@ def api_business_survey_public_list(request):
         search = request.GET.get("search", "")
         print datetime.now()
         bsQs = BusinessSurvey.objects.filter(target=0, title__contains=search, start_time__lte=datetime.now(),
+                                             is_ended=0,
                                              end_time__gte=datetime.now()).order_by('-create_time')
         paginator = Paginator(bsQs, size)
         try:
@@ -5171,6 +5221,12 @@ def api_business_survey_report(request):
         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
 
+def delete_paragraph(paragraph):
+    p = paragraph._element
+    p.getparent().remove(p)
+    p._p = p._element = None
+
+
 def api_business_survey_report_export(request):
     try:
         survey_id = request.GET.get("survey_id", None)
@@ -5219,49 +5275,46 @@ def api_business_survey_report_export(request):
             normalQuestion['answers'] = [answer.answer for answer in answers]
             report['normal_questions'].append(normalQuestion)
 
-        workbook = xlwt.Workbook(encoding='utf8')
-        sheet = workbook.add_sheet(u"选择题")
-        title = [u'题目', u'选项', u'回答人数', u'比例']
-        for i in range(0, len(title)):
-            sheet.write(0, i, title[i], set_style(220, True))
-        row = 1
+        document = Document()
+
+        document.add_heading(u'调查问卷统计报告', 1)
+        p = document.add_paragraph()
+        run = p.add_run()
+        run.add_break()
+
+        document.add_heading(u'选择题', 2)
         for item in report['select_questions']:
+            document.add_heading(' - ' + item['title'], 3)
+            table = document.add_table(rows=len(item['question_cases']), cols=3)
+            table.style = 'Table Grid'
+
+            row = 0
             for qc in item['question_cases']:
-                sheet.write(row, 0, item['title'])
-                sheet.write(row, 1, qc['case'])
-                sheet.write(row, 2, qc['answers'])
-                sheet.write(row, 3, str(qc['answers'] / float(item['total_answers']) * 100) + '%')
+                table.cell(row, 0).text = qc['case']
+                table.cell(row, 1).text = str(qc['answers'])
+                table.cell(row, 2).text = str(qc['answers'] / float(item['total_answers']) * 100) + '%'
                 row += 1
-            row += 1
 
-        sheet = workbook.add_sheet(u"填空题")
-        title = [u'题目', u'Answer']
-        for i in range(0, len(title)):
-            sheet.write(0, i, title[i], set_style(220, True))
-        row = 1
+        document.add_paragraph()
+        document.add_heading(u'填空题', 2)
         for item in report['blank_questions']:
+            document.add_heading(' - ' + html2text.html2text(item['title'].replace('', '_')), 3)
             for answer in item['answers']:
-                sheet.write(row, 0, html2text.html2text(item['title'].replace('', '_')))
-                sheet.write(row, 1, answer)
-                row += 1
-            row += 1
+                p = document.add_paragraph(answer, style='List Bullet')
 
-        sheet = workbook.add_sheet(u"问答题")
-        title = [u'题目', u'Answer']
-        for i in range(0, len(title)):
-            sheet.write(0, i, title[i], set_style(220, True))
-        row = 1
+        document.add_paragraph()
+        document.add_heading(u'问答题', 2)
         for item in report['normal_questions']:
+            document.add_heading(' - ' + html2text.html2text(item['title'].replace('', '_')), 3)
             for answer in item['answers']:
-                sheet.write(row, 0, html2text.html2text(item['title']))
-                sheet.write(row, 1, answer)
-                row += 1
-            row += 1
+                p = document.add_paragraph(answer, style='List Bullet')
 
-        response = HttpResponse(content_type='application/vnd.ms-excel')
-        filename = urlquote(u'Survey Report')
-        response['Content-Disposition'] = u'attachment;filename=%s.xls' % filename
-        workbook.save(response)
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        filename = urlquote(u'Report')
+        response['Content-Disposition'] = u'attachment;filename=%s.docx' % filename
+        document.save(response)
+
         return response
     except Exception as e:
         logger.exception('api_business_survey_report_export Exception:{0}'.format(str(e)))
@@ -6003,7 +6056,7 @@ def api_bill_save(request):
             parts_all_request = []
             for bill_data_request_one in bill_data:
                 chapters_one = {}
-                chapters_temp={}
+                chapters_temp = {}
                 sections_temp = {}
                 parts_temp = {}
                 chapters_one["chapter_id"] = bill_data_request_one["chapter_id"]
@@ -6047,7 +6100,7 @@ def api_bill_save(request):
                     for previous_one_part_temp in previous_part_temp:
                         previous_part.append(previous_one_part_temp)
 
-            #         UPDATE CHAPTER
+            # UPDATE CHAPTER
             added_chapter = []
             for chapters_one_request in chapters_all_request:
                 checksumTemp = 0
@@ -6059,21 +6112,29 @@ def api_bill_save(request):
                         checksumTemp = 1
                         break
                 if (checksumTemp == 0):
-                    added_chapter_item = BusinessBillChapter.objects.create(chapter_number=int(chapters_one_request['chapter_number']),chapter_title=chapters_one_request['chapter_title'],chapter_content="")
+                    added_chapter_item = BusinessBillChapter.objects.create(
+                        chapter_number=int(chapters_one_request['chapter_number']),
+                        chapter_title=chapters_one_request['chapter_title'], chapter_content="")
                     added_chapter.append(added_chapter_item)
                     bill_name_list.chapters.add(added_chapter_item)
                     # added section
                     for sections_one_request in sections_all_request:
                         if (int(added_chapter_item.chapter_number) == int(sections_one_request["chapter_number"])):
-                            added_section = BusinessBillSection.objects.create(section_number=int(sections_one_request['section_number']),section_title=sections_one_request['section_title'], section_content="")
+                            added_section = BusinessBillSection.objects.create(
+                                section_number=int(sections_one_request['section_number']),
+                                section_title=sections_one_request['section_title'], section_content="")
                             added_chapter_item.sections.add(added_section)
                             for parts_one_request in parts_all_request:
                                 if (int(added_chapter_item.chapter_number) == int(parts_one_request["chapter_number"])):
                                     if (int(added_section.section_number) == int(parts_one_request["section_number"])):
-                                        added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
+                                        added_part = BusinessBillPart.objects.create(
+                                            part_number=int(parts_one_request['part_number']),
+                                            part_title=parts_one_request['part_title'],
+                                            part_content=parts_one_request['part_content'],
+                                            part_reason=parts_one_request['part_reason'])
                                         added_section.parts.add(added_part)
 
-            #                 update section
+            # update section
             added_section = []
             for sections_one_request in sections_all_request:
                 checksumTemp = 0
@@ -6082,7 +6143,8 @@ def api_bill_save(request):
                     if (int(previous_one_chapter.chapter_number) == int(chapter_number_request)):
                         previous_section = previous_one_chapter.sections.all()
                         for previous_one_section in previous_section:
-                            if (int(sections_one_request["section_number"]) == int(previous_one_section.section_number)):
+                            if (int(sections_one_request["section_number"]) == int(
+                                    previous_one_section.section_number)):
                                 previous_one_section.section_title = sections_one_request["section_title"]
                                 previous_one_section.section_content = ""
                                 previous_one_section.save()
@@ -6096,9 +6158,14 @@ def api_bill_save(request):
                             previous_one_chapter.sections.add(added_section_item)
 
                             for parts_one_request in parts_all_request:
-                                if (int(previous_one_chapter.chapter_number) == int(parts_one_request["chapter_number"])):
+                                if (int(previous_one_chapter.chapter_number) == int(
+                                        parts_one_request["chapter_number"])):
                                     if (int(added_section.section_number) == int(parts_one_request["section_number"])):
-                                        added_part = BusinessBillPart.objects.create(part_number=int(parts_one_request['part_number']),part_title=parts_one_request['part_title'],part_content=parts_one_request['part_content'],part_reason=parts_one_request['part_reason'])
+                                        added_part = BusinessBillPart.objects.create(
+                                            part_number=int(parts_one_request['part_number']),
+                                            part_title=parts_one_request['part_title'],
+                                            part_content=parts_one_request['part_content'],
+                                            part_reason=parts_one_request['part_reason'])
                                         added_section.parts.add(added_part)
 
                             break
@@ -6156,8 +6223,10 @@ def api_bill_save(request):
                         continue
                 if deleted_flag:
                     deleted_part = BusinessBillPart.objects.filter(id=int(previous_one_part.id)).first()
-                    deleted_section = BusinessBillSection.objects.filter(id=int(parts_one_request["section_id"])).first()
-                    deleted_chapter = BusinessBillChapter.objects.filter(id=int(parts_one_request["chapter_id"])).first()
+                    deleted_section = BusinessBillSection.objects.filter(
+                        id=int(parts_one_request["section_id"])).first()
+                    deleted_chapter = BusinessBillChapter.objects.filter(
+                        id=int(parts_one_request["chapter_id"])).first()
                     deleted_docs = deleted_part.part_docs.all()
                     for deleted_doc in deleted_docs:
                         deleted_part.remove(deleted_doc)

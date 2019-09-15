@@ -556,6 +556,7 @@ class BusinessSurvey(models.Model):
     target = models.IntegerField(default=0, verbose_name=u'Survey Target', choices=const.BUSINESS_SURVEY_TARGET)
     create_time = models.DateTimeField(auto_now_add=True, verbose_name=u'Create Time')
     update_time = models.DateTimeField(auto_now=True, verbose_name=u'Update Time')
+    is_ended = models.BooleanField(default=False, verbose_name=u'is survey ended')
 
     class Meta:
         db_table = "t_business_survey"

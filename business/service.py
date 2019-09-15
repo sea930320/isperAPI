@@ -64,7 +64,8 @@ def get_role_allocs_status_by_user(business, path, user):
         btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
         for btm in btmQs:
             try:
-                roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=path.node, role=btm.business_role,
+                roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=path.node,
+                                                                  role=btm.business_role,
                                                                   no=btm.no, project_id=business.cur_project_id,
                                                                   can_take_in=True).first()
                 roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
@@ -83,18 +84,23 @@ def get_role_allocs_status_by_user(business, path, user):
         btmQs = BusinessTeamMember.objects.filter(business=business, project_id=business.cur_project_id, user=user)
         for pn in business.parallel_nodes.all():
             if pn.node.is_parallel_merging == 0 or \
-                    (pn.node.is_parallel_merging == 1 and business.parallel_passed_nodes.filter(node__task_id__in=FlowTrans.objects.filter(outgoing=pn.node.task_id).values_list('incoming', flat=True)).count() == FlowTrans.objects.filter(outgoing=pn.node.task_id).count()):
+                    (pn.node.is_parallel_merging == 1 and business.parallel_passed_nodes.filter(
+                        node__task_id__in=FlowTrans.objects.filter(outgoing=pn.node.task_id).values_list('incoming',
+                                                                                                         flat=True)).count() == FlowTrans.objects.filter(
+                        outgoing=pn.node.task_id).count()):
                 node_alloc_list = []
                 for btm in btmQs:
                     try:
-                        roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=pn.node, role=btm.business_role,
+                        roleAlloc = BusinessRoleAllocation.objects.filter(business=business, node=pn.node,
+                                                                          role=btm.business_role,
                                                                           no=btm.no, project_id=business.cur_project_id,
                                                                           can_take_in=True).first()
                         roleAllocStatus = BusinessRoleAllocationStatus.objects.filter(business=business,
                                                                                       business_role_allocation=roleAlloc).first()
                         node_alloc_list.append({
                             'alloc_id': roleAlloc.id, 'come_status': roleAllocStatus.come_status, 'no': roleAlloc.no,
-                            'sitting_status': roleAllocStatus.sitting_status, 'stand_status': roleAllocStatus.stand_status,
+                            'sitting_status': roleAllocStatus.sitting_status,
+                            'stand_status': roleAllocStatus.stand_status,
                             'vote_status': roleAllocStatus.vote_status, 'show_status': roleAllocStatus.show_status,
                             'speak_times': 0,
                             'role': model_to_dict(roleAlloc.role), 'can_terminate': roleAlloc.can_terminate,
@@ -195,7 +201,8 @@ def get_business_detail(business):
                                                         node_id=node.id, target__in=[0, 1]).first()
                 if bSurvey:
                     allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
-                                                                        project_id=business.cur_project_id, node_id=node.id)
+                                                                        project_id=business.cur_project_id,
+                                                                        node_id=node.id)
                     allocations.update(can_take_in=True)
             cur_node = {
                 'id': node.id, 'name': node.name, 'condition': node.condition, 'process_type': process.type,
@@ -210,17 +217,23 @@ def get_business_detail(business):
                                                             node_id=subNode.node.id, target__in=[0, 1]).first()
                     if bSurvey:
                         allocations = BusinessRoleAllocation.objects.filter(business_id=business.id,
-                                                                            project_id=business.cur_project_id, node_id=subNode.node.id)
+                                                                            project_id=business.cur_project_id,
+                                                                            node_id=subNode.node.id)
                         allocations.update(can_take_in=True)
                 if subNode.node.is_parallel_merging == 0:
                     cur_node.append({
-                        'id': subNode.node.id, 'name': subNode.node.name, 'condition': subNode.node.condition, 'process_type': process.type,
+                        'id': subNode.node.id, 'name': subNode.node.name, 'condition': subNode.node.condition,
+                        'process_type': process.type,
                         'can_switch': process.can_switch
                     })
                 elif subNode.node.is_parallel_merging == 1 and \
-                        business.parallel_passed_nodes.filter(node__task_id__in=FlowTrans.objects.filter(outgoing=subNode.node.task_id).values_list('incoming', flat=True)).count() == FlowTrans.objects.filter(outgoing=subNode.node.task_id).count():
+                                business.parallel_passed_nodes.filter(node__task_id__in=FlowTrans.objects.filter(
+                                    outgoing=subNode.node.task_id).values_list('incoming',
+                                                                               flat=True)).count() == FlowTrans.objects.filter(
+                            outgoing=subNode.node.task_id).count():
                     cur_node.append({
-                        'id': subNode.node.id, 'name': subNode.node.name, 'condition': subNode.node.condition, 'process_type': process.type,
+                        'id': subNode.node.id, 'name': subNode.node.name, 'condition': subNode.node.condition,
+                        'process_type': process.type,
                         'can_switch': process.can_switch
                     })
     role_allocs = []
@@ -409,7 +422,7 @@ def get_business_templates(business, node_id, role_alloc_id, usage, pra=None, ed
         """
         实验模板
         """
-        if role_alloc_id and role_alloc_id != 'observable' and pra is None :
+        if role_alloc_id and role_alloc_id != 'observable' and pra is None:
             bra = BusinessRoleAllocation.objects.filter(pk=role_alloc_id).first()
             pra = ProjectRoleAllocation.objects.filter(pk=bra.project_role_alloc_id).first()
 
@@ -419,7 +432,7 @@ def get_business_templates(business, node_id, role_alloc_id, usage, pra=None, ed
                     docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id)
                 else:
                     docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id,
-                                                         business_role_allocation_id=role_alloc_id)
+                                                             business_role_allocation_id=role_alloc_id)
             else:
                 docs = BusinessDocContent.objects.filter(business_id=business.pk, node_id=node_id)
 
@@ -695,7 +708,7 @@ def action_role_banned(bus, node_id, path_id, control_status):
                 business_id=bus.id,
                 business_role_allocation__node_id=node_id,
                 # path_id=path_id
-            ).update(speak_times=0, show_status=9,submit_status=9)
+            ).update(speak_times=0, show_status=9, submit_status=9)
         opt = {'control_status': control_status}
         return True, opt
     except Exception as e:
@@ -1283,7 +1296,8 @@ def action_exp_node_end(bus, role_alloc_id, data):
             return False, resp
         else:
             cur_node = FlowNode.objects.filter(pk=data['cur_node']).first()
-            if data['parallel'] == 0 or data['parallel'] == '0' or (cur_node.is_parallel_merging == 1 and bus.parallel_count == 1):
+            if data['parallel'] == 0 or data['parallel'] == '0' or (
+                    cur_node.is_parallel_merging == 1 and bus.parallel_count == 1):
                 if cur_node.is_parallel_merging == 1:
                     bus.parallel_passed_nodes.create(
                         node=cur_node
@@ -1342,10 +1356,12 @@ def action_exp_node_end(bus, role_alloc_id, data):
 
                     # 创建新环节路径
                     step = BusinessTransPath.objects.filter(business_id=bus.id).count() + 1
-                    path = BusinessTransPath.objects.create(business_id=bus.id, node_id=next_node.pk, project_id=project.pk,
+                    path = BusinessTransPath.objects.create(business_id=bus.id, node_id=next_node.pk,
+                                                            project_id=project.pk,
                                                             task_id=next_node.task_id, step=step)
                     # 设置初始环节角色状态信息 按实验路径创建
-                    role_allocations = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=next_node.pk)
+                    role_allocations = BusinessRoleAllocation.objects.filter(project_id=project.pk,
+                                                                             node_id=next_node.pk)
 
                     role_status_list = []
                     for role_allocation_item in role_allocations:
@@ -1443,13 +1459,15 @@ def action_exp_node_end(bus, role_alloc_id, data):
                     tran = FlowTrans.objects.get(pk=data['tran_id'])
                     parallel_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
                 else:
-                    parallel_node = FlowNode.objects.get(flow_id=cur_node.flow_id, task_id=FlowTrans.objects.get(incoming=cur_node.task_id).outgoing)
+                    parallel_node = FlowNode.objects.get(flow_id=cur_node.flow_id, task_id=FlowTrans.objects.get(
+                        incoming=cur_node.task_id).outgoing)
                 project = Project.objects.filter(pk=bus.cur_project_id).first()
                 if parallel_node.parallel_node_start == 1:
                     for item in data['trans']:
                         tran = FlowTrans.objects.get(pk=item['id'])
                         next_node = FlowNode.objects.filter(flow_id=tran.flow_id, task_id=tran.outgoing).first()
-                        role_allocations = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=next_node.pk)
+                        role_allocations = BusinessRoleAllocation.objects.filter(project_id=project.pk,
+                                                                                 node_id=next_node.pk)
 
                         for role_allocation_item in role_allocations:
                             if role_allocation_item.can_brought:
@@ -1472,7 +1490,8 @@ def action_exp_node_end(bus, role_alloc_id, data):
                                     come_status=come_status
                                 )
 
-                        business_team_members = BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0)
+                        business_team_members = BusinessTeamMember.objects.filter(business_id=bus.id,
+                                                                                  project_id=project.pk, del_flag=0)
                         for bitem in business_team_members:
 
                             if cur_node.process_id == next_node.process_id and not is_nest:
@@ -1521,7 +1540,8 @@ def action_exp_node_end(bus, role_alloc_id, data):
                     if data['select'] == 2 or data['select'] == 3:
                         bus.node_id = parallel_node.pk
                         step_now = BusinessTransPath.objects.filter(business_id=bus.id).count() + 1
-                        path_now = BusinessTransPath.objects.create(business_id=bus.id, node_id=parallel_node.pk, project_id=project.pk,
+                        path_now = BusinessTransPath.objects.create(business_id=bus.id, node_id=parallel_node.pk,
+                                                                    project_id=project.pk,
                                                                     task_id=parallel_node.task_id, step=step_now)
                         bus.path_id = path_now.pk
                     bus.parallel_nodes.filter(node=cur_node).delete()
@@ -1530,7 +1550,8 @@ def action_exp_node_end(bus, role_alloc_id, data):
                 else:
                     next_node = parallel_node
                     project = Project.objects.filter(pk=bus.cur_project_id).first()
-                    role_allocations = BusinessRoleAllocation.objects.filter(project_id=project.pk, node_id=next_node.pk)
+                    role_allocations = BusinessRoleAllocation.objects.filter(project_id=project.pk,
+                                                                             node_id=next_node.pk)
 
                     for role_allocation_item in role_allocations:
                         if role_allocation_item.can_brought:
@@ -1553,7 +1574,8 @@ def action_exp_node_end(bus, role_alloc_id, data):
                                 come_status=come_status
                             )
 
-                    business_team_members = BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk, del_flag=0)
+                    business_team_members = BusinessTeamMember.objects.filter(business_id=bus.id, project_id=project.pk,
+                                                                              del_flag=0)
                     for bitem in business_team_members:
 
                         if cur_node.process_id == next_node.process_id and not is_nest:
@@ -2265,6 +2287,7 @@ def get_business_display_file_read_status(doc_list, can_terminate, user_id):
         res_list.append(doc)
     return res_list
 
+
 def is_look_on_node(node_id):
     return FlowNode.objects.filter(pk=node_id, look_on=1).exists()
 
@@ -2289,7 +2312,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         # 提交的文件
         if is_path:
             docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id,
-                                          path_id=item.pk)
+                                              path_id=item.pk)
         else:
             docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
         for d in docs:
@@ -2301,7 +2324,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
     elif node.process.type == 3:
         if is_path:
             project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id,
-                                                  path_id=item.pk)
+                                                      path_id=item.pk)
         else:
             project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
         for d in project_docs:
@@ -2367,7 +2390,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         # 提交的文件
         if is_path:
             docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id,
-                                          path_id=item.id)
+                                              path_id=item.id)
         else:
             docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
         for d in docs:
@@ -2380,8 +2403,8 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
     # 消息
     if is_path:
         messages = BusinessMessage.objects.filter(business_id=business_id,
-                                              business_role_allocation__node_id=node.id,
-                                              path_id=item.id).order_by('timestamp')
+                                                  business_role_allocation__node_id=node.id,
+                                                  path_id=item.id).order_by('timestamp')
     else:
         messages = BusinessMessage.objects.filter(business_id=business_id,
                                                   business_role_allocation__node_id=node.id).order_by('timestamp')
@@ -2390,16 +2413,21 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         message = {
             'user_name': m.user_name, 'role_name': m.role_name,
             'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
-            'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S'), 'name': m.user.name
         }
         message_list.append(message)
-
     # 个人笔记
-    note = BusinessNotes.objects.filter(business_id=business_id,
+    if user_id:
+        note = BusinessNotes.objects.filter(business_id=business_id,
                                         node_id=node.id,
                                         created_by_id=user_id).first() if observable == False else None
+        notes = []
+    else:
+        note = None
+        notes = BusinessNotes.objects.filter(business_id=business_id,
+                                        node_id=node.id) if observable == False else []
     return {
         'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
-        'note': note.content if note else None, 'type': node.process.type if node.process else 0,
+        'note': note.content if note else None, 'notes': notes, 'type': node.process.type if node.process else 0,
         'vote_status': vote_status
     }
