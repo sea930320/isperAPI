@@ -710,6 +710,8 @@ class BusinessBillList(models.Model):
                                   verbose_name=u'chapters')
     part_mode_parts = models.ManyToManyField('BusinessBillPartPartMode', blank=True,
                                   verbose_name=u'part_mode_parts')
+    docs = models.ManyToManyField('BusinessBillDoc', blank=True,
+                                  verbose_name=u'docs')
 
     class Meta:
         db_table = "t_business_bill_list"
@@ -726,6 +728,7 @@ class BusinessBillChapter(models.Model):
     update_time = models.DateTimeField(auto_now=True)
     sections = models.ManyToManyField('BusinessBillSection', blank=True,
                                      verbose_name=u'sections')
+
 
     class Meta:
         db_table = "t_business_bill_chapter"
@@ -801,6 +804,22 @@ class BusinessBillPartPartMode(models.Model):
     class Meta:
         db_table = "t_business_bill_part_part_mode"
         verbose_name_plural = verbose_name = u"BusinessBillPartPartMode"
+
+    def __unicode__(self):
+        return str(self.pk)
+
+
+class BusinessBillDoc(models.Model):
+    doc = models.ForeignKey(UploadFile, null=True, on_delete=models.CASCADE, verbose_name=u'doc_id')
+    doc_conception = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_conception')
+    doc_name = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_name')
+    doc_url = models.CharField(max_length=512, blank=True, null=True, verbose_name=u'doc_url')
+    create_time = models.DateTimeField(auto_now_add=True, null=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "t_business_bill_doc"
+        verbose_name_plural = verbose_name = u"BusinessBillDoc"
 
     def __unicode__(self):
         return str(self.pk)
