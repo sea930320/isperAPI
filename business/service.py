@@ -2603,7 +2603,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
             bill_data = {'bill_name': '', 'bill_id': 0, 'bill_data': [], 'edit_mode': 0}
             bill_name = None
         else:
-            bill_data = getAllBillList(bills.first().id)
+            bill_data = getAllBillListForReport(bills.first().id)
             bill_name = {
                 'id': bills.first().pk,
                 'edit_mode': bills.first().edit_mode,
