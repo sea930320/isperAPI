@@ -51,6 +51,7 @@ from docx.shared import Pt
 from docx.shared import Mm
 from docx.enum.text import WD_BREAK
 import copy
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 logger = logging.getLogger(__name__)
 
@@ -5742,7 +5743,6 @@ def api_bill_chapter_list(request):
 def getAllBillList(bill_id):
     bill_name_object = BusinessBillList.objects.filter(id=bill_id).first()
     show_mode = bill_name_object.edit_mode
-    print show_mode
     if (int(show_mode) == 1):
         res = []
         chapters_objects = bill_name_object.chapters.all().order_by("chapter_number")
@@ -6378,4 +6378,170 @@ def api_bill_get_all(request):
         resp = code.get_msg(code.SYSTEM_ERROR)
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_bill_doc_export(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get("business_id", None)
+        bill_name = BusinessBillList.objects.filter(business_id=business_id)
+        resp = code.get_msg(code.SUCCESS)
+        if (len(bill_name) == 0):
+            resp['d'] = {'bill_name': '', 'bill_id': 0, 'bill_data': [], 'edit_mode': 0}
+        else:
+            bill_data = getAllBillList(bill_name.first().id)
+            document = Document()
+            bill_title = document.add_heading(bill_name.first().bill_name, 1)
+            bill_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if (int(bill_name.first().edit_mode) == 1):
+                chapters_objects = bill_name.first().chapters.all().order_by("chapter_number")
+                for chapters_object in chapters_objects:
+                    document.add_heading(
+                        u'第' + str(chapters_object.chapter_number) + u'章 。 ' + str(chapters_object.chapter_title), level=2)
+                    sections_objects = chapters_object.sections.all().order_by("section_number")
+                    for sections_object in sections_objects:
+                        document.add_heading(
+                            u'第' + str(sections_object.section_number) + u'节 。 ' + str(
+                                sections_object.section_title), level=3)
+                        parts_objects = sections_object.parts.all().order_by("part_number")
+                        for parts_object in parts_objects:
+                            document.add_heading(
+                                u'第' + str(parts_object.part_number) + u'条 。 ' + str(
+                                    parts_object.part_title), level=4)
+                            document.add_paragraph(
+                                str(parts_object.part_content)
+                            )
+                    response = HttpResponse(
+                        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+                    filename = urlquote(u'法案')
+                    response['Content-Disposition'] = u'attachment;filename=%s.docx' % filename
+                    document.save(response)
+                    return response
+            elif(int(bill_name.first().edit_mode) == 2):
+                for bill_one_data in bill_data:
+                    document.add_heading(
+                        u'第' + str(bill_one_data["part_number"]) + u'条 。 ' + str(bill_one_data["part_title"]), level=2)
+                    document.add_paragraph(
+                        str(bill_one_data["part_content"])
+                    )
+                response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+                filename = urlquote(u'法案')
+                response['Content-Disposition'] = u'attachment;filename=%s.docx' % filename
+                document.save(response)
+                return response
+            # resp['d'] = {'bill_name': bill_name.first().bill_name, 'bill_id': bill_name.first().id,
+            #              'bill_data': bill_data, 'edit_mode': bill_name.first().edit_mode}
+
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+
+
+# resp = auth_check(request, "GET")
+#     observable = False
+#     if resp != {}:
+#         observable = True
+#
+#     try:
+#         business_id = request.GET.get("business_id")  # 实验ID
+#         user_id = request.GET.get("user_id", None)  # 用户
+#         user_id = user_id if user_id else request.user.id if not observable else None
+#         busi = Business.objects.filter(pk=business_id).first()
+#
+#         docTitle = [u'文件名', u'文件类型', u'签字', u'url']
+#         messageTitle = [u'user_name', u'role_name', u'time', u'msg']
+#         voteTitle = [u'同意', u'不同意', u'弃权', u'未投票']
+#         noteTitle = u'Note'
+#         experienceTitle = [u'user_name', u'time', u'content']
+#
+#         if busi:
+#             project = Project.objects.get(pk=busi.project_id)
+#             flow = Flow.objects.get(pk=project.flow_id)
+#             members = BusinessTeamMember.objects.filter(business_id=business_id, del_flag=0, project_id=busi.cur_project_id).values_list('user_id', flat=True)
+#             # 小组成员
+#             member_list = []
+#             member_names = ""
+#             for uid in members:
+#                 if not uid:
+#                     continue
+#                 user = Tuser.objects.get(pk=int(uid))
+#                 member_list.append(user.name)
+#                 if member_names == "":
+#                     member_names = user.name + "(" + user.username + ")"
+#                 else:
+#                     member_names = ", " + user.name + "(" + user.username + ")"
+#             # 打开文档
+#             document = Document()
+#             # 加入不同等级的标题
+#             document.add_heading(u'业务报告', 1)
+#             table = document.add_table(rows=6, cols=4)
+#             table.style = 'Table Grid'
+#
+#             for i in [0, 1, 2, 4, 5]:
+#                 table.cell(i, 0).merge(table.cell(i, 1))
+#                 table.cell(i, 2).merge(table.cell(i, 3))
+#
+#             table.cell(0, 0).text = u'业务名称'
+#             table.cell(0, 2).text = busi.name
+#             table.cell(1, 0).text = u'项目名称'
+#             table.cell(1, 2).text = project.name
+#             table.cell(2, 0).text = u'流程名称'
+#             table.cell(2, 2).text = flow.name
+#             table.cell(4, 0).text = u'参与人员'
+#             table.cell(4, 2).text = member_names
+#             table.cell(5, 0).text = u'启动人'
+#             table.cell(5, 2).text = busi.created_by.name if busi.created_by else ""
+#             table.cell(3, 0).text =  u'启动时间'
+#             table.cell(3, 1).text =  busi.create_time.strftime('%Y-%m-%d') if busi.create_time else ""
+#             table.cell(3, 2).text =  u'完成时间'
+#             table.cell(3, 3).text =  busi.finish_time.strftime('%Y-%m-%d') if busi.finish_time else ""
+#
+#             p = document.add_paragraph()
+#             run = p.add_run()
+#             run.add_break()
+#
+#             document.add_heading(u'业务成果', 1)
+#
+#             # 各环节提交文件信息和聊天信息
+#             paths = BusinessTransPath.objects.filter(business_id=busi.id)
+#             node_list = []
+#             for item in paths:
+#                 node_item = report_gen(business_id, item, user_id, observable)
+#                 if node_item == False:
+#                     continue
+#                 node_list.append(node_item)
+#             for node in node_list:
+#                 document.add_heading(node['node_name'], level=2)
+#             experiences = BusinessExperience.objects.filter(business_id=busi.id)
+#             # sheet = report.add_sheet(u'Experience')  # 设置样式
+#             # for i in range(0, len(experienceTitle)):
+#             #     sheet.write(0, i, experienceTitle[i], set_style(220, True))
+#             # row = 1
+#             # for e in experiences:
+#             #     sheet.write(row, 0, e.created_by.name)
+#             #     sheet.write(row, 1, e.create_time.strftime('%Y-%m-%d'))
+#             #     sheet.write(row, 2, e.content)
+#             #     row += 1
+#
+#             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+#             filename = urlquote(u'心得')
+#             response['Content-Disposition'] = u'attachment;filename=%s.docx' % filename
+#             document.save(response)
+#             # report.save(response)
+#             return response
+#         else:
+#             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
+#             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+#
+#     except Exception as e:
+#         logger.exception('api_business_report_export Exception:{0}'.format(str(e)))
+#         resp = code.get_msg(code.SYSTEM_ERROR)
+#         return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
 ##############################################
