@@ -2333,6 +2333,54 @@ def getAllBillList(bill_id):
             continue
     return res
 
+
+def getAllBillListForReport(bill_id):
+    bill_name_object = BusinessBillList.objects.filter(id=bill_id).first()
+    show_mode = bill_name_object.edit_mode
+    if (int(show_mode) == 1):
+        res = []
+        chapters_objects = bill_name_object.chapters.all().order_by("chapter_number")
+        for chapters_object in chapters_objects:
+            chapter_temp = {}
+            chapter_temp["chapter_id"] = chapters_object.id
+            chapter_temp["chapter_number"] = chapters_object.chapter_number
+            chapter_temp["chapter_title"] = chapters_object.chapter_title
+            chapter_temp["chapter_content"] = chapters_object.chapter_content
+            chapter_temp["sections"] = []
+            sections_objects = chapters_object.sections.all().order_by("section_number")
+            for sections_object in sections_objects:
+                section_temp = {}
+                section_temp["section_id"] = sections_object.id
+                section_temp["section_number"] = sections_object.section_number
+                section_temp["section_title"] = sections_object.section_title
+                section_temp["section_content"] = sections_object.section_content
+                section_temp["parts"] = []
+                parts_objects = sections_object.parts.all().order_by("part_number")
+                for parts_object in parts_objects:
+                    part_temp = {}
+                    part_temp["part_id"] = parts_object.id
+                    part_temp["part_number"] = parts_object.part_number
+                    part_temp["part_title"] = parts_object.part_title
+                    part_temp["part_content"] = parts_object.part_content
+                    part_temp["part_reason"] = parts_object.part_reason
+                    section_temp["parts"].append(part_temp)
+                chapter_temp["sections"].append(section_temp)
+            res.append(chapter_temp)
+        return res
+    elif (int(show_mode) == 2):
+        res = []
+        part_mode_parts_objects = bill_name_object.part_mode_parts.all().order_by("part_number")
+        for part_mode_parts_object in part_mode_parts_objects:
+            res_json = {}
+            res_json["part_id"] = part_mode_parts_object.id
+            res_json["part_number"] = part_mode_parts_object.part_number
+            res_json["part_title"] = part_mode_parts_object.part_title
+            res_json["part_content"] = part_mode_parts_object.part_content
+            res_json["part_reason"] = part_mode_parts_object.part_reason
+            res.append(res_json)
+            continue
+    return res
+
 def report_gen(business_id, item, user_id, observable, is_path=True):
     node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first() if is_path else item
     if node.process.type == const.PROCESS_NEST_TYPE:
