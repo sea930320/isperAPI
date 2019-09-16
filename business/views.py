@@ -51,6 +51,8 @@ from docx.shared import Pt
 from docx.shared import Mm
 from docx.enum.text import WD_BREAK
 import copy
+from zipfile import *
+import StringIO
 
 logger = logging.getLogger(__name__)
 
@@ -2637,8 +2639,170 @@ def api_business_report_export(request):
                 if node_item == False:
                     continue
                 node_list.append(node_item)
+            docs = []
             for node in node_list:
                 document.add_heading(node['node_name'], level=2)
+
+                if node['type'] == 3:
+                    bdts_list = node['bdts_list']
+                    document.add_heading(u'展示内容', 3)
+                    table = document.add_table(0, 1)
+                    if len(bdts_list) > 0:
+                        for bdt in bdts_list:
+                            cells = table.add_row().cells
+                            tms = ""
+                            for m in bdt['to_members']:
+                                if tms == "":
+                                    tms = m
+                                else:
+                                    tms = tms + ',' + m
+                            cells[0].text = bdt['created_by'] + u'想' + tms + u'展示了' + bdt['doc_name'] + u'文件'
+                            for m in bdt['members']:
+                                cells = table.add_row().cells
+                                cells[0].text = m + u'签收了' + bdt['doc_name'] + u'文件'
+                            cells = table.add_row().cells
+                    else:
+                        cells = table.add_row().cells
+                        cells[0].text = u'无'
+                if node['type'] == 5:
+                    vote_data = node['vote_data']
+                    vote_status = node['vote_status']
+                    document.add_heading(u'投票记录', 3)
+                    table = document.add_table(0, 2)
+                    if vote_data and len(vote_data['logs']) > 0:
+                        for log in vote_data['logs']:
+                            cells = table.add_row().cells
+                            cells[0].text = log['name']
+                            cells[1].text = log['status']
+                    else:
+                        cells = table.add_row().cells
+                        cells[0].text = u'无'
+                    document.add_heading(u'投票结果统计', 3)
+                    table = document.add_table(0, 2)
+                    if vote_data and len(vote_data['logs']) > 0:
+                        for status in vote_status:
+                            cells = table.add_row().cells
+                            cells[0].text = status['status']
+                            cells[1].text = str(round(status['num'] * 1.0 / vote_data['log_count'] * 100, 2)) + '%'
+                    else:
+                        cells = table.add_row().cells
+                        cells[0].text = u'无'
+                if node['type'] == 7:
+                    document.add_heading(u'公示结果展示', 3)
+                    table = document.add_table(0, 1)
+                    if node['bpost']:
+                        cells = table.add_row().cells
+                        cells[0].text = node['bpost']['content']
+                    else:
+                        cells = table.add_row().cells
+                        cells[0].text = u'无'
+                if node['type'] == 8:
+                    vote_data = node['vote_data']
+                    document.add_heading(u'表决记录', 3)
+                    table = document.add_table(0, 1)
+                    print vote_data['items']
+                    if vote_data and len(vote_data['items']) > 0:
+                        cells = table.add_row().cells
+                        cells[0].text = u'表决内容:' + vote_data['title']
+                        for log in vote_data['items']:
+                            for log_user in log['voted_users']:
+                                cells = table.add_row().cells
+                                cells[0].text = log_user + u'参与表决，表决选择是：' + log['text']
+                    else:
+                        cells = table.add_row().cells
+                        cells[0].text = u'无'
+                if node['type'] == 10:
+                    bdts_list = node['bdts_list']
+                    document.add_heading(u'交付模块', 3)
+                    table = document.add_table(0, 1)
+                    if len(bdts_list) > 0:
+                        for bdt in bdts_list:
+                            cells = table.add_row().cells
+                            cells[0].text = bdt['created_by'] + u'上传了' + bdt['doc_name'] + u'文件'
+                    else:
+                        cells = table.add_row().cells
+                        cells[0].text = u'无'
+
+                    document.add_heading(u'签收模块', 3)
+                    table = document.add_table(0, 1)
+                    if len(bdts_list) > 0:
+                        for bdt in bdts_list:
+                            for m in bdt['members']:
+                                cells = table.add_row().cells
+                                cells[0].text = m + u'签收了' + bdt['doc_name'] + u'文件'
+                    else:
+                        cells = table.add_row().cells
+                        cells[0].text = u'无'
+                if node['type'] == 11:
+                    document.add_heading(u'问卷调查内容', 3)
+                    if node['bsurvey']:
+                        document.add_heading(u'- 选择题', 4)
+                        table = document.add_table(0, 1)
+                        if len(node['bsurvey']['select_questions']) > 0:
+                            index = 0
+                            for question in node['bsurvey']['select_questions']:
+                                index += 1
+                                cells = table.add_row().cells
+                                cells[0].text = str(index) + '. ' + question['title']
+                                if (question['select_option'] == 0):
+                                    for qcase in question['question_cases']:
+                                        cells = table.add_row().cells
+                                        cells[0].text = u'◎ ' + qcase['case'];
+                                else:
+                                    for qcase in question['question_cases']:
+                                        cells = table.add_row().cells
+                                        cells[0].text = u'□ ' + qcase['case']
+                        else:
+                            cells = table.add_row().cells
+                            cells[0].text = u'无'
+
+
+                        document.add_heading(u'- 填空题', 4)
+                        table = document.add_table(0, 1)
+                        if len(node['bsurvey']['blank_questions']) > 0:
+                            index = 0
+                            for question in node['bsurvey']['blank_questions']:
+                                index += 1
+                                cells = table.add_row().cells
+                                cells[0].text = str(index) + '. ' + html2text.html2text(question['title']).replace('', '_').strip()
+                        else:
+                            cells = table.add_row().cells
+                            cells[0].text = u'无'
+
+                        document.add_heading(u'- 问答题', 4)
+                        table = document.add_table(0, 1)
+                        if len(node['bsurvey']['normal_questions']) > 0:
+                            index = 0
+                            for question in node['bsurvey']['normal_questions']:
+                                index += 1
+                                cells = table.add_row().cells
+                                cells[0].text = str(index) + '. ' + html2text.html2text(question['title']).strip()
+                        else:
+                            cells = table.add_row().cells
+                            cells[0].text = u'无'
+                    document.add_heading(u'执行记录', 3)
+                    if node['bsurvey']:
+                        table = document.add_table(0, 1)
+                        if len(node['bsurvey']['answer_users']) > 0:
+                            for au in node['bsurvey']['answer_users']:
+                                cells = table.add_row().cells
+                                cells[0].text = au + u'参与了调查问卷的填写'
+                        else:
+                            cells = table.add_row().cells
+                            cells[0].text = u'无'
+
+                if node['type'] == 12:
+                    document.add_heading(u'判断与选择记录', 3)
+                    table = document.add_table(0, 1)
+                    if len(node['decide_results']) > 0:
+                        for dr in node['decide_results']:
+                            cells = table.add_row().cells
+                            cells[0].text = dr['name'] + u'选择了' + dr['title']
+                    else:
+                        cells = table.add_row().cells
+                        cells[0].text = u'无'
+
+
                 document.add_heading(u'交流记录', 3)
                 table = document.add_table(0, 2)
                 if len(node['messages']) == 0:
@@ -2662,37 +2826,59 @@ def api_business_report_export(request):
                     for d in node['docs']:
                         cells = table.add_row().cells
                         cells[0].text = '(' + const.FILE_TYPE[d['file_type']][1] + u')/提交文件/' + node['node_name'] + '/' + d['filename']
+                        docs.append({
+                            'dir': node['node_name'],
+                            'name': d['filename'],
+                            'file': d['file']
+                        })
 
                 document.add_heading(u'自我备忘', 3)
-                if len(node['notes']) > 0:
+                if request.session['login_type'] in [2, 3, 6, 7]:
                     table = document.add_table(0, 2)
-                    for note in node['notes']:
+                    if len(node['notes']) > 0:
+                        for note in node['notes']:
+                            cells = table.add_row().cells
+                            cells[0].text = note.created_by.name
+                            cells[1].text = note.content
+                    else:
                         cells = table.add_row().cells
-                        cells[0].text = note.created_by.name
-                        cells[1].text = note.content
-                if node['note']:
+                        cells[0].text = u'无'
+                else:
                     table = document.add_table(0, 1)
                     cells = table.add_row().cells
-                    cells[0].text = node['note']
+                    if node['note']:
+                        cells[0].text = node['note']
+                    else:
+                        cells[0].text = u'无'
 
-            experiences = BusinessExperience.objects.filter(business_id=busi.id)
-            # sheet = report.add_sheet(u'Experience')  # 设置样式
-            # for i in range(0, len(experienceTitle)):
-            #     sheet.write(0, i, experienceTitle[i], set_style(220, True))
-            # row = 1
-            # for e in experiences:
-            #     sheet.write(row, 0, e.created_by.name)
-            #     sheet.write(row, 1, e.create_time.strftime('%Y-%m-%d'))
-            #     sheet.write(row, 2, e.content)
-            #     row += 1
+                document.add_heading(u'操作指南', 3)
+                table = document.add_table(0, 1)
+                if len(node['guides']) > 0:
+                    for guide in node['guides']:
+                        cells = table.add_row().cells
+                        cells[0].text = guide.content
+                else:
+                    cells = table.add_row().cells
+                    cells[0].text = u'无'
 
-            response = HttpResponse(
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            filename = urlquote(u'心得')
-            response['Content-Disposition'] = u'attachment;filename=%s.docx' % filename
-            document.save(response)
-            # report.save(response)
-            return response
+            docName = urlquote(u'心得_' + datetime.now().strftime("%Y%m%d-%H%M%S") + u'.docx')
+            docPath = os.path.dirname(__file__) + '/../media/files/business/' + docName
+            document.save(docPath)
+
+            s = StringIO.StringIO()
+            zf = ZipFile(s, "w")
+
+            zf.write(docPath, str(busi.pk) + '-' + busi.name + '.docx')
+            for doc in docs:
+                zip_path = os.path.join(doc['dir'], doc['name'])
+                dpath = doc['file'].path
+                zf.write(dpath, zip_path)
+            zf.close()
+
+            resp = HttpResponse(s.getvalue(), content_type="application/x-zip-compressed")
+            resp['Content-Disposition'] = 'attachment; filename=%s' % "心得.zip"
+
+            return resp
         else:
             resp = code.get_msg(code.BUSINESS_NOT_EXIST)
             return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")

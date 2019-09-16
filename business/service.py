@@ -2297,7 +2297,12 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
     if node.process.type == const.PROCESS_NEST_TYPE:
         return False
     doc_list = []
+    vote_data = None
     vote_status = []
+    decide_results = []
+    bdts_list = []
+    bsurvey = None
+    bpost = None
     if node.process.type == 2:
         # 如果是编辑
         # 应用模板
@@ -2306,7 +2311,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         for d in contents:
             doc_list.append({
                 'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
-                'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
+                'signs': [{'sign_status': d.sign_status, 'sign': d.sign}], 'file': d.file,
                 'url': d.file.url if d.file else None
             })
         # 提交的文件
@@ -2318,7 +2323,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         for d in docs:
             sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
             doc_list.append({
-                'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
+                'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type, 'file': d.file,
                 'signs': list(sign_list), 'url': d.file.url if d.file else None
             })
     elif node.process.type == 3:
@@ -2329,63 +2334,163 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
             project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
         for d in project_docs:
             doc_list.append({
-                'id': d.id, 'filename': d.filename, 'signs': [],
+                'id': d.id, 'filename': d.filename, 'signs': [], 'file': d.file,
                 'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
             })
+
+        team_members = BusinessTeamMember.objects.filter(business_id=business_id)
+        docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
+        for doc in docs:
+            status = 0
+            members = []
+            to_members = []
+            bras = BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node.id, can_take_in=1)
+            for bra in bras:
+                btm = BusinessTeamMember.objects.filter(business_role=bra.role, no=bra.no).first()
+                if btm and btm.user:
+                    to_members.append(btm.user.name)
+            for member in team_members:
+                if not member.user_id:
+                    continue;
+                b = BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node.id,
+                                                         business_doc_id=doc.pk,
+                                                         business_team_member_id=member.pk).first();
+                if b is not None:
+                    if b.status == 1:
+                        members.append(member.user.name)
+
+            if user_id is None:
+                bdts_list.append({'doc_id': doc.pk, 'doc_name': doc.filename, 'members': members,
+                                  'status': status, 'created_by': doc.created_by.name, 'to_members': to_members})
     elif node.process.type == 5:
-        # 如果是投票   三期 - 增加投票结果数量汇总
-        vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
+        poll = Poll.objects.filter(
             business_id=business_id,
-            business_role_allocation__node_id=node.id,
-            # path_id=item.id,
-            vote_status=0)
-        vote_status_0 = []
-        # 去掉老师观察者角色的数据
-        for item0 in vote_status_0_temp:
-            role_alloc_temp = item0.business_role_allocation
-            if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
-                vote_status_0.append(item0)
+            node_id=node.id
+        ).first()
+        if poll:
+            vote_data = {
+                'title': poll.title,
+                'method': poll.method,
+                'share': poll.share,
+                'items': {
+                    '1': [x.user.name for x in poll.members.filter(poll_status=1)],
+                    '2': [x.user.name for x in poll.members.filter(poll_status=2)],
+                    '3': [x.user.name for x in poll.members.filter(Q(poll_status=3) | Q(poll_status=0))]
+                },
+                'logs': [{
+                    'name': x.user.name,
+                    'status': u'同意' if x.poll_status == 1 else u'不同意' if x.poll_status == 2 else u'弃权'
+                } for x in poll.members.all()],
+                'log_count': poll.members.count()
+            }
+            vote_status = [{'status': u'同意', 'num': len(vote_data['items']['1'])},
+                           {'status': u'不同意', 'num': len(vote_data['items']['2'])},
+                           {'status': u'弃权', 'num': len(vote_data['items']['3'])}]
+    elif node.process.type == 7:
+        business = Business.objects.filter(pk=business_id, del_flag=0).first()
+        businessPost = BusinessPost.objects.filter(business_id=business_id, node_id=node.id).first()
+        resp = code.get_msg(code.SUCCESS)
+        bpost = model_to_dict(businessPost) if businessPost else None
+    elif node.process.type == 8:
+        vote = Vote.objects.filter(
+            business_id=business_id,
+            node_id=node.id
+        ).first()
 
-        vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
-            business_id=business_id,
-            business_role_allocation__node_id=node.id,
-            # path_id=item.id,
-            vote_status=1)
-        vote_status_1 = []
-        # 去掉老师观察者角色的数据
-        for item1 in vote_status_1_temp:
-            role_alloc_temp = item1.business_role_allocation
-            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                vote_status_1.append(item1)
+        vote_data = {
+            'title': vote.title,
+            'description': vote.description,
+            'mode': vote.mode,
+            'method': vote.method,
+            'members': [{
+                'id': member.pk,
+                'username': member.user.name,
+                'voted': member.voted,
+            } for member in vote.members.all()],
+            'items': [{
+                'id': vitem.pk,
+                'text': vitem.content,
+                'voted_count': vitem.voted_count,
+                'voted_users': [user.name for user in vitem.voted_users.all()]
+            } for vitem in vote.items.all()]
+        }
+    elif node.process.type == 10:
+        team_members = BusinessTeamMember.objects.filter(business_id=business_id)
+        docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
+        for doc in docs:
+            status = 0
+            members = []
+            for member in team_members:
+                if not member.user_id:
+                    continue;
+                b = BusinessDocTeamStatus.objects.filter(business_id=business_id, node_id=node.id,
+                                                         business_doc_id=doc.pk,
+                                                         business_team_member_id=member.pk).first();
+                if b is not None:
+                    if b.status == 1:
+                        members.append(member.user.name)
 
-        vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
+            if user_id is None:
+                bdts_list.append({'doc_id': doc.pk, 'doc_name': doc.filename, 'members': members,
+                                  'status': status, 'created_by': doc.created_by.name})
+    elif node.process.type == 11:
+        business = Business.objects.filter(pk=business_id).first()
+        qs = BusinessSurvey.objects.filter(
             business_id=business_id,
-            business_role_allocation__node_id=node.id,
-            # path_id=item.id,
-            vote_status=2)
-        vote_status_2 = []
-        # 去掉老师观察者角色的数据
-        for item2 in vote_status_2_temp:
-            role_alloc_temp = item2.business_role_allocation
-            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                vote_status_2.append(item2)
+            project_id=business.cur_project_id,
+            node_id=node.id
+        ).first()
+        if qs:
+            bsurvey = {
+                'id': qs.id, 'business_id': qs.business_id, 'project_id': qs.project_id, 'node_id': qs.node_id,
+                'title': qs.title,
+                'description': qs.description, 'step': qs.step,
+                'start_time': qs.start_time.strftime('%Y-%m-%d %H:%M:%S') if qs.start_time else '',
+                'end_time': qs.end_time.strftime(
+                    '%Y-%m-%d %H:%M:%S') if qs.end_time else '', 'end_quote': qs.end_quote, 'target': qs.target
+            }
+            selectQuestions = BusinessQuestion.objects.filter(
+                survey_id=qs.pk, type=0
+            )
+            blankQuestions = BusinessQuestion.objects.filter(
+                survey_id=qs.pk, type=1
+            )
+            normalQuestions = BusinessQuestion.objects.filter(
+                survey_id=qs.pk, type=2
+            )
 
-        vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
-            business_id=business_id,
-            business_role_allocation__node_id=node.id,
-            # path_id=item.id,
-            vote_status=9)
-        vote_status_9 = []
-        # 去掉老师观察者角色的数据
-        for item9 in vote_status_9_temp:
-            role_alloc_temp = item9.business_role_allocation
-            if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                vote_status_9.append(item9)
-        vote_status = [{'status': '同意', 'num': len(vote_status_1)},
-                       {'status': '不同意', 'num': len(vote_status_2)},
-                       {'status': '弃权', 'num': len(vote_status_9)},
-                       {'status': '未投票', 'num': len(vote_status_0)}]
-        pass
+            bsurvey['select_questions'] = []
+            for selitem in selectQuestions:
+                questionCases = selitem.businessquestioncase_set.all()
+                selectQuestion = model_to_dict(selitem)
+                selectQuestion['question_cases'] = []
+                for qc in questionCases:
+                    questionCase = model_to_dict(qc)
+                    answers = BusinessAnswer.objects.filter(question_id=item.id, question_cases__id=qc.id)
+                    questionCase['answers'] = answers.count()
+                    selectQuestion['question_cases'].append(questionCase)
+                bsurvey['select_questions'].append(selectQuestion)
+            bsurvey['blank_questions'] = [model_to_dict(bq) for bq in blankQuestions]
+            bsurvey['normal_questions'] = [model_to_dict(nq) for nq in normalQuestions]
+            bsurvey['answer_users'] = []
+            for au in BusinessSurveyAnsweredUser.objects.filter(survey_id=qs.id):
+                if au.user is None:
+                    continue;
+                bsurvey['answer_users'].append(au.user.name)
+
+
+    elif node.process.type == 12:
+        drs = SelectDecideResult.objects.filter(business_role_allocation__business_id=business_id)
+        for dr in drs:
+            items = dr.selectedItems.all()
+            btm = BusinessTeamMember.objects.filter(business_role=dr.business_role_allocation.role, no=dr.business_role_allocation.no).first()
+            if not btm:
+                continue;
+            for selitem in items:
+                decide_results.append({
+                    'name': btm.user.name,
+                    'title': selitem.itemTitle
+                })
     else:
         # 提交的文件
         if is_path:
@@ -2396,7 +2501,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         for d in docs:
             sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
             doc_list.append({
-                'id': d.id, 'filename': d.filename, 'content': d.content,
+                'id': d.id, 'filename': d.filename, 'content': d.content, 'file': d.file,
                 'signs': list(sign_list), 'url': d.file.url if d.file else None, 'file_type': d.file_type
             })
 
@@ -2426,8 +2531,17 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         note = None
         notes = BusinessNotes.objects.filter(business_id=business_id,
                                         node_id=node.id) if observable == False else []
+    fnds = FlowNodeDocs.objects.filter(flow_id=node.flow_id, node_id=item.node_id)
+    flowDocs = []
+    for fnd in fnds:
+        doc_id = fnd.doc_id
+        flowdoc = FlowDocs.objects.get(pk=doc_id)
+        if flowdoc.usage == 1:
+            flowDocs.append(flowdoc)
     return {
         'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
         'note': note.content if note else None, 'notes': notes, 'type': node.process.type if node.process else 0,
-        'vote_status': vote_status
+        'vote_data': vote_data, 'vote_status': vote_status, 'guides': flowDocs,
+        'decide_results': decide_results, 'bdts_list': bdts_list, 'bsurvey': bsurvey,
+        'bpost': bpost
     }
