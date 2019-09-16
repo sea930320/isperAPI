@@ -2692,7 +2692,7 @@ def api_business_report_export(request):
                     table = document.add_table(0, 1)
                     if node['bpost']:
                         cells = table.add_row().cells
-                        cells[0].text = node['bpost']['content']
+                        cells[0].text = html2text.html2text(node['bpost']['content']).strip()
                     else:
                         cells = table.add_row().cells
                         cells[0].text = u'无'
@@ -2790,7 +2790,6 @@ def api_business_report_export(request):
                         else:
                             cells = table.add_row().cells
                             cells[0].text = u'无'
-
                 if node['type'] == 12:
                     document.add_heading(u'判断与选择记录', 3)
                     table = document.add_table(0, 1)
@@ -2801,7 +2800,6 @@ def api_business_report_export(request):
                     else:
                         cells = table.add_row().cells
                         cells[0].text = u'无'
-
 
                 document.add_heading(u'交流记录', 3)
                 table = document.add_table(0, 2)
