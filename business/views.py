@@ -6025,12 +6025,10 @@ def getAllBillList(bill_id):
 
 def api_bill_name_list(request):
     resp = auth_check(request, "GET")
-    observable = False
     if resp != {}:
-        observable = True
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         business_id = request.GET.get("business_id", None)
-        show_mode = request.GET.get("show_mode", None)
         bill_name = BusinessBillList.objects.filter(business_id=business_id)
         resp = code.get_msg(code.SUCCESS)
         if (len(bill_name) == 0):
@@ -6048,9 +6046,8 @@ def api_bill_name_list(request):
 
 def api_bill_name_only(request):
     resp = auth_check(request, "GET")
-    observable = False
     if resp != {}:
-        observable = True
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
     try:
         business_id = request.GET.get("business_id", None)
         bill_name = BusinessBillList.objects.filter(business_id=business_id)
@@ -6611,6 +6608,27 @@ def api_bill_doc_upload_bill(request):
         business_list = BusinessBillList.objects.filter(business_id=business_id).first()
         business_list.docs.add(added_doc)
         resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_bill_get_all(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get("business_id", None)
+        bill_name = BusinessBillList.objects.filter(business_id=business_id)
+        resp = code.get_msg(code.SUCCESS)
+        if (len(bill_name) == 0):
+            resp['d'] = {'bill_name': '', 'bill_id': 0, 'bill_data': [], 'edit_mode':0}
+        else:
+            bill_data = getAllBillList(bill_name.first().id)
+            resp['d'] = {'bill_name': bill_name.first().bill_name, 'bill_id': bill_name.first().id,
+                         'bill_data': bill_data, 'edit_mode':bill_name.first().edit_mode}
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
