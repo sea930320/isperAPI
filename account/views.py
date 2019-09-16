@@ -244,14 +244,14 @@ def api_account_login(request):
                         }
                     elif login_type in [4, 8]:
                         company = user.tcompany
-                        group = company.group
+                        group = company.group if company else user.allgroups_set_instructors.get()
                         position = user.tposition
                         part = None
                         if position:
                             part = position.parts
                         manager_info = {
-                            'company_id': company.id,
-                            'company_name': company.name,
+                            'company_id': company.id if company else '',
+                            'company_name': company.name if company else '',
                             'group_id': group.id,
                             'group_name': group.name,
                             'part_id': part.id if part else '',
