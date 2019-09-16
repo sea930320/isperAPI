@@ -2311,7 +2311,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         for d in contents:
             doc_list.append({
                 'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
-                'signs': [{'sign_status': d.sign_status, 'sign': d.sign}], 'file': d.file,
+                'signs': [{'sign_status': d.sign_status, 'sign': d.sign}], 'file': d.file.path,
                 'url': d.file.url if d.file else None
             })
         # 提交的文件
@@ -2323,7 +2323,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         for d in docs:
             sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
             doc_list.append({
-                'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type, 'file': d.file,
+                'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type, 'file': d.file.path,
                 'signs': list(sign_list), 'url': d.file.url if d.file else None
             })
     elif node.process.type == 3:
@@ -2334,7 +2334,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
             project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=node.id)
         for d in project_docs:
             doc_list.append({
-                'id': d.id, 'filename': d.filename, 'signs': [], 'file': d.file,
+                'id': d.id, 'filename': d.filename, 'signs': [], 'file': d.file.path,
                 'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
             })
 
@@ -2344,11 +2344,16 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
             status = 0
             members = []
             to_members = []
+            tms = ""
             bras = BusinessRoleAllocation.objects.filter(business_id=business_id, node_id=node.id, can_take_in=1)
             for bra in bras:
                 btm = BusinessTeamMember.objects.filter(business_role=bra.role, no=bra.no).first()
                 if btm and btm.user:
                     to_members.append(btm.user.name)
+                    if tms == "":
+                        tms = btm.user.name
+                    else:
+                        tms = tms + ',' + btm.user.name
             for member in team_members:
                 if not member.user_id:
                     continue;
@@ -2359,9 +2364,8 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
                     if b.status == 1:
                         members.append(member.user.name)
 
-            if user_id is None:
-                bdts_list.append({'doc_id': doc.pk, 'doc_name': doc.filename, 'members': members,
-                                  'status': status, 'created_by': doc.created_by.name, 'to_members': to_members})
+            bdts_list.append({'doc_id': doc.pk, 'doc_name': doc.filename, 'members': members,
+                                  'status': status, 'created_by': doc.created_by.name, 'to_members': to_members, 'to_members_str': tms})
     elif node.process.type == 5:
         poll = Poll.objects.filter(
             business_id=business_id,
@@ -2430,14 +2434,12 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
                     if b.status == 1:
                         members.append(member.user.name)
 
-            if user_id is None:
-                bdts_list.append({'doc_id': doc.pk, 'doc_name': doc.filename, 'members': members,
+            bdts_list.append({'doc_id': doc.pk, 'doc_name': doc.filename, 'members': members,
                                   'status': status, 'created_by': doc.created_by.name})
     elif node.process.type == 11:
         business = Business.objects.filter(pk=business_id).first()
         qs = BusinessSurvey.objects.filter(
             business_id=business_id,
-            project_id=business.cur_project_id,
             node_id=node.id
         ).first()
         if qs:
@@ -2501,7 +2503,7 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         for d in docs:
             sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
             doc_list.append({
-                'id': d.id, 'filename': d.filename, 'content': d.content, 'file': d.file,
+                'id': d.id, 'filename': d.filename, 'content': d.content, 'file': d.file.path,
                 'signs': list(sign_list), 'url': d.file.url if d.file else None, 'file_type': d.file_type
             })
 
@@ -2537,7 +2539,9 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         doc_id = fnd.doc_id
         flowdoc = FlowDocs.objects.get(pk=doc_id)
         if flowdoc.usage == 1:
-            flowDocs.append(flowdoc)
+            flowDocs.append({
+                'content': flowdoc.content
+            })
     return {
         'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
         'note': note.content if note else None, 'notes': notes, 'type': node.process.type if node.process else 0,

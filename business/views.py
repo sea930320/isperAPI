@@ -2854,7 +2854,7 @@ def api_business_report_export(request):
                 if len(node['guides']) > 0:
                     for guide in node['guides']:
                         cells = table.add_row().cells
-                        cells[0].text = guide.content
+                        cells[0].text = guide['content']
                 else:
                     cells = table.add_row().cells
                     cells[0].text = u'无'
@@ -2869,7 +2869,7 @@ def api_business_report_export(request):
             zf.write(docPath, str(busi.pk) + '-' + busi.name + '.docx')
             for doc in docs:
                 zip_path = os.path.join(doc['dir'], doc['name'])
-                dpath = doc['file'].path
+                dpath = doc['file']
                 zf.write(dpath, zip_path)
             zf.close()
 
@@ -4055,174 +4055,17 @@ def api_business_result(request):
             # 各环节提交文件信息和聊天信息
             paths = BusinessTransPath.objects.filter(business_id=business_id)
             node_list = []
+            parallel_passed_nodes = business.parallel_passed_nodes.all()
             for item in paths:
-                node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first()
-                if node.process.type == const.PROCESS_NEST_TYPE:
+                node_item = report_gen(business_id, item, user_id, False)
+                if node_item == False:
                     continue
-                # 个人笔记
-                note = BusinessNotes.objects.filter(business_id=business_id,
-                                                    node_id=item.node_id, created_by=user_id).first()
-
-                # 角色项目素材
-                project_doc_list = []
-                operation_guide_list = []
-                project_tips_list = []
-
-                doc_ids = FlowNodeDocs.objects.filter(flow_id=flow.pk,
-                                                      node_id=item.node_id).values_list('doc_id', flat=True)
-                if doc_ids:
-                    operation_docs = FlowDocs.objects.filter(id__in=doc_ids, usage__in=(1, 2, 3))
-                    for d in operation_docs:
-                        url = ''
-                        if d.file:
-                            url = d.file.url
-                        if d.usage == 1:
-                            operation_guide_list.append({
-                                'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
-                                'content': d.content, 'url': url, 'file_type': d.file_type
-                            })
-                        else:
-                            project_doc_list.append({
-                                'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
-                                'content': d.content, 'url': url, 'file_type': d.file_type
-                            })
-
-                # 获取该环节角色分配项目素材id
-                doc_ids = ProjectDocRole.objects.filter(project_id=item.project_id,
-                                                        node_id=item.node_id).values_list('doc_id', flat=True)
-
-                if doc_ids:
-                    # logger.info(doc_ids)
-                    project_docs = ProjectDoc.objects.filter(id__in=doc_ids)
-                    for d in project_docs:
-                        if d.usage in [3, 4, 5, 7]:
-                            is_exist = False
-                            if d.usage == 3:
-                                for t in project_doc_list:
-                                    if d.name == t['name']:
-                                        is_exist = True
-                                        break
-                            if not is_exist:
-                                project_doc_list.append({
-                                    'id': d.id, 'name': d.name, 'type': d.type, 'usage': d.usage,
-                                    'content': d.content, 'url': d.file.url, 'file_type': d.file_type
-                                })
-
-                doc_list = []
-                vote_status = []
-                if node.process.type == 2:
-                    # 如果是编辑
-                    # 应用模板
-                    contents = BusinessDocContent.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                                 has_edited=True)
-                    for d in contents:
-                        doc_list.append({
-                            'id': d.doc_id, 'filename': d.name, 'content': d.content, 'file_type': d.file_type,
-                            'signs': [{'sign_status': d.sign_status, 'sign': d.sign}],
-                            'url': d.file.url if d.file else None
-                        })
-                    # 提交的文件
-                    docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                      path_id=item.pk)
-                    for d in docs:
-                        sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                            'signs': list(sign_list), 'url': d.file.url if d.file else None
-                        })
-                elif node.process.type == 3:
-                    project_docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                              path_id=item.pk)
-                    for d in project_docs:
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'signs': [],
-                            'url': d.file.url if d.file else None, 'content': d.content, 'file_type': d.file_type,
-                        })
-                elif node.process.type == 5:
-                    # 如果是投票   三期 - 增加投票结果数量汇总  todo 去掉老师观察者的数量 WTF
-                    vote_status_0_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=0)
-                    vote_status_0 = []
-                    # 去掉老师观察者角色的数据
-                    for item0 in vote_status_0_temp:
-                        role_alloc_temp = item0.business_role_allocation
-                        if role_alloc_temp.role.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_0.append(item0)
-
-                    vote_status_1_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=1)
-                    vote_status_1 = []
-                    # 去掉老师观察者角色的数据
-                    for item1 in vote_status_1_temp:
-                        role_alloc_temp = item1.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_1.append(item1)
-
-                    vote_status_2_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=2)
-                    vote_status_2 = []
-                    # 去掉老师观察者角色的数据
-                    for item2 in vote_status_2_temp:
-                        role_alloc_temp = item2.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_2.append(item2)
-
-                    vote_status_9_temp = BusinessRoleAllocationStatus.objects.filter(
-                        business_id=business_id,
-                        business_role_allocation__node_id=item.node_id,
-                        # path_id=item.id,
-                        vote_status=9)
-                    vote_status_9 = []
-                    # 去掉老师观察者角色的数据
-                    for item9 in vote_status_9_temp:
-                        role_alloc_temp = item9.business_role_allocation
-                        if role_alloc_temp.name != const.ROLE_TYPE_OBSERVER:
-                            vote_status_9.append(item9)
-                    vote_status = [{'status': '未投票', 'num': len(vote_status_0)},
-                                   {'status': '同意', 'num': len(vote_status_1)},
-                                   {'status': '不同意', 'num': len(vote_status_2)},
-                                   {'status': '弃权', 'num': len(vote_status_9)}]
-                    pass
-                else:
-                    # 提交的文件
-                    docs = BusinessDoc.objects.filter(business_id=business_id, node_id=item.node_id,
-                                                      path_id=item.id)
-                    for d in docs:
-                        sign_list = BusinessDocSign.objects.filter(doc_id=d.pk).values('sign', 'sign_status')
-                        doc_list.append({
-                            'id': d.id, 'filename': d.filename, 'content': d.content, 'file_type': d.file_type,
-                            'signs': list(sign_list), 'url': d.file.url if d.file else None
-                        })
-                # 消息
-                messages = BusinessMessage.objects.filter(business_id=business_id,
-                                                          business_role_allocation__node_id=item.node_id,
-                                                          path_id=item.id).order_by('timestamp')
-                message_list = []
-                for m in messages:
-                    message = {
-                        'user_name': m.user_name, 'role_name': m.role_name,
-                        'msg': m.msg, 'msg_type': m.msg_type, 'ext': json.loads(m.ext),
-                        'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                    }
-                    message_list.append(message)
-
-                node_list.append({
-                    'docs': doc_list, 'messages': message_list, 'id': node.id, 'node_name': node.name,
-                    'project_docs': project_doc_list,
-                    'operation_guides': operation_guide_list,
-                    'project_tips_list': project_tips_list,
-                    'note': note.content if note else None, 'type': node.process.type if node.process else 0,
-                    'vote_status': vote_status
-                })
+                node_list.append(node_item)
+            for item in parallel_passed_nodes:
+                node_item = report_gen(business_id, item.node, user_id, False, False)
+                if node_item == False:
+                    continue
+                node_list.append(node_item)
 
             detail = {'name': u'{0} {1}'.format(business.id, business.name), 'project_name': project.name,
                       'flow_name': flow.name, 'members': member_list,
@@ -4231,6 +4074,7 @@ def api_business_result(request):
                       'end_time': business.end_time.strftime('%Y-%m-%d') if business.end_time else None,
                       'create_time': business.create_time.strftime('%Y-%m-%d'),
                       'flow_xml': flow.xml}
+            print node_list
             resp = code.get_msg(code.SUCCESS)
             resp['d'] = {'detail': detail, 'nodes': node_list}
         else:
