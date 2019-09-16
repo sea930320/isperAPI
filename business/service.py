@@ -2291,6 +2291,47 @@ def get_business_display_file_read_status(doc_list, can_terminate, user_id):
 def is_look_on_node(node_id):
     return FlowNode.objects.filter(pk=node_id, look_on=1).exists()
 
+def getAllBillList(bill_id):
+    bill_name_object = BusinessBillList.objects.filter(id=bill_id).first()
+    show_mode = bill_name_object.edit_mode
+    if (int(show_mode) == 1):
+        res = []
+        chapters_objects = bill_name_object.chapters.all().order_by("chapter_number")
+        for chapters_object in chapters_objects:
+            sections_objects = chapters_object.sections.all().order_by("section_number")
+            for sections_object in sections_objects:
+                parts_objects = sections_object.parts.all().order_by("part_number")
+                for parts_object in parts_objects:
+                    res_json = {}
+                    res_json["chapter_id"] = chapters_object.id
+                    res_json["chapter_number"] = chapters_object.chapter_number
+                    res_json["chapter_title"] = chapters_object.chapter_title
+                    res_json["chapter_content"] = chapters_object.chapter_content
+                    res_json["section_id"] = sections_object.id
+                    res_json["section_number"] = sections_object.section_number
+                    res_json["section_title"] = sections_object.section_title
+                    res_json["section_content"] = sections_object.section_content
+                    res_json["part_id"] = parts_object.id
+                    res_json["part_number"] = parts_object.part_number
+                    res_json["part_title"] = parts_object.part_title
+                    res_json["part_content"] = parts_object.part_content
+                    res_json["part_reason"] = parts_object.part_reason
+                    res.append(res_json)
+                    continue
+
+    elif (int(show_mode) == 2):
+        res = []
+        part_mode_parts_objects = bill_name_object.part_mode_parts.all().order_by("part_number")
+        for part_mode_parts_object in part_mode_parts_objects:
+            res_json = {}
+            res_json["part_id"] = part_mode_parts_object.id
+            res_json["part_number"] = part_mode_parts_object.part_number
+            res_json["part_title"] = part_mode_parts_object.part_title
+            res_json["part_content"] = part_mode_parts_object.part_content
+            res_json["part_reason"] = part_mode_parts_object.part_reason
+            res.append(res_json)
+            continue
+    return res
 
 def report_gen(business_id, item, user_id, observable, is_path=True):
     node = FlowNode.objects.filter(pk=item.node_id, del_flag=0).first() if is_path else item
@@ -2303,6 +2344,8 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
     bdts_list = []
     bsurvey = None
     bpost = None
+    bill_name = None
+    bill_data = None
     if node.process.type == 2:
         # 如果是编辑
         # 应用模板
@@ -2506,7 +2549,18 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
                 'id': d.id, 'filename': d.filename, 'content': d.content, 'file': d.file.path,
                 'signs': list(sign_list), 'url': d.file.url if d.file else None, 'file_type': d.file_type
             })
-
+    if node.process.type == 14:
+        bills = BusinessBillList.objects.filter(business_id=business_id)
+        if (len(bills) == 0):
+            bill_data = {'bill_name': '', 'bill_id': 0, 'bill_data': [], 'edit_mode': 0}
+            bill_name = None
+        else:
+            bill_data = getAllBillList(bills.first().id)
+            bill_name = {
+                'id': bills.first().pk,
+                'edit_mode': bills.first().edit_mode,
+                'name': bills.first().bill_name
+            }
     # 消息
     if is_path:
         messages = BusinessMessage.objects.filter(business_id=business_id,
@@ -2547,5 +2601,5 @@ def report_gen(business_id, item, user_id, observable, is_path=True):
         'note': note.content if note else None, 'notes': notes, 'type': node.process.type if node.process else 0,
         'vote_data': vote_data, 'vote_status': vote_status, 'guides': flowDocs,
         'decide_results': decide_results, 'bdts_list': bdts_list, 'bsurvey': bsurvey,
-        'bpost': bpost
+        'bpost': bpost, 'bill_name': bill_name, 'bill_data': bill_data
     }
