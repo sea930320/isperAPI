@@ -5739,9 +5739,11 @@ def api_bill_chapter_list(request):
 #######################################################################################
 
 
-def getAllBillList(bill_id, show_mode):
-    bill_name_object = BusinessBillList.objects.filter(id=bill_id, edit_mode=int(show_mode)).first()
-    if (show_mode == '1'):
+def getAllBillList(bill_id):
+    bill_name_object = BusinessBillList.objects.filter(id=bill_id).first()
+    show_mode = bill_name_object.edit_mode
+    print show_mode
+    if (int(show_mode) == 1):
         res = []
         chapters_objects = bill_name_object.chapters.all().order_by("chapter_number")
         for chapters_object in chapters_objects:
@@ -5765,7 +5767,8 @@ def getAllBillList(bill_id, show_mode):
                     res_json["part_reason"] = parts_object.part_reason
                     res.append(res_json)
                     continue
-    elif (show_mode == '2'):
+
+    elif (int(show_mode) == 2):
         res = []
         part_mode_parts_objects = bill_name_object.part_mode_parts.all().order_by("part_number")
         for part_mode_parts_object in part_mode_parts_objects:
@@ -5791,11 +5794,11 @@ def api_bill_name_list(request):
         bill_name = BusinessBillList.objects.filter(business_id=business_id)
         resp = code.get_msg(code.SUCCESS)
         if (len(bill_name) == 0):
-            resp['d'] = {'bill_name': '', 'bill_id': 0, 'bill_data': []}
+            resp['d'] = {'bill_name': '', 'bill_id': 0, 'bill_data': [], 'edit_mode':0}
         else:
-            bill_data = getAllBillList(bill_name.first().id, show_mode)
+            bill_data = getAllBillList(bill_name.first().id)
             resp['d'] = {'bill_name': bill_name.first().bill_name, 'bill_id': bill_name.first().id,
-                         'bill_data': bill_data}
+                         'bill_data': bill_data, 'edit_mode':bill_name.first().edit_mode}
     except Exception as e:
         logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
         resp = code.get_msg(code.SYSTEM_ERROR)
@@ -6268,4 +6271,93 @@ def api_bill_save(request):
 
     return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 
+
+def api_bill_delete(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.POST.get("business_id", None)
+        # update bill name
+        bill_name_list = BusinessBillList.objects.filter(business_id=business_id)
+        if (len(bill_name_list) == 1):
+            previous_docs = bill_name_list[0].docs.all()
+            for previous_one_doc in previous_docs:
+                bill_name_list[0].docs.remove(previous_one_doc)
+                previous_one_doc.delete()
+            if (int(bill_name_list[0].edit_mode) == 1):
+                previous_chapter = bill_name_list[0].chapters.all()
+                for previous_one_chapter in previous_chapter:
+                    previous_section_temp = previous_one_chapter.sections.all()
+                    for previous_one_section_temp in previous_section_temp:
+                        previous_part_temp = previous_one_section_temp.parts.all()
+                        for previous_one_part_temp in previous_part_temp:
+                            previous_one_section_temp.parts.remove(previous_one_part_temp)
+                            previous_one_part_temp.delete()
+                        previous_one_chapter.sections.remove(previous_one_section_temp)
+                        previous_one_section_temp.delete()
+                    bill_name_list[0].chapters.remove(previous_one_chapter)
+                    previous_one_chapter.delete()
+            elif (int(bill_name_list[0].edit_mode) == 2):
+                bill_part_mode_parts = bill_name_list[0].part_mode_parts.all()
+                for bill_one_part_mode_part in bill_part_mode_parts:
+                    bill_name_list[0].part_mode_parts.remove(bill_one_part_mode_part)
+                    bill_one_part_mode_part.delete()
+            bill_name_list[0].delete()
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+def api_bill_doc_list_all(request):
+    resp = auth_check(request, "GET")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        business_id = request.GET.get("business_id", None)
+        business_list = BusinessBillList.objects.filter(business_id=business_id).first()
+        bisnessDocs = business_list.docs.all()
+
+        res = []
+        for bisnessDocsOne in bisnessDocs:
+            res_one = {}
+            res_one["id"] = bisnessDocsOne.id
+            res_one["doc_id"] = bisnessDocsOne.doc_id
+            res_one["doc_conception"] = bisnessDocsOne.doc_conception
+            res_one["doc_url"] = bisnessDocsOne.doc_url
+            res_one["doc_name"] = bisnessDocsOne.doc_name
+            res.append(res_one)
+        resp = code.get_msg(code.SUCCESS)
+        resp['d'] = {'doc_data': res}
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+
+
+
+def api_bill_doc_upload_bill(request):
+    resp = auth_check(request, "POST")
+    if resp != {}:
+        return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
+    try:
+        doc_id = request.POST.get("doc_id", None)
+        doc_url = request.POST.get("doc_url", None)
+        doc_conception = request.POST.get("doc_conception", None)
+        business_id = request.POST.get("business_id", None)
+        doc_name = doc_url.split("/")[-1]
+        added_doc = BusinessBillDoc.objects.create(doc_id=int(doc_id), doc_url=doc_url, doc_name=doc_name,
+                                                       doc_conception=doc_conception)
+        business_list = BusinessBillList.objects.filter(business_id=business_id).first()
+        business_list.docs.add(added_doc)
+        resp = code.get_msg(code.SUCCESS)
+    except Exception as e:
+        logger.exception('api_business_send_guider_message Exception:{0}'.format(str(e)))
+        resp = code.get_msg(code.SYSTEM_ERROR)
+
+    return HttpResponse(json.dumps(resp, ensure_ascii=False), content_type="application/json")
 ##############################################
