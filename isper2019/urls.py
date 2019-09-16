@@ -374,6 +374,9 @@ urlpatterns += (
     url(r'^api/business/bill/doc/upload$', business_views.api_bill_doc_upload),
     url(r'^api/business/bill/part/insert$', business_views.api_bill_part_insert),
     url(r'^api/business/bill/save$', business_views.api_bill_save),
+    url(r'^api/business/bill/delete$', business_views.api_bill_delete),
+    url(r'^api/business/bill/doc/listall$', business_views.api_bill_doc_list_all),
+    url(r'^api/business/bill/doc/uploadbill$', business_views.api_bill_doc_upload_bill),
 )
 
 urlpatterns += (
